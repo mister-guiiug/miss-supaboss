@@ -1,0 +1,31 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Chrome — launch (npm run dev:mock)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5204/",
+      "webRoot": "${workspaceFolder}",
+      "preLaunchTask": "dev:mock",
+      "sourceMaps": true
+    },
+    {
+      "name": "Server — debug (node --inspect)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--watch", "--env-file-if-exists=.env"],
+      "program": "${workspaceFolder}/server/src/index.ts",
+      "outputCapture": "std"
+    },
+    {
+      "name": "Vitest — all",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "test"],
+      "console": "integratedTerminal"
+    }
+  ]
+}

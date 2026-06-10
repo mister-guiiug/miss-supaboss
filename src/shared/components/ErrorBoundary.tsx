@@ -1,0 +1,53 @@
+import { Component, type ErrorInfo, type ReactNode } from 'react';
+
+interface Props {
+  children: ReactNode;
+  level: 'app' | 'route';
+}
+
+interface State {
+  error: Error | null;
+}
+
+export class ErrorBoundary extends Component<Props, State> {
+  override state: State = { error: null };
+
+  static getDerivedStateFromError(error: Error): State {
+    return { error };
+  }
+
+  override componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error(
+      'ErrorBoundary',
+      this.props.level,
+      error,
+      info.componentStack
+    );
+  }
+
+  override render(): ReactNode {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div role="alert" className="mx-auto max-w-md p-6 text-center">
+        <p aria-hidden="true" className="text-4xl">
+          🦺
+        </p>
+        <h1 className="mt-2 text-lg font-semibold">Quelque chose a cassé</h1>
+        <p className="mt-1 text-sm text-[var(--sb-text-soft)]">
+          {this.state.error.message}
+        </p>
+        <button
+          type="button"
+          className="touch-target mt-4 rounded-xl bg-primary px-4 font-semibold text-[#06281a]"
+          onClick={() =>
+            this.props.level === 'app'
+              ? window.location.reload()
+              : this.setState({ error: null })
+          }
+        >
+          {this.props.level === 'app' ? 'Recharger l’app' : 'Réessayer'}
+        </button>
+      </div>
+    );
+  }
+}

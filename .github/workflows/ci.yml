@@ -1,0 +1,24 @@
+# CI déléguée au reusable workflow famille (dev-wpa-config).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  ci:
+    uses: mister-guiiug/dev-wpa-config/.github/workflows/pwa-ci.yml@v1
+    secrets: inherit
+    with:
+      # Le build CI valide le bundle mock (même build que GitHub Pages).
+      build-env: |
+        VITE_MOCK=1
+      # Passer à true une fois Playwright validé localement (npx playwright install).
+      run-e2e: false
+      e2e-grep: '@critical'

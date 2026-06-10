@@ -1,0 +1,10 @@
+{
+  "extends": "@mister-guiiug/dev-wpa-config/tsconfig-node",
+  "compilerOptions": {
+    "tsBuildInfoFile": "../node_modules/.tmp/tsconfig.server.tsbuildinfo",
+    // Le serveur tourne SANS transpilation (type stripping Node ≥ 22.18) :
+    // la syntaxe doit rester « erasable » (pas d'enum, pas de namespace).
+    "erasableSyntaxOnly": true
+  },
+  "include": ["src", "test", "../shared"]
+}

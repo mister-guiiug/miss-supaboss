@@ -1,0 +1,129 @@
+@import 'tailwindcss';
+@import '@mister-guiiug/dev-wpa-config/tailwind-preset.css';
+
+/*
+ * Univers visuel « Miss Supaboss » : vert Supabase (#3ecf8e) sur des bleus
+ * nuit, dark-first (outil d'ops). Sémantique : vert = actif/sain,
+ * ambre = avertissement, rouge = critique/erreur, gris-bleu = pause.
+ */
+@theme {
+  --color-primary: #3ecf8e;
+  --color-primary-soft: #103526;
+  --color-warn: #f59e0b;
+  --color-danger: #f43f5e;
+  --color-paused: #7d8db0;
+
+  --font-display: var(--font-sans);
+  --radius-card: 1rem;
+}
+
+:root {
+  --sb-bg: #f4f7fb;
+  --sb-surface: #ffffff;
+  --sb-surface-2: #e9eef7;
+  --sb-text: #0e1a30;
+  --sb-text-soft: #54637f;
+  --sb-border: #d7e0ee;
+  --sb-ring: #0f9d63;
+  --sb-ok: #0f9d63;
+  --sb-warn: #b45309;
+  --sb-high: #c2410c;
+  --sb-critical: #be123c;
+  --sb-paused: #64748b;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --sb-bg: #0c1222;
+  --sb-surface: #131c33;
+  --sb-surface-2: #1a2545;
+  --sb-text: #e9f0fc;
+  --sb-text-soft: #93a3c4;
+  --sb-border: #263354;
+  --sb-ring: #3ecf8e;
+  --sb-ok: #3ecf8e;
+  --sb-warn: #fbbf24;
+  --sb-high: #fb923c;
+  --sb-critical: #fb7185;
+  --sb-paused: #7d8db0;
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  min-height: 100dvh;
+}
+
+body {
+  margin: 0;
+  background: var(--sb-bg);
+  color: var(--sb-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Anneau de focus homogène (accessibilité clavier). */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid var(--sb-ring);
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+
+/* Chiffres tabulaires pour les quotas. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Carte standard. */
+.card {
+  background: var(--sb-surface);
+  border: 1px solid var(--sb-border);
+  border-radius: var(--radius-card);
+}
+
+/* Animation discrète des transitions de statut. */
+@keyframes sb-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+.sb-pulse {
+  animation: sb-pulse 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sb-pulse {
+    animation: none;
+  }
+}
+
+/* Skeletons. */
+@keyframes sb-shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: 200px 0;
+  }
+}
+.skeleton {
+  border-radius: 0.5rem;
+  background: linear-gradient(
+    90deg,
+    var(--sb-surface-2) 25%,
+    var(--sb-border) 50%,
+    var(--sb-surface-2) 75%
+  );
+  background-size: 400px 100%;
+  animation: sb-shimmer 1.4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}

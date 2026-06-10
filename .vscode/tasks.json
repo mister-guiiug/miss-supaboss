@@ -1,0 +1,52 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev",
+      "type": "npm",
+      "script": "dev",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*",
+          "endsPattern": "ready in|Local:"
+        }
+      }
+    },
+    {
+      "label": "dev:mock",
+      "type": "npm",
+      "script": "dev:mock",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*",
+          "endsPattern": "ready in|Local:"
+        }
+      }
+    },
+    {
+      "label": "dev:server",
+      "type": "npm",
+      "script": "dev:server",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    { "label": "test", "type": "npm", "script": "test", "group": "test" },
+    { "label": "test: watch", "type": "npm", "script": "test:watch" },
+    { "label": "type-check", "type": "npm", "script": "type-check" },
+    { "label": "lint", "type": "npm", "script": "lint" },
+    {
+      "label": "build",
+      "type": "npm",
+      "script": "build",
+      "group": "build"
+    }
+  ]
+}

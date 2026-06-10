@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <!--
+      CSP défense en profondeur (template famille).
+      connect-src 'self' : l'app ne parle qu'à SON backend (même origine) —
+      les PAT Supabase ne transitent jamais par le navigateur. En mode mock
+      (GitHub Pages), aucun appel réseau de données.
+      'unsafe-inline' requis : script anti-FOUC + styles Tailwind 4 / SW.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    />
+
+    <!-- Script anti-FOUC : applique le thème avant tout rendu (clé alignée useTheme). -->
+    <script>
+      (function () {
+        try {
+          var v = localStorage.getItem('dwc_theme');
+          var eff =
+            v === 'light' || v === 'dark'
+              ? v
+              : window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light';
+          document.documentElement.setAttribute('data-theme', eff);
+          document.documentElement.style.colorScheme = eff;
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
+
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0c1222" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="Miss Supaboss" />
+
+    <meta
+      name="description"
+      content="Pilotage multi-comptes Supabase Free : inventaire des projets, pause / restauration à la demande, suivi des quotas Free Plan et préparation de démo."
+    />
+    <title>Miss Supaboss</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
