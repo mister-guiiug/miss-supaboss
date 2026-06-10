@@ -1,21 +1,19 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  FORCED_MOCK,
   isDemoOverride,
   MOCK_STORAGE_KEY,
   resetDemoData,
   setDemoMode,
 } from './demoMode.ts';
 
+// NB : FORCED_MOCK n'est pas testé — il reflète VITE_MOCK au build
+// (la CI famille injecte VITE_MOCK=1 avant build ET tests).
+
 beforeEach(() => {
   localStorage.clear();
 });
 
 describe('mode démo (surcharge runtime)', () => {
-  it('hors build Pages, le mock n’est pas forcé', () => {
-    expect(FORCED_MOCK).toBe(false);
-  });
-
   it('setDemoMode pose et retire le drapeau persistant', () => {
     expect(isDemoOverride()).toBe(false);
     setDemoMode(true);
