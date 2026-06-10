@@ -1,8 +1,10 @@
-import { RefreshCw, WifiOff } from 'lucide-react';
+import { useState } from 'react';
+import { RefreshCw, WifiOff, X } from 'lucide-react';
 import { formatRelative } from '../../../shared/format.ts';
-import { IS_MOCK } from '../../api/index.ts';
+import { FORCED_MOCK, IS_MOCK, switchDemoMode } from '../../api/index.ts';
 import { useFleetStore } from '../../store/useFleetStore.ts';
 import { useOnline } from '../hooks/useOnline.ts';
+import { ConfirmSheet } from './ConfirmSheet.tsx';
 
 export function AppHeader({ title }: { title: string }) {
   const loading = useFleetStore(s => s.loading);
@@ -12,6 +14,7 @@ export function AppHeader({ title }: { title: string }) {
   const loadFleet = useFleetStore(s => s.loadFleet);
   const loadMetrics = useFleetStore(s => s.loadMetrics);
   const online = useOnline();
+  const [confirmExitDemo, setConfirmExitDemo] = useState(false);
 
   const syncLabel = fromCache
     ? `hors ligne — état ${formatRelative(cacheSavedAt)}`
@@ -29,14 +32,27 @@ export function AppHeader({ title }: { title: string }) {
           </p>
         )}
       </div>
-      {IS_MOCK && (
-        <span
-          className="rounded-full bg-primary/15 px-2 py-1 text-xs font-semibold text-primary"
-          title="Données simulées — aucun appel à Supabase"
-        >
-          démo
-        </span>
-      )}
+      {IS_MOCK &&
+        (FORCED_MOCK ? (
+          // Build Pages : mock forcé, pas de sortie possible (pas de backend).
+          <span
+            className="rounded-full bg-primary/15 px-2 py-1 text-xs font-semibold text-primary"
+            title="Données simulées — aucun appel à Supabase"
+          >
+            démo
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmExitDemo(true)}
+            aria-label="Désactiver le mode démo"
+            title="Désactiver le mode démo"
+            className="flex items-center gap-1 rounded-full border border-primary/40 bg-primary/15 px-2.5 py-1.5 text-xs font-semibold text-primary"
+          >
+            démo
+            <X size={12} aria-hidden="true" />
+          </button>
+        ))}
       {!online && (
         <span
           className="flex items-center gap-1 rounded-full bg-[var(--sb-warn)]/15 px-2 py-1 text-xs font-medium text-[var(--sb-warn)]"
@@ -61,6 +77,21 @@ export function AppHeader({ title }: { title: string }) {
           className={loading ? 'animate-spin' : ''}
         />
       </button>
+
+      {IS_MOCK && !FORCED_MOCK && (
+        <ConfirmSheet
+          open={confirmExitDemo}
+          title="Quitter le mode démo ?"
+          confirmLabel="Désactiver la démo"
+          onCancel={() => setConfirmExitDemo(false)}
+          onConfirm={() => void switchDemoMode(false)}
+        >
+          <p>
+            Retour aux données réelles — l'application se recharge. Les fixtures
+            de démo restent en place pour la prochaine fois.
+          </p>
+        </ConfirmSheet>
+      )}
     </header>
   );
 }

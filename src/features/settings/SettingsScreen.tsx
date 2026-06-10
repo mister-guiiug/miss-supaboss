@@ -15,7 +15,7 @@ import {
   FORCED_MOCK,
   IS_MOCK,
   resetDemoData,
-  setDemoMode,
+  switchDemoMode,
 } from '../../api/index.ts';
 import { useFleetStore } from '../../store/useFleetStore.ts';
 import { canAdmin, useSessionStore } from '../../store/useSessionStore.ts';
@@ -89,13 +89,9 @@ export function SettingsScreen() {
     }
   };
 
-  /** Bascule du mode démo : purge le snapshot hors-ligne (ne pas mélanger
-   *  données réelles et fictives) puis recharge — le client API est choisi
-   *  au chargement du module. */
-  const toggleDemo = async (on: boolean): Promise<void> => {
-    setDemoMode(on);
-    await clearSnapshot();
-    window.location.reload();
+  // Bascule centralisée (drapeau + purge snapshot + reload) : demoMode.ts.
+  const toggleDemo = (on: boolean): void => {
+    void switchDemoMode(on);
   };
 
   const resetDemo = async (): Promise<void> => {
@@ -188,7 +184,7 @@ export function SettingsScreen() {
             </p>
             <button
               type="button"
-              onClick={() => void toggleDemo(false)}
+              onClick={() => toggleDemo(false)}
               className="touch-target w-full rounded-xl bg-primary px-4 font-semibold text-[#06281a]"
             >
               Désactiver le mode démo
@@ -203,7 +199,7 @@ export function SettingsScreen() {
             </p>
             <button
               type="button"
-              onClick={() => void toggleDemo(true)}
+              onClick={() => toggleDemo(true)}
               className="touch-target w-full rounded-xl border border-[var(--sb-border)] px-4 font-semibold"
             >
               Activer le mode démo

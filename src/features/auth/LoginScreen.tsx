@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { ApiError, setDemoMode } from '../../api/index.ts';
+import { ApiError, switchDemoMode } from '../../api/index.ts';
 import { useSessionStore } from '../../store/useSessionStore.ts';
 
 export function LoginScreen() {
@@ -86,10 +86,7 @@ export function LoginScreen() {
       </p>
       <button
         type="button"
-        onClick={() => {
-          setDemoMode(true);
-          window.location.reload();
-        }}
+        onClick={() => void switchDemoMode(true)}
         className="touch-target rounded-xl border border-[var(--sb-border)] px-4 text-sm font-medium text-[var(--sb-text-soft)]"
       >
         🎭 Essayer en mode démo (données fictives, sans compte)

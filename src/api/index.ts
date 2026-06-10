@@ -11,4 +11,5 @@ export {
   IS_MOCK,
   resetDemoData,
   setDemoMode,
+  switchDemoMode,
 } from './demoMode.ts';

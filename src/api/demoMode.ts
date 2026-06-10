@@ -44,3 +44,14 @@ export function resetDemoData(): void {
 
 /** Évalué au chargement du module — un reload applique tout changement. */
 export const IS_MOCK = FORCED_MOCK || isDemoOverride();
+
+/**
+ * Bascule complète : pose le drapeau, purge le snapshot hors-ligne (ne pas
+ * mélanger données réelles et fictives) puis recharge l'application.
+ */
+export async function switchDemoMode(on: boolean): Promise<void> {
+  setDemoMode(on);
+  const { clearSnapshot } = await import('../offline/lastKnown.ts');
+  await clearSnapshot();
+  window.location.reload();
+}
