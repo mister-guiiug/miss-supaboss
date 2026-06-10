@@ -86,5 +86,3 @@ export interface Api {
   getSettings(): Promise<SettingsDto>;
   putSettings(settings: SettingsDto): Promise<SettingsDto>;
 }
-
-export const IS_MOCK = import.meta.env.VITE_MOCK === '1';

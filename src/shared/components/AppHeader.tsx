@@ -1,5 +1,6 @@
 import { RefreshCw, WifiOff } from 'lucide-react';
 import { formatRelative } from '../../../shared/format.ts';
+import { IS_MOCK } from '../../api/index.ts';
 import { useFleetStore } from '../../store/useFleetStore.ts';
 import { useOnline } from '../hooks/useOnline.ts';
 
@@ -28,6 +29,14 @@ export function AppHeader({ title }: { title: string }) {
           </p>
         )}
       </div>
+      {IS_MOCK && (
+        <span
+          className="rounded-full bg-primary/15 px-2 py-1 text-xs font-semibold text-primary"
+          title="Données simulées — aucun appel à Supabase"
+        >
+          démo
+        </span>
+      )}
       {!online && (
         <span
           className="flex items-center gap-1 rounded-full bg-[var(--sb-warn)]/15 px-2 py-1 text-xs font-medium text-[var(--sb-warn)]"

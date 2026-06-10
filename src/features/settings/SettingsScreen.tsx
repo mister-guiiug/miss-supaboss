@@ -1,8 +1,22 @@
 import { useState } from 'react';
-import { Coffee, Download, LogOut, Upload } from 'lucide-react';
+import {
+  Coffee,
+  Download,
+  LogOut,
+  RotateCcw,
+  TestTube2,
+  Upload,
+} from 'lucide-react';
 import { useTheme, FamilyApps } from '@mister-guiiug/dev-wpa-config/react';
 import { settingsSchema } from '../../../shared/contracts.ts';
-import { api, ApiError, IS_MOCK } from '../../api/index.ts';
+import {
+  api,
+  ApiError,
+  FORCED_MOCK,
+  IS_MOCK,
+  resetDemoData,
+  setDemoMode,
+} from '../../api/index.ts';
 import { useFleetStore } from '../../store/useFleetStore.ts';
 import { canAdmin, useSessionStore } from '../../store/useSessionStore.ts';
 import { toast } from '../../store/useUiStore.ts';
@@ -75,6 +89,21 @@ export function SettingsScreen() {
     }
   };
 
+  /** Bascule du mode démo : purge le snapshot hors-ligne (ne pas mélanger
+   *  données réelles et fictives) puis recharge — le client API est choisi
+   *  au chargement du module. */
+  const toggleDemo = async (on: boolean): Promise<void> => {
+    setDemoMode(on);
+    await clearSnapshot();
+    window.location.reload();
+  };
+
+  const resetDemo = async (): Promise<void> => {
+    resetDemoData();
+    await clearSnapshot();
+    window.location.reload();
+  };
+
   const numberField = (
     label: string,
     value: number,
@@ -139,6 +168,58 @@ export function SettingsScreen() {
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="card space-y-3 p-4" aria-label="Mode démo">
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
+          <TestTube2 size={15} aria-hidden="true" /> Mode démo
+        </h2>
+        {FORCED_MOCK ? (
+          <p className="text-xs text-[var(--sb-text-soft)]">
+            Ce build <strong>est</strong> la démo publique (GitHub Pages) :
+            données simulées, aucun backend. La bascule vers le mode réel se
+            fait sur une instance auto-hébergée (cf. README).
+          </p>
+        ) : IS_MOCK ? (
+          <>
+            <p className="text-xs text-[var(--sb-text-soft)]">
+              Données fictives affichées — aucune action ne touche vos comptes
+              Supabase. Désactivez pour revenir aux données réelles.
+            </p>
+            <button
+              type="button"
+              onClick={() => void toggleDemo(false)}
+              className="touch-target w-full rounded-xl bg-primary px-4 font-semibold text-[#06281a]"
+            >
+              Désactiver le mode démo
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-[var(--sb-text-soft)]">
+              Bascule l'application sur des données fictives (aucun appel à
+              Supabase) — idéal pour présenter l'outil sans toucher aux vrais
+              projets. L'app se recharge.
+            </p>
+            <button
+              type="button"
+              onClick={() => void toggleDemo(true)}
+              className="touch-target w-full rounded-xl border border-[var(--sb-border)] px-4 font-semibold"
+            >
+              Activer le mode démo
+            </button>
+          </>
+        )}
+        {IS_MOCK && (
+          <button
+            type="button"
+            onClick={() => void resetDemo()}
+            className="touch-target flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--sb-border)] px-4 text-sm font-medium"
+          >
+            <RotateCcw size={15} aria-hidden="true" /> Réinitialiser les données
+            de démo
+          </button>
+        )}
       </section>
 
       <section className="card space-y-3 p-4" aria-label="Alertes et synchro">

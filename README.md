@@ -94,6 +94,10 @@ Métriques par requêtes SQL **read-only** (projet actif uniquement) :
    documentée : 60), réglable via `SUPABOSS_API_BUDGET_PER_MIN`.
 7. Démo GitHub Pages = **mock intégral** (état persisté en localStorage) ;
    l'import de configuration y est volontairement désactivé.
+8. **Mode démo à chaud** : sur une instance réelle, Réglages → « Mode démo »
+   bascule l'app sur les données fictives (et inversement) sans rebuild —
+   badge « démo » dans l'en-tête, snapshot hors-ligne purgé à la bascule.
+   Sur le build Pages (`VITE_MOCK=1`), le mock est forcé (pas de backend).
 
 ## 4. Structure des dossiers
 

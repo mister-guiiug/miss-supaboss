@@ -27,8 +27,8 @@ import {
 } from '../../shared/quotas.ts';
 import type { SupabaseProjectStatus } from '../../shared/status.ts';
 import { ApiError, type Api } from '../api/types.ts';
+import { MOCK_STORAGE_KEY as STORAGE_KEY } from '../api/demoMode.ts';
 
-const STORAGE_KEY = 'miss-supaboss-mock-v1';
 const DEMO_USER: UserDto = {
   id: 'demo',
   email: 'demo@miss-supaboss.app',

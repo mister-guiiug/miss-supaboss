@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { ApiError } from '../../api/index.ts';
+import { ApiError, setDemoMode } from '../../api/index.ts';
 import { useSessionStore } from '../../store/useSessionStore.ts';
 
 export function LoginScreen() {
@@ -84,6 +84,16 @@ export function LoginScreen() {
       <p className="text-center text-xs text-[var(--sb-text-soft)]">
         Compte initial : voir la console serveur au premier démarrage.
       </p>
+      <button
+        type="button"
+        onClick={() => {
+          setDemoMode(true);
+          window.location.reload();
+        }}
+        className="touch-target rounded-xl border border-[var(--sb-border)] px-4 text-sm font-medium text-[var(--sb-text-soft)]"
+      >
+        🎭 Essayer en mode démo (données fictives, sans compte)
+      </button>
     </main>
   );
 }
