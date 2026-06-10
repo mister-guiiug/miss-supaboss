@@ -19,6 +19,6 @@ jobs:
       # Le build CI valide le bundle mock (même build que GitHub Pages).
       build-env: |
         VITE_MOCK=1
-      # Passer à true une fois Playwright validé localement (npx playwright install).
-      run-e2e: false
+      run-e2e: true
       e2e-grep: '@critical'
+      e2e-project: chromium
