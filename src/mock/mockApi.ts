@@ -120,13 +120,14 @@ function seedState(): MockState {
         tags: ['poc', 'demo'],
         demoFrequent: true,
       }),
+      // seed 49 → dbSize ≈ 361 MB / 500 MB (~72 %) : illustre le seuil warn.
       mkProject(
         'acc-lab',
         labOrg,
         'rag-ia-demo',
         'RAG IA Démo',
         'ACTIVE_HEALTHY',
-        11,
+        49,
         {
           tags: ['demo', 'critique-demo'],
           favorite: true,
@@ -166,6 +167,7 @@ function seedState(): MockState {
           demoFrequent: true,
         }
       ),
+      // En pause + démo fréquente → alimente « Prêts à démarrer maintenant ».
       mkProject(
         'acc-cli',
         cliOrg,
@@ -174,6 +176,8 @@ function seedState(): MockState {
         'INACTIVE',
         5,
         {
+          tags: ['demo'],
+          demoFrequent: true,
           lastSeenActiveAt: iso(-30 * DAY),
           pausedAt: iso(-30 * DAY),
         }
