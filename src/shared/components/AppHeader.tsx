@@ -87,8 +87,8 @@ export function AppHeader({ title }: { title: string }) {
           onConfirm={() => void switchDemoMode(false)}
         >
           <p>
-            Retour aux données réelles — l'application se recharge. Les fixtures
-            de démo restent en place pour la prochaine fois.
+            Retour aux données réelles — l'application se recharge. Les données
+            de démo sont remises à zéro : la prochaine démo repartira propre.
           </p>
         </ConfirmSheet>
       )}
