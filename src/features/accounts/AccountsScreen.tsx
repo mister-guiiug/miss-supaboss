@@ -6,7 +6,7 @@ import {
   activeProjects,
 } from '../../../shared/guards.ts';
 import { formatRelative } from '../../../shared/format.ts';
-import { api, ApiError, IS_MOCK } from '../../api/index.ts';
+import { api, ApiError } from '../../api/index.ts';
 import { projectsOfAccount, useFleetStore } from '../../store/useFleetStore.ts';
 import { canAdmin, useSessionStore } from '../../store/useSessionStore.ts';
 import { toast } from '../../store/useUiStore.ts';
@@ -33,8 +33,11 @@ export function AccountsScreen() {
     setBusyId(account.id);
     try {
       const res = await api.testAccount(account.id);
+      const orgs = res.organizations.length
+        ? ` (${res.organizations.join(', ')})`
+        : '';
       toast.success(
-        `${account.alias} : ${res.organizations} org, ${res.projects} projets ✔`
+        `${account.alias} : ${res.organizations.length} org${orgs} · ${res.projects} projets ✔`
       );
       await loadFleet(true);
     } catch (e) {
@@ -152,12 +155,6 @@ export function AccountsScreen() {
             </section>
           );
         })
-      )}
-
-      {IS_MOCK && (
-        <p className="text-center text-xs text-[var(--sb-text-soft)]">
-          Mode démo : comptes simulés, aucun vrai PAT.
-        </p>
       )}
 
       <AccountForm

@@ -52,7 +52,7 @@ export function registerAccountRoutes(
     const body = accountCreateBodySchema.parse(req.body);
     const user = req.user as NonNullable<typeof req.user>;
     // Test de connectivité AVANT enregistrement : un PAT invalide est rejeté.
-    let counts: { organizations: number; projects: number };
+    let counts: { organizations: string[]; projects: number };
     try {
       counts = await ctx.fleet.testPat(`new:${user.id}`, body.pat);
     } catch (error) {
@@ -181,7 +181,7 @@ export function registerAccountRoutes(
           accountId: id,
           accountAlias: row.alias,
           status: 'ok',
-          detail: `${counts.organizations} org, ${counts.projects} projets`,
+          detail: `${counts.organizations.length} org, ${counts.projects} projets`,
         });
         return { ok: true, ...counts };
       } catch (error) {
