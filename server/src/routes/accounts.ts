@@ -80,7 +80,7 @@ export function registerAccountRoutes(
       accountId: row.id,
       accountAlias: row.alias,
       status: 'ok',
-      detail: `${counts.organizations} org, ${counts.projects} projets`,
+      detail: `${counts.organizations.length} org, ${counts.projects} projets`,
     });
     return reply.code(201).send({
       account: {
