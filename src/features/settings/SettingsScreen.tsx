@@ -170,42 +170,47 @@ export function SettingsScreen() {
         <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
           <TestTube2 size={15} aria-hidden="true" /> Mode démo
         </h2>
-        {FORCED_MOCK ? (
+
+        {/* Interrupteur à bascule activer/désactiver (forcé ON, verrouillé en
+            build Pages). La bascule recharge l'app sur une démo neuve. */}
+        <div className="flex items-center justify-between gap-3">
+          <p
+            id="demo-desc"
+            className="min-w-0 text-xs text-[var(--sb-text-soft)]"
+          >
+            {IS_MOCK
+              ? 'Données fictives — aucune action ne touche vos comptes Supabase.'
+              : 'Bascule sur des données fictives pour présenter l’outil sans toucher aux vrais projets. L’app se recharge.'}
+          </p>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={IS_MOCK}
+            aria-label="Mode démo"
+            aria-describedby="demo-desc"
+            disabled={FORCED_MOCK}
+            onClick={() => toggleDemo(!IS_MOCK)}
+            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+              IS_MOCK ? 'bg-primary' : 'bg-[var(--sb-surface-2)]'
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className={`inline-block size-5 rounded-full bg-white shadow transition-transform ${
+                IS_MOCK ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+
+        {FORCED_MOCK && (
           <p className="text-xs text-[var(--sb-text-soft)]">
-            Ce build <strong>est</strong> la démo publique (GitHub Pages) :
-            données simulées, aucun backend. La bascule vers le mode réel se
+            Ce build <strong>est</strong> la démo publique (GitHub Pages) : mode
+            démo non débrayable (aucun backend). La bascule vers le mode réel se
             fait sur une instance auto-hébergée (cf. README).
           </p>
-        ) : IS_MOCK ? (
-          <>
-            <p className="text-xs text-[var(--sb-text-soft)]">
-              Données fictives affichées — aucune action ne touche vos comptes
-              Supabase. Désactivez pour revenir aux données réelles.
-            </p>
-            <button
-              type="button"
-              onClick={() => toggleDemo(false)}
-              className="touch-target w-full rounded-xl bg-primary px-4 font-semibold text-[#06281a]"
-            >
-              Désactiver le mode démo
-            </button>
-          </>
-        ) : (
-          <>
-            <p className="text-xs text-[var(--sb-text-soft)]">
-              Bascule l'application sur des données fictives (aucun appel à
-              Supabase) — idéal pour présenter l'outil sans toucher aux vrais
-              projets. L'app se recharge.
-            </p>
-            <button
-              type="button"
-              onClick={() => toggleDemo(true)}
-              className="touch-target w-full rounded-xl border border-[var(--sb-border)] px-4 font-semibold"
-            >
-              Activer le mode démo
-            </button>
-          </>
         )}
+
         {IS_MOCK && (
           <button
             type="button"
