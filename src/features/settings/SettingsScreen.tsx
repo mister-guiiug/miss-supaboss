@@ -3,7 +3,10 @@ import {
   Coffee,
   Download,
   LogOut,
+  Monitor,
+  Moon,
   RotateCcw,
+  Sun,
   TestTube2,
   Upload,
 } from 'lucide-react';
@@ -143,24 +146,26 @@ export function SettingsScreen() {
           Apparence
         </h2>
         <div role="radiogroup" aria-label="Thème" className="flex gap-2">
-          {(['light', 'dark', 'system'] as const).map(t => (
+          {(
+            [
+              { id: 'light', label: 'Clair', Icon: Sun },
+              { id: 'dark', label: 'Sombre', Icon: Moon },
+              { id: 'system', label: 'Système', Icon: Monitor },
+            ] as const
+          ).map(({ id, label, Icon }) => (
             <button
-              key={t}
+              key={id}
               type="button"
               role="radio"
-              aria-checked={theme === t}
-              onClick={() => setTheme(t)}
-              className={`flex-1 rounded-xl border px-3 py-2.5 text-sm font-medium ${
-                theme === t
+              aria-checked={theme === id}
+              onClick={() => setTheme(id)}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-medium ${
+                theme === id
                   ? 'border-primary bg-primary/15 text-primary'
                   : 'border-[var(--sb-border)]'
               }`}
             >
-              {t === 'light'
-                ? '☀️ Clair'
-                : t === 'dark'
-                  ? '🌙 Sombre'
-                  : '🖥️ Système'}
+              <Icon size={16} aria-hidden="true" /> {label}
             </button>
           ))}
         </div>
