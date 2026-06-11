@@ -1,7 +1,13 @@
 import { useState } from 'react';
 import { RefreshCw, WifiOff, X } from 'lucide-react';
 import { formatRelative } from '../../../shared/format.ts';
-import { FORCED_MOCK, IS_MOCK, switchDemoMode } from '../../api/index.ts';
+import {
+  FORCED_MOCK,
+  IS_MOCK,
+  isDemoSeed,
+  setDemoSeed,
+  switchDemoMode,
+} from '../../api/index.ts';
 import { useFleetStore } from '../../store/useFleetStore.ts';
 import { useOnline } from '../hooks/useOnline.ts';
 import { ConfirmSheet } from './ConfirmSheet.tsx';
@@ -15,6 +21,9 @@ export function AppHeader({ title }: { title: string }) {
   const loadMetrics = useFleetStore(s => s.loadMetrics);
   const online = useOnline();
   const [confirmExitDemo, setConfirmExitDemo] = useState(false);
+  // Pages (PWA locale) : badge présent tant que les données d'exemple sont
+  // chargées. Auto-hébergé : présent en mode démo (mock).
+  const demoOn = FORCED_MOCK ? isDemoSeed() : IS_MOCK;
 
   const syncLabel = fromCache
     ? `hors ligne — état ${formatRelative(cacheSavedAt)}`
@@ -32,27 +41,22 @@ export function AppHeader({ title }: { title: string }) {
           </p>
         )}
       </div>
-      {IS_MOCK &&
-        (FORCED_MOCK ? (
-          // Build Pages : mock forcé, pas de sortie possible (pas de backend).
-          <span
-            className="rounded-full bg-primary/15 px-2 py-1 text-xs font-semibold text-primary"
-            title="Données simulées — aucun appel à Supabase"
-          >
-            démo
-          </span>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setConfirmExitDemo(true)}
-            aria-label="Désactiver le mode démo"
-            title="Désactiver le mode démo"
-            className="flex items-center gap-1 rounded-full border border-primary/40 bg-primary/15 px-2.5 py-1.5 text-xs font-semibold text-primary"
-          >
-            démo
-            <X size={12} aria-hidden="true" />
-          </button>
-        ))}
+      {demoOn && (
+        <button
+          type="button"
+          onClick={
+            FORCED_MOCK
+              ? () => void setDemoSeed(false)
+              : () => setConfirmExitDemo(true)
+          }
+          aria-label="Désactiver les données de démo"
+          title="Désactiver les données de démo"
+          className="flex items-center gap-1 rounded-full border border-primary/40 bg-primary/15 px-2.5 py-1.5 text-xs font-semibold text-primary"
+        >
+          démo
+          <X size={12} aria-hidden="true" />
+        </button>
+      )}
       {!online && (
         <span
           className="flex items-center gap-1 rounded-full bg-[var(--sb-warn)]/15 px-2 py-1 text-xs font-medium text-[var(--sb-warn)]"

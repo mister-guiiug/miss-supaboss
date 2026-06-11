@@ -9,7 +9,9 @@ export { ApiError } from './types.ts';
 export {
   FORCED_MOCK,
   IS_MOCK,
+  isDemoSeed,
   resetDemoData,
   setDemoMode,
+  setDemoSeed,
   switchDemoMode,
 } from './demoMode.ts';
