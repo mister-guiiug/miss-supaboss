@@ -8,11 +8,20 @@
       les PAT Supabase ne transitent jamais par le navigateur. En mode mock
       (GitHub Pages), aucun appel réseau de données.
       'unsafe-inline' requis : script anti-FOUC + styles Tailwind 4 / SW.
+      Pas de 'unsafe-eval' : Zod tourne en mode « jitless » (script ci-dessous).
+      `frame-ancestors` retiré : directive HEADER-ONLY, ignorée en <meta> (et non
+      configurable sur GitHub Pages) — laissait juste un avertissement console.
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
     />
+
+    <!-- Zod en mode « jitless » (aucun `new Function`) AVANT son chargement :
+         compatible CSP stricte sans 'unsafe-eval'. Cf. zod $ZodConfig.jitless. -->
+    <script>
+      globalThis.__zod_globalConfig = { jitless: true };
+    </script>
 
     <!-- Script anti-FOUC : applique le thème avant tout rendu (clé alignée useTheme). -->
     <script>
