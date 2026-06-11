@@ -3,10 +3,13 @@ import { useUpdatePrompt } from '@mister-guiiug/dev-wpa-config/react/use-update-
 export function UpdatePrompt() {
   const { visible, update, snooze } = useUpdatePrompt({ snoozeHours: 24 });
   if (!visible) return null;
+  // Le bandeau flotte AU-DESSUS de la BottomNav (≈ 3,7rem de haut) + la zone
+  // sûre iOS — sinon il recouvre les onglets et masque « Recharger / Plus tard ».
   return (
     <div
       role="status"
-      className="card fixed inset-x-4 bottom-safe-3 z-40 mx-auto flex max-w-sm items-center gap-2 p-3 text-sm shadow-lg"
+      style={{ bottom: 'calc(max(env(safe-area-inset-bottom), 0px) + 4.5rem)' }}
+      className="card fixed inset-x-4 z-40 mx-auto flex max-w-sm items-center gap-2 p-3 text-sm shadow-lg"
     >
       <span className="flex-1">Mise à jour disponible.</span>
       <button
