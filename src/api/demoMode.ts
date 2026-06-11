@@ -46,12 +46,18 @@ export function resetDemoData(): void {
 export const IS_MOCK = FORCED_MOCK || isDemoOverride();
 
 /**
- * Bascule complète : pose le drapeau, purge le snapshot hors-ligne (ne pas
- * mélanger données réelles et fictives) puis recharge l'application.
+ * Bascule complète du mode démo : pose/retire le drapeau, purge le snapshot
+ * hors-ligne (ne pas mélanger données réelles et fictives), REMET LES FIXTURES
+ * À NEUF puis recharge. Le reseed à chaque bascule garantit qu'« activer la
+ * démo » repart toujours d'un état propre et que la désactivation ne laisse
+ * aucune donnée fictive résiduelle. (Un simple rechargement de page NE remet
+ * pas à zéro : la démo en cours survit aux reloads — seul un toggle reseed.)
  */
 export async function switchDemoMode(on: boolean): Promise<void> {
   setDemoMode(on);
   const { clearSnapshot } = await import('../offline/lastKnown.ts');
   await clearSnapshot();
+  // Juste avant le reload (fenêtre minimale) : démo neuve à chaque bascule.
+  resetDemoData();
   window.location.reload();
 }
