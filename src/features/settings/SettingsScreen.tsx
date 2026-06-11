@@ -17,7 +17,9 @@ import {
   ApiError,
   FORCED_MOCK,
   IS_MOCK,
+  isDemoSeed,
   resetDemoData,
+  setDemoSeed,
   switchDemoMode,
 } from '../../api/index.ts';
 import { useFleetStore } from '../../store/useFleetStore.ts';
@@ -92,9 +94,13 @@ export function SettingsScreen() {
     }
   };
 
-  // Bascule centralisée (drapeau + purge snapshot + reload) : demoMode.ts.
-  const toggleDemo = (on: boolean): void => {
-    void switchDemoMode(on);
+  // Sur le build local/PWA (Pages), l'interrupteur pilote les DONNÉES D'EXEMPLE
+  // (ON = démo, OFF = store local vide) ; sur une instance auto-hébergée, il
+  // bascule mock ↔ réel.
+  const demoOn = FORCED_MOCK ? isDemoSeed() : IS_MOCK;
+  const onToggleDemo = (): void => {
+    if (FORCED_MOCK) void setDemoSeed(!demoOn);
+    else void switchDemoMode(!demoOn);
   };
 
   const resetDemo = async (): Promise<void> => {
@@ -123,14 +129,16 @@ export function SettingsScreen() {
 
   return (
     <div className="space-y-4">
-      <section className="card space-y-2 p-4" aria-label="Profil">
-        <p className="text-sm">
-          Connecté : <strong>{user?.email}</strong>{' '}
-          <span className="rounded-full bg-[var(--sb-surface-2)] px-2 py-0.5 text-xs font-medium">
-            {user?.role}
-          </span>
-        </p>
-        {!IS_MOCK && (
+      {/* Profil/compte : seulement en mode réel (auto-hébergé). La PWA locale
+          n'a pas de compte — pas de ligne « Connecté : … ». */}
+      {!IS_MOCK && (
+        <section className="card space-y-2 p-4" aria-label="Profil">
+          <p className="text-sm">
+            Connecté : <strong>{user?.email}</strong>{' '}
+            <span className="rounded-full bg-[var(--sb-surface-2)] px-2 py-0.5 text-xs font-medium">
+              {user?.role}
+            </span>
+          </p>
           <button
             type="button"
             onClick={() => void logout()}
@@ -138,8 +146,8 @@ export function SettingsScreen() {
           >
             <LogOut size={16} aria-hidden="true" /> Se déconnecter
           </button>
-        )}
-      </section>
+        </section>
+      )}
 
       <section className="card space-y-3 p-4" aria-label="Apparence">
         <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
@@ -176,47 +184,37 @@ export function SettingsScreen() {
           <TestTube2 size={15} aria-hidden="true" /> Mode démo
         </h2>
 
-        {/* Interrupteur à bascule activer/désactiver (forcé ON, verrouillé en
-            build Pages). La bascule recharge l'app sur une démo neuve. */}
+        {/* Interrupteur à bascule : ON = données d'exemple, OFF = store local
+            VIDE (tes propres données, sur l'appareil). La bascule recharge. */}
         <div className="flex items-center justify-between gap-3">
           <p
             id="demo-desc"
             className="min-w-0 text-xs text-[var(--sb-text-soft)]"
           >
-            {IS_MOCK
-              ? 'Données fictives — aucune action ne touche vos comptes Supabase.'
-              : 'Bascule sur des données fictives pour présenter l’outil sans toucher aux vrais projets. L’app se recharge.'}
+            Données d’exemple pour découvrir l’application. Désactive pour
+            partir d’un espace vide — tout est stocké sur cet appareil.
           </p>
           <button
             type="button"
             role="switch"
-            aria-checked={IS_MOCK}
+            aria-checked={demoOn}
             aria-label="Mode démo"
             aria-describedby="demo-desc"
-            disabled={FORCED_MOCK}
-            onClick={() => toggleDemo(!IS_MOCK)}
-            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-              IS_MOCK ? 'bg-primary' : 'bg-[var(--sb-surface-2)]'
+            onClick={onToggleDemo}
+            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
+              demoOn ? 'bg-primary' : 'bg-[var(--sb-surface-2)]'
             }`}
           >
             <span
               aria-hidden="true"
               className={`inline-block size-5 rounded-full bg-white shadow transition-transform ${
-                IS_MOCK ? 'translate-x-6' : 'translate-x-1'
+                demoOn ? 'translate-x-6' : 'translate-x-1'
               }`}
             />
           </button>
         </div>
 
-        {FORCED_MOCK && (
-          <p className="text-xs text-[var(--sb-text-soft)]">
-            Ce build <strong>est</strong> la démo publique (GitHub Pages) : mode
-            démo non débrayable (aucun backend). La bascule vers le mode réel se
-            fait sur une instance auto-hébergée (cf. README).
-          </p>
-        )}
-
-        {IS_MOCK && (
+        {demoOn && (
           <button
             type="button"
             onClick={() => void resetDemo()}

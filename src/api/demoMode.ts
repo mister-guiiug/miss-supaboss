@@ -42,6 +42,39 @@ export function resetDemoData(): void {
   }
 }
 
+/**
+ * Données d'EXEMPLE (« démo ») sur le build local/PWA : faut-il pré-charger des
+ * fixtures de démonstration ? Par défaut OUI (mise en avant de l'app au premier
+ * lancement). À OFF, le store local démarre VIDE — l'utilisateur saisit ses
+ * propres données, stockées sur l'appareil (localStorage). Indépendant du
+ * choix mock/réel : ici on est déjà en mock (PWA locale), seul le SEED change.
+ */
+const DEMO_SEED_KEY = 'miss-supaboss-demo-seed';
+
+export function isDemoSeed(): boolean {
+  try {
+    return localStorage.getItem(DEMO_SEED_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Active/désactive les données d'exemple : mémorise le choix, PURGE le store
+ * local (fixtures fraîches si ON, état vide si OFF) puis recharge l'app.
+ */
+export async function setDemoSeed(on: boolean): Promise<void> {
+  try {
+    localStorage.setItem(DEMO_SEED_KEY, on ? '1' : '0');
+  } catch {
+    // stockage indisponible
+  }
+  resetDemoData();
+  const { clearSnapshot } = await import('../offline/lastKnown.ts');
+  await clearSnapshot();
+  window.location.reload();
+}
+
 /** Évalué au chargement du module — un reload applique tout changement. */
 export const IS_MOCK = FORCED_MOCK || isDemoOverride();
 

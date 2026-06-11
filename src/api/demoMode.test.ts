@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   isDemoOverride,
+  isDemoSeed,
   MOCK_STORAGE_KEY,
   resetDemoData,
   setDemoMode,
@@ -64,5 +65,14 @@ describe('mode démo (surcharge runtime)', () => {
     expect(localStorage.getItem(MOCK_STORAGE_KEY)).toBeNull(); // rien de résiduel
     expect(reload).toHaveBeenCalledTimes(1);
     vi.unstubAllGlobals();
+  });
+
+  it('isDemoSeed : ON par défaut, OFF si drapeau = "0"', () => {
+    // Par défaut, les données d'exemple sont chargées (mise en avant).
+    expect(isDemoSeed()).toBe(true);
+    localStorage.setItem('miss-supaboss-demo-seed', '0');
+    expect(isDemoSeed()).toBe(false);
+    localStorage.setItem('miss-supaboss-demo-seed', '1');
+    expect(isDemoSeed()).toBe(true);
   });
 });

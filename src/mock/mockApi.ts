@@ -27,7 +27,10 @@ import {
 } from '../../shared/quotas.ts';
 import type { SupabaseProjectStatus } from '../../shared/status.ts';
 import { ApiError, type Api } from '../api/types.ts';
-import { MOCK_STORAGE_KEY as STORAGE_KEY } from '../api/demoMode.ts';
+import {
+  MOCK_STORAGE_KEY as STORAGE_KEY,
+  isDemoSeed,
+} from '../api/demoMode.ts';
 
 const DEMO_USER: UserDto = {
   id: 'demo',
@@ -202,14 +205,26 @@ function seedState(): MockState {
   };
 }
 
+/** État local VIDE : l'utilisateur saisit ses propres données (démo OFF). */
+function emptyState(): MockState {
+  return {
+    accounts: [],
+    projects: [],
+    operations: [],
+    settings: DEFAULT_SETTINGS,
+    opSeq: 0,
+  };
+}
+
 function loadState(): MockState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw) as MockState;
   } catch {
-    // état corrompu → reseed
+    // état corrompu → on repart du défaut
   }
-  return seedState();
+  // Aucun état persisté : données d'exemple (démo) OU store local vide.
+  return isDemoSeed() ? seedState() : emptyState();
 }
 
 const sleep = (ms: number): Promise<void> =>
