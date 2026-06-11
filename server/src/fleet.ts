@@ -284,12 +284,12 @@ export class FleetService {
   async testPat(
     accountKey: string,
     pat: string
-  ): Promise<{ organizations: number; projects: number }> {
+  ): Promise<{ organizations: string[]; projects: number }> {
     const [orgs, projects] = await Promise.all([
       this.provider.listOrganizations(accountKey, pat),
       this.provider.listProjects(accountKey, pat),
     ]);
-    return { organizations: orgs.length, projects: projects.length };
+    return { organizations: orgs.map(o => o.name), projects: projects.length };
   }
 
   /* ── Métriques Free Plan ────────────────────────────────────────────── */

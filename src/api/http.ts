@@ -107,7 +107,7 @@ export function createHttpApi(): Api {
         `/api/accounts/${encodeURIComponent(id)}/test`,
         z.object({
           ok: z.boolean(),
-          organizations: z.number(),
+          organizations: z.array(z.string()),
           projects: z.number(),
         }),
         { method: 'POST' }

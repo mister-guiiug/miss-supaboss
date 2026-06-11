@@ -19,6 +19,24 @@ describe('mockApi — garde-fous', () => {
     expect(lab?.projects.length).toBeGreaterThan(2);
   });
 
+  it('un compte AJOUTÉ obtient une org + des projets (jamais 0)', async () => {
+    const api = createMockApi();
+    const acc = await api.createAccount({
+      alias: 'khelypso-cra',
+      color: '#3ecf8e',
+      pat: 'sbp_DEMOFAKEtoken',
+    });
+    const fleet = await api.getFleet(true);
+    const added = fleet.accounts.find(a => a.account.id === acc.id);
+    expect(added?.projects.length).toBeGreaterThan(0); // plus de « 0 projet »
+
+    const test = await api.testAccount(acc.id);
+    expect(test.ok).toBe(true);
+    expect(test.projects).toBe(added?.projects.length);
+    // testAccount renvoie des NOMS d'organisations (pas un simple compteur).
+    expect(test.organizations).toContain('khelypso-cra');
+  });
+
   it('restore refusé à 2 actifs avec suggestions, accepté avec pauseFirst', async () => {
     const api = createMockApi();
     // acc-lab : crm-poc + rag-ia-demo actifs → limite atteinte.

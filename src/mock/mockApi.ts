@@ -69,13 +69,13 @@ const DAY = 24 * 3600 * 1000;
 const iso = (deltaMs: number): string =>
   new Date(Date.now() + deltaMs).toISOString();
 
-function seedState(): MockState {
-  const mkAccount = (
-    id: string,
-    alias: string,
-    color: string,
-    hint: string
-  ): AccountDto => ({
+function mkAccount(
+  id: string,
+  alias: string,
+  color: string,
+  hint: string
+): AccountDto {
+  return {
     id,
     alias,
     color,
@@ -84,16 +84,19 @@ function seedState(): MockState {
     createdAt: iso(-40 * DAY),
     lastSyncAt: iso(-60_000),
     lastError: null,
-  });
-  const mkProject = (
-    accountId: string,
-    org: [string, string],
-    ref: string,
-    name: string,
-    status: SupabaseProjectStatus,
-    seed: number,
-    extra: Partial<MockProject> = {}
-  ): MockProject => ({
+  };
+}
+
+function mkProject(
+  accountId: string,
+  org: [string, string],
+  ref: string,
+  name: string,
+  status: SupabaseProjectStatus,
+  seed: number,
+  extra: Partial<MockProject> = {}
+): MockProject {
+  return {
     accountId,
     ref,
     name,
@@ -110,7 +113,46 @@ function seedState(): MockState {
     pausedAt: status === 'INACTIVE' ? iso(-12 * DAY) : null,
     seed,
     ...extra,
-  });
+  };
+}
+
+/** Org + projets simulés pour un compte AJOUTÉ (le déploiement Pages n'a pas
+ *  de backend pour interroger Supabase — données d'exemple locales). */
+function demoProjectsForAccount(
+  accountId: string,
+  alias: string
+): MockProject[] {
+  const org: [string, string] = [`org-${accountId}`, alias];
+  return [
+    mkProject(accountId, org, `${accountId}-api`, 'API', 'ACTIVE_HEALTHY', 8, {
+      tags: ['prod'],
+      favorite: true,
+    }),
+    mkProject(
+      accountId,
+      org,
+      `${accountId}-web`,
+      'Web app',
+      'ACTIVE_HEALTHY',
+      4
+    ),
+    mkProject(
+      accountId,
+      org,
+      `${accountId}-staging`,
+      'Staging',
+      'INACTIVE',
+      2,
+      {
+        tags: ['staging'],
+        lastSeenActiveAt: iso(-20 * DAY),
+        pausedAt: iso(-20 * DAY),
+      }
+    ),
+  ];
+}
+
+function seedState(): MockState {
   const labOrg: [string, string] = ['poc-lab', 'POC Lab'];
   const cliOrg: [string, string] = ['demo-clients', 'Démos clients'];
   return {
@@ -404,6 +446,10 @@ export function createMockApi(): Api {
         lastError: null,
       };
       state.accounts.push(acc);
+      // Démo locale : on simule l'org + les projets visibles par ce PAT, pour
+      // que « Tester » et la flotte ne renvoient pas 0 projet (pas de backend).
+      const demoProjects = demoProjectsForAccount(acc.id, acc.alias);
+      state.projects.push(...demoProjects);
       recordOp({
         action: 'account.create',
         accountId: acc.id,
@@ -411,7 +457,7 @@ export function createMockApi(): Api {
         projectRef: null,
         projectName: null,
         status: 'ok',
-        detail: 'Compte de démo (mock)',
+        detail: `1 org, ${demoProjects.length} projets (démo)`,
       });
       save();
       return acc;
@@ -455,7 +501,12 @@ export function createMockApi(): Api {
     async testAccount(id) {
       await sleep(700);
       const acc = account(id);
-      const projects = state.projects.filter(p => p.accountId === id).length;
+      const accountProjects = state.projects.filter(p => p.accountId === id);
+      // Noms d'organisations distincts, dérivés des projets du compte.
+      const organizations = [
+        ...new Set(accountProjects.map(p => p.organizationName)),
+      ];
+      const projects = accountProjects.length;
       recordOp({
         action: 'account.test',
         accountId: id,
@@ -463,10 +514,10 @@ export function createMockApi(): Api {
         projectRef: null,
         projectName: null,
         status: 'ok',
-        detail: `1 org, ${projects} projets`,
+        detail: `${organizations.length} org, ${projects} projets`,
       });
       save();
-      return { ok: true, organizations: 1, projects };
+      return { ok: true, organizations, projects };
     },
     async exportAccounts() {
       await sleep(300);

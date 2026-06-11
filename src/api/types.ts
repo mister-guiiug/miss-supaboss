@@ -53,7 +53,7 @@ export interface Api {
   deleteAccount(id: string): Promise<void>;
   testAccount(
     id: string
-  ): Promise<{ ok: boolean; organizations: number; projects: number }>;
+  ): Promise<{ ok: boolean; organizations: string[]; projects: number }>;
   exportAccounts(passphrase: string): Promise<{ blob: string; count: number }>;
   importAccounts(
     passphrase: string,
