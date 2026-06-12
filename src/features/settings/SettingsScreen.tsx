@@ -2,14 +2,17 @@ import { useState, type ReactNode } from 'react';
 import {
   Download,
   Flame,
+  LockKeyhole,
   LogOut,
   Monitor,
   Moon,
   OctagonAlert,
   RotateCcw,
+  ShieldCheck,
   Sun,
   TestTube2,
   TriangleAlert,
+  Unlock,
   Upload,
 } from 'lucide-react';
 import { useTheme, FamilyApps } from '@mister-guiiug/dev-wpa-config/react';
@@ -40,6 +43,11 @@ export function SettingsScreen() {
   const [passphrase, setPassphrase] = useState('');
   const [importBlob, setImportBlob] = useState('');
   const [busy, setBusy] = useState(false);
+  const [vaultEnabled, setVaultEnabled] = useState(
+    () => api.vault?.isEnabled() ?? false
+  );
+  const [vaultPass, setVaultPass] = useState('');
+  const [vaultPass2, setVaultPass2] = useState('');
 
   const save = async (): Promise<void> => {
     const parsed = settingsSchema.safeParse(draft);
@@ -94,6 +102,55 @@ export function SettingsScreen() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const enableVault = async (): Promise<void> => {
+    const vault = api.vault;
+    if (!vault) return;
+    if (vaultPass.length < 8) {
+      toast.error('Phrase secrète : 8 caractères minimum');
+      return;
+    }
+    if (vaultPass !== vaultPass2) {
+      toast.error('Les deux phrases ne correspondent pas');
+      return;
+    }
+    setBusy(true);
+    try {
+      await vault.enable(vaultPass);
+      setVaultEnabled(true);
+      setVaultPass('');
+      setVaultPass2('');
+      toast.success(
+        'Chiffrement activé — la phrase sera demandée au prochain démarrage.'
+      );
+    } catch {
+      toast.error('Activation du chiffrement impossible');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const disableVault = async (): Promise<void> => {
+    const vault = api.vault;
+    if (!vault) return;
+    setBusy(true);
+    try {
+      await vault.disable();
+      setVaultEnabled(false);
+      toast.success(
+        'Chiffrement désactivé — les PAT sont de nouveau en clair sur cet appareil.'
+      );
+    } catch {
+      toast.error('Désactivation impossible');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const lockVault = (): void => {
+    api.vault?.lock();
+    window.location.reload();
   };
 
   // Quand le RÉEL est atteignable (backend, ou PWA + proxy Supabase),
@@ -291,6 +348,83 @@ export function SettingsScreen() {
           Enregistrer les réglages
         </button>
       </section>
+
+      {api.vault && canAdmin(user) && (
+        <section
+          className="card space-y-3 p-4"
+          aria-label="Chiffrement des jetons"
+        >
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
+            <LockKeyhole size={15} aria-hidden="true" /> Chiffrement des PAT
+          </h2>
+          {vaultEnabled ? (
+            <>
+              <p className="flex items-start gap-1.5 text-xs text-[var(--sb-text-soft)]">
+                <ShieldCheck
+                  size={14}
+                  aria-hidden="true"
+                  className="mt-0.5 shrink-0 text-primary"
+                />
+                Actif : les PAT sont chiffrés au repos (AES-256-GCM, clé dérivée
+                de votre phrase). La phrase est demandée à chaque ouverture.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={lockVault}
+                  className="touch-target flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium"
+                >
+                  <Unlock size={16} aria-hidden="true" /> Verrouiller
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void disableVault()}
+                  className="touch-target flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--sb-critical)] px-3 text-sm font-semibold text-[var(--sb-critical)] disabled:opacity-50"
+                >
+                  Désactiver
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-[var(--sb-text-soft)]">
+                Par défaut, le PAT est stocké en clair sur cet appareil. Activez
+                le chiffrement pour le protéger au repos par une phrase secrète
+                (demandée au démarrage). Phrase oubliée = PAT à ressaisir
+                (régénérables sur Supabase).
+              </p>
+              <input
+                type="password"
+                value={vaultPass}
+                onChange={e => setVaultPass(e.target.value)}
+                placeholder="Phrase secrète (min. 8 caractères)"
+                autoComplete="new-password"
+                aria-label="Nouvelle phrase secrète"
+                className="w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 text-sm"
+              />
+              <input
+                type="password"
+                value={vaultPass2}
+                onChange={e => setVaultPass2(e.target.value)}
+                placeholder="Confirmer la phrase secrète"
+                autoComplete="new-password"
+                aria-label="Confirmer la phrase secrète"
+                className="w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 text-sm"
+              />
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void enableVault()}
+                className="touch-target flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 font-semibold text-[#06281a] disabled:opacity-50"
+              >
+                <LockKeyhole size={16} aria-hidden="true" /> Activer le
+                chiffrement
+              </button>
+            </>
+          )}
+        </section>
+      )}
 
       {canAdmin(user) && (
         <section className="card space-y-3 p-4" aria-label="Export / import">

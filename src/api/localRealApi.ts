@@ -33,6 +33,7 @@ import {
 import type { RawProject } from '../../shared/supabaseApi.ts';
 import { ApiError, type Api } from './types.ts';
 import { BrowserManagementClient } from './management/browserClient.ts';
+import { patVault } from './crypto/patVault.ts';
 
 const LOCAL_USER: UserDto = {
   id: 'local',
@@ -51,8 +52,13 @@ interface RealAccount {
   alias: string;
   color: string;
   enabled: boolean;
-  /** PAT en clair (local-first, jamais envoyé ailleurs qu'au proxy). */
+  /**
+   * PAT en clair EN MÉMOIRE (jamais envoyé ailleurs qu'au proxy). Vide tant que
+   * le coffre est verrouillé — `vault.unlock` le repeuple depuis `patEnc`.
+   */
   pat: string;
+  /** PAT chiffré au repos (présent uniquement si le coffre est activé). */
+  patEnc?: string;
   patHint: string;
   createdAt: string;
   lastSyncAt: string | null;
@@ -90,7 +96,13 @@ function emptyState(): RealState {
 function loadState(): RealState {
   try {
     const raw = localStorage.getItem(REAL_STORAGE_KEY);
-    if (raw) return { ...emptyState(), ...(JSON.parse(raw) as RealState) };
+    if (raw) {
+      const parsed = { ...emptyState(), ...(JSON.parse(raw) as RealState) };
+      // Coffre activé : le PAT en clair n'est pas persisté → `pat` absent
+      // jusqu'au déverrouillage. On garantit une chaîne (jamais undefined).
+      parsed.accounts = parsed.accounts.map(a => ({ ...a, pat: a.pat ?? '' }));
+      return parsed;
+    }
   } catch {
     // état corrompu → repart vide
   }
@@ -128,7 +140,16 @@ export function createLocalRealApi(proxyBase: string): Api {
 
   const save = (): void => {
     try {
-      localStorage.setItem(REAL_STORAGE_KEY, JSON.stringify(state));
+      // Coffre activé → on persiste le PAT chiffré (`patEnc`) et JAMAIS le clair.
+      // Coffre désactivé → comportement historique : PAT en clair, pas de blob.
+      const encrypted = patVault.isEnabled();
+      const accounts = state.accounts.map(({ pat, patEnc, ...rest }) =>
+        encrypted ? { ...rest, patEnc } : { ...rest, pat }
+      );
+      localStorage.setItem(
+        REAL_STORAGE_KEY,
+        JSON.stringify({ ...state, accounts })
+      );
     } catch {
       // stockage indisponible : on continue en mémoire
     }
@@ -372,6 +393,8 @@ export function createLocalRealApi(proxyBase: string): Api {
         lastSyncAt: new Date().toISOString(),
         lastError: null,
       };
+      // Coffre activé : on chiffre tout de suite (la session est déverrouillée).
+      if (patVault.isEnabled()) acc.patEnc = await patVault.encrypt(input.pat);
       state.accounts.push(acc);
       recordOp({
         action: 'account.create',
@@ -393,6 +416,9 @@ export function createLocalRealApi(proxyBase: string): Api {
       if (fields.pat !== undefined) {
         acc.pat = fields.pat;
         acc.patHint = `sbp_…${fields.pat.slice(-4)}`;
+        acc.patEnc = patVault.isEnabled()
+          ? await patVault.encrypt(fields.pat)
+          : undefined;
       }
       cache.delete(id);
       recordOp({
@@ -687,6 +713,48 @@ export function createLocalRealApi(proxyBase: string): Api {
       state.settings = settings;
       save();
       return settings;
+    },
+
+    vault: {
+      isEnabled: () => patVault.isEnabled(),
+      isUnlocked: () => patVault.isUnlocked(),
+      async enable(passphrase) {
+        await patVault.enable(passphrase);
+        // Chiffre les PAT déjà présents (encore en clair en mémoire).
+        for (const a of state.accounts) {
+          a.patEnc = await patVault.encrypt(a.pat);
+        }
+        save();
+      },
+      async disable() {
+        // Nécessite une session déverrouillée : `pat` est en mémoire → on
+        // repasse en persistance claire et on retire les blobs chiffrés.
+        for (const a of state.accounts) a.patEnc = undefined;
+        patVault.disable();
+        save();
+      },
+      async unlock(passphrase) {
+        const ok = await patVault.unlock(passphrase);
+        if (!ok) return false;
+        for (const a of state.accounts) {
+          if (a.patEnc) a.pat = await patVault.decrypt(a.patEnc);
+        }
+        return true;
+      },
+      lock() {
+        patVault.lock();
+        // Oublie aussi le clair en mémoire.
+        for (const a of state.accounts) a.pat = '';
+      },
+      reset() {
+        patVault.disable();
+        // Comptes chiffrés irrécupérables → on repart propre.
+        state.accounts = [];
+        state.meta = {};
+        cache.clear();
+        metricsCache.clear();
+        save();
+      },
     },
   };
 }
