@@ -106,8 +106,13 @@ export class BrowserManagementClient {
 
   /**
    * Métriques de quota d'un projet ACTIF via SQL read-only : db size, storage
-   * (octets) et MAU estimé. Egress non disponible (aucun endpoint). Toute
-   * requête en échec (projet en pause, endpoint Beta…) → null, jamais inventé.
+   * (octets) et MAU estimé. Egress non disponible (aucun endpoint).
+   *
+   * On sépare deux natures d'échec :
+   *   - DUR (réseau / 401 / 403) : le proxy ou le PAT est en cause → la collecte
+   *     du projet a échoué (`failed: true`), à remonter à l'utilisateur ;
+   *   - DOUX (200 sans donnée exploitable, SQL non applicable…) : la valeur est
+   *     simplement `null` (non disponible), sans crier à l'erreur.
    */
   async collectMetrics(
     pat: string,
@@ -116,7 +121,11 @@ export class BrowserManagementClient {
     dbSizeBytes: number | null;
     storageBytes: number | null;
     mau: number | null;
+    failed: boolean;
   }> {
+    const isHard = (e: unknown): boolean =>
+      e instanceof ApiError &&
+      (e.status === 0 || e.status === 401 || e.status === 403);
     const run = async (query: string): Promise<number | null> => {
       try {
         const data = await this.call(
@@ -125,15 +134,25 @@ export class BrowserManagementClient {
           { method: 'POST', body: JSON.stringify({ query }) }
         );
         return extractScalar(data);
-      } catch {
-        return null;
+      } catch (e) {
+        if (isHard(e)) throw e; // remonte : collecte du projet en échec
+        return null; // doux : pas de donnée pour cette requête
       }
     };
-    const [dbSizeBytes, storageBytes, mau] = await Promise.all([
-      run(SQL_DB_SIZE),
-      run(SQL_STORAGE_SIZE),
-      run(SQL_MAU_ESTIMATE),
-    ]);
-    return { dbSizeBytes, storageBytes, mau };
+    try {
+      const [dbSizeBytes, storageBytes, mau] = await Promise.all([
+        run(SQL_DB_SIZE),
+        run(SQL_STORAGE_SIZE),
+        run(SQL_MAU_ESTIMATE),
+      ]);
+      return { dbSizeBytes, storageBytes, mau, failed: false };
+    } catch {
+      return {
+        dbSizeBytes: null,
+        storageBytes: null,
+        mau: null,
+        failed: true,
+      };
+    }
   }
 }

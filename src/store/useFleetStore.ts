@@ -87,6 +87,14 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     try {
       const metrics = await api.getFleetMetrics(refresh);
       set({ metrics, metricsLoading: false });
+      // Sur un rafraîchissement explicite, on remonte les échecs DE COLLECTE
+      // (proxy/PAT) au lieu de les confondre silencieusement avec « non
+      // disponible ». Un chargement de fond reste muet.
+      if (refresh && metrics.refreshErrors && metrics.refreshErrors > 0) {
+        toast.error(
+          `Métriques indisponibles pour ${metrics.refreshErrors} projet(s) — proxy ou PAT à vérifier.`
+        );
+      }
       const fleet = get().fleet;
       if (fleet) {
         void saveSnapshot({
@@ -97,6 +105,7 @@ export const useFleetStore = create<FleetState>((set, get) => ({
       }
     } catch {
       set({ metricsLoading: false });
+      if (refresh) toast.error('Collecte des métriques impossible.');
     }
   },
 

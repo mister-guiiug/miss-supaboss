@@ -168,6 +168,32 @@ describe('localRealApi — Supabase réel via proxy', () => {
     vi.unstubAllGlobals();
   });
 
+  it('getFleetMetrics signale les échecs DURS de collecte (refreshErrors)', async () => {
+    // orgs/projets OK, mais la requête SQL échoue en 401 (PAT/proxy) :
+    // distinct d'une métrique « non disponible » → refreshErrors compté.
+    stubFetch(path => {
+      if (path === '/v1/organizations') return json(ORGS);
+      if (path === '/v1/projects') return json(PROJECTS);
+      if (path?.endsWith('/database/query/read-only'))
+        return json({ message: 'Unauthorized' }, 401);
+      return json(null, 404);
+    });
+    const api = createLocalRealApi(PROXY);
+    await api.createAccount({
+      alias: 'Khelypso',
+      color: '#3ecf8e',
+      pat: 'sbp_DEMOFAKEtoken',
+    });
+    await api.getFleet(true);
+    const fm = await api.getFleetMetrics(true);
+
+    // Seul le projet ACTIF tente la collecte → 1 échec ; le projet en pause non.
+    expect(fm.refreshErrors).toBe(1);
+    const active = fm.projects.find(p => p.ref === 'aaaaaaaaaaaaaaaaaaaa');
+    expect(active?.metrics.find(m => m.kind === 'dbSize')?.value).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
   it('favori (méta) conservé localement et fusionné à la flotte live', async () => {
     stubFetch(path =>
       path === '/v1/organizations' ? json(ORGS) : json(PROJECTS)

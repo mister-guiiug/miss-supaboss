@@ -103,6 +103,13 @@ export type ProjectMetricsDto = z.infer<typeof projectMetricsSchema>;
 export const fleetMetricsSchema = z.object({
   projects: z.array(projectMetricsSchema),
   generatedAt: z.string(),
+  /**
+   * Mode local-first : nombre de projets dont le rafraîchissement live a
+   * vraiment ÉCHOUÉ (proxy injoignable / PAT invalide) — à distinguer d'une
+   * métrique simplement « non disponible » (aucune source). Optionnel : les
+   * autres backends ne le renseignent pas.
+   */
+  refreshErrors: z.number().int().nonnegative().optional(),
 });
 export type FleetMetricsDto = z.infer<typeof fleetMetricsSchema>;
 
