@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { RefreshCw, WifiOff, X } from 'lucide-react';
 import { formatRelative } from '../../../shared/format.ts';
 import {
-  FORCED_MOCK,
   IS_MOCK,
+  REAL_AVAILABLE,
   isDemoSeed,
   setDemoSeed,
   switchDemoMode,
@@ -21,9 +21,9 @@ export function AppHeader({ title }: { title: string }) {
   const loadMetrics = useFleetStore(s => s.loadMetrics);
   const online = useOnline();
   const [confirmExitDemo, setConfirmExitDemo] = useState(false);
-  // Pages (PWA locale) : badge présent tant que les données d'exemple sont
-  // chargées. Auto-hébergé : présent en mode démo (mock).
-  const demoOn = FORCED_MOCK ? isDemoSeed() : IS_MOCK;
+  // Réel atteignable (backend, ou PWA + proxy) : badge présent en mode démo
+  // (mock). PWA sans proxy : présent tant que les données d'exemple sont là.
+  const demoOn = REAL_AVAILABLE ? IS_MOCK : isDemoSeed();
 
   const syncLabel = fromCache
     ? `hors ligne — état ${formatRelative(cacheSavedAt)}`
@@ -45,9 +45,9 @@ export function AppHeader({ title }: { title: string }) {
         <button
           type="button"
           onClick={
-            FORCED_MOCK
-              ? () => void setDemoSeed(false)
-              : () => setConfirmExitDemo(true)
+            REAL_AVAILABLE
+              ? () => setConfirmExitDemo(true)
+              : () => void setDemoSeed(false)
           }
           aria-label="Désactiver les données de démo"
           title="Désactiver les données de démo"
@@ -82,7 +82,7 @@ export function AppHeader({ title }: { title: string }) {
         />
       </button>
 
-      {IS_MOCK && !FORCED_MOCK && (
+      {IS_MOCK && REAL_AVAILABLE && (
         <ConfirmSheet
           open={confirmExitDemo}
           title="Quitter le mode démo ?"

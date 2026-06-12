@@ -14,11 +14,10 @@
  * documente un endpoint d'usage — en attendant, egressBytes = null et l'UI
  * affiche « non disponible » (jamais de valeur inventée).
  */
-import { z } from 'zod';
 import {
-  SUPABASE_PROJECT_STATUSES,
-  type SupabaseProjectStatus,
-} from '../../../shared/status.ts';
+  parseOrganizations,
+  parseProjects,
+} from '../../../shared/supabaseApi.ts';
 import type {
   ProviderMetrics,
   RawOrganization,
@@ -28,27 +27,6 @@ import type {
 import type { ResilientClient } from './http.ts';
 
 const BASE_URL = 'https://api.supabase.com';
-
-const organizationsSchema = z.array(
-  z.object({ slug: z.string(), name: z.string() })
-);
-
-const projectsSchema = z.array(
-  z.object({
-    ref: z.string(),
-    name: z.string(),
-    region: z.string(),
-    organization_slug: z.string(),
-    status: z.string(),
-    created_at: z.string(),
-  })
-);
-
-function toStatus(raw: string): SupabaseProjectStatus {
-  return (SUPABASE_PROJECT_STATUSES as readonly string[]).includes(raw)
-    ? (raw as SupabaseProjectStatus)
-    : 'UNKNOWN';
-}
 
 /* Requêtes lancées en lecture seule (utilisateur supabase_read_only_user).
    Références qualifiées par schéma — exigence documentée de l'endpoint. */
@@ -82,7 +60,7 @@ export class ManagementApiProvider implements SupabaseProvider {
       { method: 'GET', headers: this.headers(pat) },
       true
     );
-    return organizationsSchema.parse(data);
+    return parseOrganizations(data);
   }
 
   async listProjects(accountKey: string, pat: string): Promise<RawProject[]> {
@@ -92,14 +70,7 @@ export class ManagementApiProvider implements SupabaseProvider {
       { method: 'GET', headers: this.headers(pat) },
       true
     );
-    return projectsSchema.parse(data).map(p => ({
-      ref: p.ref,
-      name: p.name,
-      region: p.region,
-      organizationSlug: p.organization_slug,
-      status: toStatus(p.status),
-      createdAt: p.created_at,
-    }));
+    return parseProjects(data);
   }
 
   async pauseProject(

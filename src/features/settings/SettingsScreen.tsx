@@ -15,8 +15,8 @@ import { settingsSchema } from '../../../shared/contracts.ts';
 import {
   api,
   ApiError,
-  FORCED_MOCK,
   IS_MOCK,
+  REAL_AVAILABLE,
   isDemoSeed,
   resetDemoData,
   setDemoSeed,
@@ -94,13 +94,13 @@ export function SettingsScreen() {
     }
   };
 
-  // Sur le build local/PWA (Pages), l'interrupteur pilote les DONNÉES D'EXEMPLE
-  // (ON = démo, OFF = store local vide) ; sur une instance auto-hébergée, il
-  // bascule mock ↔ réel.
-  const demoOn = FORCED_MOCK ? isDemoSeed() : IS_MOCK;
+  // Quand le RÉEL est atteignable (backend, ou PWA + proxy Supabase),
+  // l'interrupteur bascule démo (mock) ↔ réel. Sinon (PWA sans proxy), il
+  // pilote juste les DONNÉES D'EXEMPLE (ON = démo, OFF = store local vide).
+  const demoOn = REAL_AVAILABLE ? IS_MOCK : isDemoSeed();
   const onToggleDemo = (): void => {
-    if (FORCED_MOCK) void setDemoSeed(!demoOn);
-    else void switchDemoMode(!demoOn);
+    if (REAL_AVAILABLE) void switchDemoMode(!demoOn);
+    else void setDemoSeed(!demoOn);
   };
 
   const resetDemo = async (): Promise<void> => {
@@ -191,8 +191,9 @@ export function SettingsScreen() {
             id="demo-desc"
             className="min-w-0 text-xs text-[var(--sb-text-soft)]"
           >
-            Données d’exemple pour découvrir l’application. Désactive pour
-            partir d’un espace vide — tout est stocké sur cet appareil.
+            {REAL_AVAILABLE
+              ? 'Données simulées pour découvrir l’application. Désactive pour te connecter à ton vrai Supabase (PAT) — le jeton reste sur cet appareil.'
+              : 'Données d’exemple pour découvrir l’application. Désactive pour partir d’un espace vide — tout est stocké sur cet appareil.'}
           </p>
           <button
             type="button"
