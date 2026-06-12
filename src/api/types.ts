@@ -85,4 +85,29 @@ export interface Api {
   listOperations(limit?: number): Promise<OperationDto[]>;
   getSettings(): Promise<SettingsDto>;
   putSettings(settings: SettingsDto): Promise<SettingsDto>;
+
+  /**
+   * Coffre de chiffrement des PAT au repos — présent UNIQUEMENT en mode
+   * local-first (opt-in). Absent pour les backends mock/serveur (le serveur
+   * chiffre déjà les PAT côté base).
+   */
+  vault?: VaultController;
+}
+
+/** Contrôle du chiffrement au repos des PAT (mode local-first). */
+export interface VaultController {
+  /** Le chiffrement est-il activé sur cet appareil ? */
+  isEnabled(): boolean;
+  /** Le coffre est-il déverrouillé pour cette session ? */
+  isUnlocked(): boolean;
+  /** Active le chiffrement avec une nouvelle phrase et chiffre les PAT existants. */
+  enable(passphrase: string): Promise<void>;
+  /** Désactive le chiffrement (nécessite d'être déverrouillé) : PAT remis en clair. */
+  disable(): Promise<void>;
+  /** Déverrouille et déchiffre les PAT en mémoire. false si phrase incorrecte. */
+  unlock(passphrase: string): Promise<boolean>;
+  /** Oublie la clé en mémoire (re-déverrouillage requis). */
+  lock(): void;
+  /** Phrase oubliée : efface le coffre ET les comptes chiffrés (irrécupérables). */
+  reset(): void;
 }

@@ -9,7 +9,7 @@ import {
 } from 'react-router-dom';
 import { useSessionStore } from './store/useSessionStore.ts';
 import { useFleetStore } from './store/useFleetStore.ts';
-import { IS_MOCK } from './api/index.ts';
+import { api, IS_MOCK } from './api/index.ts';
 import { AppHeader } from './shared/components/AppHeader.tsx';
 import { BottomNav } from './shared/components/BottomNav.tsx';
 import { ErrorBoundary } from './shared/components/ErrorBoundary.tsx';
@@ -17,6 +17,7 @@ import { ToastViewport } from './shared/components/ToastViewport.tsx';
 import { ListSkeleton } from './shared/components/Skeleton.tsx';
 import { UpdatePrompt } from './pwa/UpdatePrompt.tsx';
 import { LoginScreen } from './features/auth/LoginScreen.tsx';
+import { UnlockScreen } from './features/auth/UnlockScreen.tsx';
 import { OfflineScreen } from './features/offline/OfflineScreen.tsx';
 import { OnboardingScreen } from './features/onboarding/OnboardingScreen.tsx';
 import { DashboardScreen } from './features/dashboard/DashboardScreen.tsx';
@@ -169,6 +170,7 @@ function Inner() {
   const hydrateFromCache = useFleetStore(s => s.hydrateFromCache);
   const fleet = useFleetStore(s => s.fleet);
   const [bootDone, setBootDone] = useState(false);
+  const [vaultUnlocked, setVaultUnlocked] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -188,7 +190,14 @@ function Inner() {
       </div>
     );
   }
-  if (status === 'authenticated' || IS_MOCK) return <AuthedApp />;
+  if (status === 'authenticated' || IS_MOCK) {
+    // Mode local-first avec chiffrement activé : déchiffrer les PAT (saisir la
+    // phrase) avant de charger la flotte.
+    if (api.vault?.isEnabled() && !api.vault.isUnlocked() && !vaultUnlocked) {
+      return <UnlockScreen onUnlocked={() => setVaultUnlocked(true)} />;
+    }
+    return <AuthedApp />;
+  }
   if (status === 'unknown') {
     // Hors ligne : consultation seule du dernier état connu si disponible.
     if (fleet) return <AuthedApp />;

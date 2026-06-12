@@ -5,6 +5,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createLocalRealApi, REAL_STORAGE_KEY } from './localRealApi.ts';
+import { patVault } from './crypto/patVault.ts';
 
 const PROXY = 'https://proxy.test/supabase-management';
 
@@ -55,6 +56,7 @@ const json = (data: unknown, status = 200): Response =>
   });
 
 beforeEach(() => {
+  patVault.disable(); // clé mémoire + métadonnées du coffre remises à zéro
   localStorage.clear();
 });
 
@@ -212,6 +214,49 @@ describe('localRealApi — Supabase réel via proxy', () => {
       .flatMap(a => a.projects)
       .find(x => x.ref === 'aaaaaaaaaaaaaaaaaaaa');
     expect(p?.meta.favorite).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
+  it('coffre activé : PAT chiffré au repos, déverrouillage restaure la flotte', async () => {
+    let lastAuth: string | null = null;
+    stubFetch((path, init) => {
+      const h = init?.headers as Record<string, string> | undefined;
+      if (h?.authorization) lastAuth = h.authorization;
+      if (path === '/v1/organizations') return json(ORGS);
+      if (path === '/v1/projects') return json(PROJECTS);
+      return json(null, 404);
+    });
+    const first = createLocalRealApi(PROXY);
+    await first.createAccount({
+      alias: 'Khelypso',
+      color: '#3ecf8e',
+      pat: 'sbp_DEMOFAKEtoken',
+    });
+
+    // Activer le chiffrement → l'état persisté ne doit plus contenir le clair.
+    await first.vault?.enable('ma-phrase-secrete');
+    const stored = localStorage.getItem(REAL_STORAGE_KEY) ?? '';
+    expect(stored).not.toContain('sbp_DEMOFAKEtoken');
+    expect(stored).toContain('patEnc');
+
+    // Nouveau « chargement » : coffre verrouillé.
+    patVault.lock();
+    const reopened = createLocalRealApi(PROXY);
+    expect(reopened.vault?.isEnabled()).toBe(true);
+    expect(reopened.vault?.isUnlocked()).toBe(false);
+
+    // Mauvaise phrase refusée, bonne phrase OK → PAT redéchiffré en mémoire.
+    expect(await reopened.vault?.unlock('mauvaise')).toBe(false);
+    expect(await reopened.vault?.unlock('ma-phrase-secrete')).toBe(true);
+
+    const fleet = await reopened.getFleet(true);
+    expect(
+      fleet.accounts.find(a => a.account.alias === 'Khelypso')?.projects
+    ).toHaveLength(2);
+    // La requête a bien porté le PAT déchiffré (pas une chaîne vide).
+    expect(lastAuth).toBe('Bearer sbp_DEMOFAKEtoken');
+
+    patVault.disable();
     vi.unstubAllGlobals();
   });
 });
