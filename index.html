@@ -4,9 +4,10 @@
     <meta charset="UTF-8" />
     <!--
       CSP défense en profondeur (template famille).
-      connect-src 'self' : l'app ne parle qu'à SON backend (même origine) —
-      les PAT Supabase ne transitent jamais par le navigateur. En mode mock
-      (GitHub Pages), aucun appel réseau de données.
+      connect-src : 'self' (backend même origine) + l'origine du proxy Supabase
+      AJOUTÉE au build depuis VITE_SUPABASE_PROXY (mode réel local-first, cf.
+      vite.config — le PAT transite alors vers ce proxy). En démo/mock (Pages
+      sans proxy), reste 'self' : aucun appel réseau de données.
       'unsafe-inline' requis : script anti-FOUC + styles Tailwind 4 / SW.
       Pas de 'unsafe-eval' : Zod tourne en mode « jitless » (script ci-dessous).
       `frame-ancestors` retiré : directive HEADER-ONLY, ignorée en <meta> (et non

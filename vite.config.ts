@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -10,10 +10,23 @@ const { version } = JSON.parse(readFileSync('./package.json', 'utf-8')) as {
 
 // Déployé en mode mock sur GitHub Pages : https://mister-guiiug.github.io/miss-supaboss/
 // En mode réel, le build est servi par le serveur Node (même origine que /api).
-export default defineConfig(({ command }) => {
+export default defineConfig(({ command, mode }) => {
   const basePath =
     process.env.VITE_BASE_PATH ??
     (command === 'build' ? '/miss-supaboss/' : '/');
+
+  // Origine du proxy Supabase (mode réel local-first) à autoriser dans la CSP
+  // `connect-src`. loadEnv lit les .env* ET le process.env (build-env de la CI).
+  // Vide (mode démo/mock) → connect-src reste 'self'.
+  const env = loadEnv(mode, process.cwd(), 'VITE_');
+  let proxyOrigin = '';
+  try {
+    if (env.VITE_SUPABASE_PROXY) {
+      proxyOrigin = new URL(env.VITE_SUPABASE_PROXY).origin;
+    }
+  } catch {
+    proxyOrigin = '';
+  }
 
   return {
     base: basePath,
@@ -120,6 +133,20 @@ export default defineConfig(({ command }) => {
           ],
         },
       }),
+      // Étend la CSP `connect-src` avec l'origine du proxy quand
+      // VITE_SUPABASE_PROXY est défini (mode réel local-first) — sinon laisse
+      // 'self' (démo/mock). Une seule source de vérité : la variable de build.
+      {
+        name: 'csp-connect-proxy',
+        transformIndexHtml(html: string) {
+          return proxyOrigin
+            ? html.replace(
+                "connect-src 'self'",
+                `connect-src 'self' ${proxyOrigin}`
+              )
+            : html;
+        },
+      },
     ],
   };
 });
