@@ -1,14 +1,39 @@
 import { useState } from 'react';
-import { Hand, ShieldCheck } from 'lucide-react';
+import { Hand, ShieldAlert, ShieldCheck, Sparkles } from 'lucide-react';
+import { IS_MOCK, PROXY_BASE } from '../../api/index.ts';
 import { useFleetStore } from '../../store/useFleetStore.ts';
 import { canAdmin, useSessionStore } from '../../store/useSessionStore.ts';
 import { AccountForm } from '../accounts/AccountForm.tsx';
+
+/**
+ * Note de sécurité selon le mode RÉELLEMENT déployé : l'ancienne copie promettait
+ * un chiffrement « côté serveur, jamais dans ce navigateur » — faux en local-first,
+ * où le PAT vit dans le navigateur et n'est transmis qu'au proxy de relais.
+ */
+const securityNote = IS_MOCK
+  ? {
+      icon: Sparkles,
+      tone: 'text-primary',
+      text: 'Mode démo : comptes et données simulés. Rien n’est envoyé à Supabase.',
+    }
+  : PROXY_BASE
+    ? {
+        icon: ShieldAlert,
+        tone: 'text-[var(--sb-warn)]',
+        text: 'Mode local-first : le PAT est stocké sur CET appareil (dans le navigateur) et n’est transmis qu’au proxy de relais, en HTTPS. À éviter sur un poste partagé ; supprimer le compte l’efface.',
+      }
+    : {
+        icon: ShieldCheck,
+        tone: 'text-primary',
+        text: 'Les PAT sont chiffrés (AES-256-GCM) côté serveur et n’atteignent jamais ce navigateur. Chaque action est journalisée.',
+      };
 
 /** Premier lancement : aucun compte → guide d'ajout du premier PAT. */
 export function OnboardingScreen() {
   const loadFleet = useFleetStore(s => s.loadFleet);
   const user = useSessionStore(s => s.user);
   const [formOpen, setFormOpen] = useState(false);
+  const NoteIcon = securityNote.icon;
 
   return (
     <div className="mx-auto flex max-w-sm flex-col items-center gap-5 px-2 py-10 text-center">
@@ -53,13 +78,12 @@ export function OnboardingScreen() {
         </li>
       </ol>
       <p className="flex items-start gap-2 text-left text-xs text-[var(--sb-text-soft)]">
-        <ShieldCheck
+        <NoteIcon
           size={28}
           aria-hidden="true"
-          className="shrink-0 text-primary"
+          className={`shrink-0 ${securityNote.tone}`}
         />
-        Les PAT sont chiffrés (AES-256-GCM) côté serveur et n'atteignent jamais
-        ce navigateur. Chaque action est journalisée.
+        {securityNote.text}
       </p>
       {canAdmin(user) ? (
         <button
