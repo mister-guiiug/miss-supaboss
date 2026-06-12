@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Coffee,
   Download,
   LogOut,
   Monitor,
@@ -26,7 +25,7 @@ import { useFleetStore } from '../../store/useFleetStore.ts';
 import { canAdmin, useSessionStore } from '../../store/useSessionStore.ts';
 import { toast } from '../../store/useUiStore.ts';
 import { clearSnapshot } from '../../offline/lastKnown.ts';
-import { REPO_URL, SPONSOR_URL } from '../../links.ts';
+import { REPO_URL } from '../../links.ts';
 
 export function SettingsScreen() {
   const settings = useFleetStore(s => s.settings);
@@ -330,24 +329,7 @@ export function SettingsScreen() {
 
       <section className="card p-4" aria-label="À propos">
         <p className="text-xs text-[var(--sb-text-soft)]">
-          Miss Supaboss v{__APP_VERSION__} —{' '}
-          <a
-            href={REPO_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-primary"
-          >
-            Code source
-          </a>{' '}
-          ·{' '}
-          <a
-            href={SPONSOR_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 font-medium text-primary"
-          >
-            <Coffee size={13} aria-hidden="true" /> M'offrir un café
-          </a>
+          Miss Supaboss v{__APP_VERSION__}
         </p>
         <div className="mt-3">
           <FamilyApps currentAppId="miss-supaboss" repoUrl={REPO_URL} />
