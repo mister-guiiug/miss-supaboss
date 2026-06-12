@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { TriangleAlert } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
@@ -29,9 +30,11 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!this.state.error) return this.props.children;
     return (
       <div role="alert" className="mx-auto max-w-md p-6 text-center">
-        <p aria-hidden="true" className="text-4xl">
-          🦺
-        </p>
+        <TriangleAlert
+          size={40}
+          aria-hidden="true"
+          className="mx-auto text-[var(--sb-critical)]"
+        />
         <h1 className="mt-2 text-lg font-semibold">Quelque chose a cassé</h1>
         <p className="mt-1 text-sm text-[var(--sb-text-soft)]">
           {this.state.error.message}

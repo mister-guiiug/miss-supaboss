@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, PartyPopper } from 'lucide-react';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Clapperboard,
+  FileQuestion,
+  PartyPopper,
+  TriangleAlert,
+} from 'lucide-react';
 import type { RestoreAssessmentDto } from '../../../shared/contracts.ts';
 import { isRestoreWindowExpired } from '../../../shared/guards.ts';
 import { worstLevel } from '../../../shared/quotas.ts';
@@ -116,7 +123,7 @@ export function PrepareDemoScreen() {
 
   if (!project) {
     return (
-      <EmptyState emoji="🤷" title="Projet introuvable">
+      <EmptyState icon={FileQuestion} title="Projet introuvable">
         <Link to="/projects" className="font-medium text-primary">
           ← Retour aux projets
         </Link>
@@ -162,7 +169,9 @@ export function PrepareDemoScreen() {
 
       <header className="card flex items-center justify-between gap-2 p-4">
         <div>
-          <h1 className="text-lg font-bold">🎬 Préparer la démo</h1>
+          <h1 className="flex items-center gap-1.5 text-lg font-bold">
+            <Clapperboard size={18} aria-hidden="true" /> Préparer la démo
+          </h1>
           <p className="text-xs text-[var(--sb-text-soft)]">{project.name}</p>
         </div>
         <StatusBadge status={project.status} />
@@ -222,18 +231,32 @@ export function PrepareDemoScreen() {
             projets actifs.{' '}
             {needsPauses
               ? 'Limite Free atteinte — libérez un slot :'
-              : 'Un slot est disponible ✔'}
+              : 'Un slot est disponible.'}
           </p>
           {quotaLevelWorst === 'critical' && (
-            <p className="rounded-lg bg-[var(--sb-critical)]/10 p-2 text-sm text-[var(--sb-critical)]">
-              ⚠ Un quota est en zone critique sur ce projet — la démo peut être
-              dégradée (voir l'écran Quotas).
+            <p className="flex items-start gap-1.5 rounded-lg bg-[var(--sb-critical)]/10 p-2 text-sm text-[var(--sb-critical)]">
+              <TriangleAlert
+                size={15}
+                aria-hidden="true"
+                className="mt-0.5 shrink-0"
+              />
+              <span>
+                Un quota est en zone critique sur ce projet — la démo peut être
+                dégradée (voir l'écran Quotas).
+              </span>
             </p>
           )}
           {windowExpired && (
-            <p className="rounded-lg bg-[var(--sb-warn)]/10 p-2 text-sm text-[var(--sb-warn)]">
-              ⚠ Fenêtre de restauration estimée dépassée : la restauration
-              directe peut être refusée par Supabase.
+            <p className="flex items-start gap-1.5 rounded-lg bg-[var(--sb-warn)]/10 p-2 text-sm text-[var(--sb-warn)]">
+              <TriangleAlert
+                size={15}
+                aria-hidden="true"
+                className="mt-0.5 shrink-0"
+              />
+              <span>
+                Fenêtre de restauration estimée dépassée : la restauration
+                directe peut être refusée par Supabase.
+              </span>
             </p>
           )}
           {needsPauses && (
@@ -307,7 +330,7 @@ export function PrepareDemoScreen() {
           />
           <h2 className="text-lg font-bold">Projet prêt à présenter !</h2>
           <p className="text-sm text-[var(--sb-text-soft)]">
-            « {project.name} » est actif et sain. Bonne démo 🎉
+            « {project.name} » est actif et sain. Bonne démo !
           </p>
           <Link
             to={`/projects/${accountId}/${ref}`}
@@ -320,7 +343,14 @@ export function PrepareDemoScreen() {
 
       {displayPhase === 'failed' && (
         <section className="card space-y-3 p-4">
-          <p className="text-sm text-[var(--sb-critical)]">⚠ {displayError}</p>
+          <p className="flex items-start gap-1.5 text-sm text-[var(--sb-critical)]">
+            <TriangleAlert
+              size={15}
+              aria-hidden="true"
+              className="mt-0.5 shrink-0"
+            />
+            <span>{displayError}</span>
+          </p>
           <button
             type="button"
             onClick={() => {

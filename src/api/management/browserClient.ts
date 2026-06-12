@@ -6,6 +6,10 @@
  * partagés (`shared/supabaseApi`).
  */
 import {
+  SQL_DB_SIZE,
+  SQL_MAU_ESTIMATE,
+  SQL_STORAGE_SIZE,
+  extractScalar,
   parseOrganizations,
   parseProjects,
   type RawOrganization,
@@ -98,5 +102,38 @@ export class BrowserManagementClient {
       method: 'POST',
       body: '{}',
     });
+  }
+
+  /**
+   * Métriques de quota d'un projet ACTIF via SQL read-only : db size, storage
+   * (octets) et MAU estimé. Egress non disponible (aucun endpoint). Toute
+   * requête en échec (projet en pause, endpoint Beta…) → null, jamais inventé.
+   */
+  async collectMetrics(
+    pat: string,
+    ref: string
+  ): Promise<{
+    dbSizeBytes: number | null;
+    storageBytes: number | null;
+    mau: number | null;
+  }> {
+    const run = async (query: string): Promise<number | null> => {
+      try {
+        const data = await this.call(
+          pat,
+          `/v1/projects/${ref}/database/query/read-only`,
+          { method: 'POST', body: JSON.stringify({ query }) }
+        );
+        return extractScalar(data);
+      } catch {
+        return null;
+      }
+    };
+    const [dbSizeBytes, storageBytes, mau] = await Promise.all([
+      run(SQL_DB_SIZE),
+      run(SQL_STORAGE_SIZE),
+      run(SQL_MAU_ESTIMATE),
+    ]);
+    return { dbSizeBytes, storageBytes, mau };
   }
 }

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { Gauge, Globe } from 'lucide-react';
 import { useFleetStore } from '../../store/useFleetStore.ts';
 import {
   METRIC_KINDS,
@@ -64,7 +65,7 @@ export function QuotasScreen() {
   if (!metrics && metricsLoading) return <ListSkeleton count={3} />;
   if (!metrics) {
     return (
-      <EmptyState emoji="📊" title="Métriques pas encore collectées">
+      <EmptyState icon={Gauge} title="Métriques pas encore collectées">
         <button
           type="button"
           onClick={() => void loadMetrics(true)}
@@ -93,8 +94,9 @@ export function QuotasScreen() {
       </div>
 
       <section className="card space-y-3 p-4" aria-label="Synthèse globale">
-        <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
-          🌍 Synthèse multi-comptes (somme indicative)
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
+          <Globe size={15} aria-hidden="true" /> Synthèse multi-comptes (somme
+          indicative)
         </h2>
         {globalSummary.map(m => (
           <QuotaBar key={m.kind} metric={m} thresholds={settings.thresholds} />

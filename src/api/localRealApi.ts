@@ -13,9 +13,9 @@
 import {
   DEFAULT_SETTINGS,
   type AccountDto,
-  type FleetMetricsDto,
   type OperationDto,
   type ProjectDto,
+  type ProjectMetricsDto,
   type SettingsDto,
   type UserDto,
 } from '../../shared/contracts.ts';
@@ -24,7 +24,12 @@ import {
   estimateRestoreDeadline,
 } from '../../shared/guards.ts';
 import { isPausable, isRestorable } from '../../shared/status.ts';
-import { unavailableMetric } from '../../shared/quotas.ts';
+import {
+  FREE_PLAN_QUOTAS,
+  unavailableMetric,
+  type MetricKind,
+  type MetricValue,
+} from '../../shared/quotas.ts';
 import type { RawProject } from '../../shared/supabaseApi.ts';
 import { ApiError, type Api } from './types.ts';
 import { BrowserManagementClient } from './management/browserClient.ts';
@@ -39,6 +44,7 @@ const LOCAL_USER: UserDto = {
 export const REAL_STORAGE_KEY = 'miss-supaboss-real-v1';
 
 const FLEET_TTL_MS = 15_000;
+const METRICS_TTL_MS = 5 * 60_000;
 
 interface RealAccount {
   id: string;
@@ -114,6 +120,10 @@ export function createLocalRealApi(proxyBase: string): Api {
   const cache = new Map<
     string,
     { fleet: ProjectDto[]; orgs: string[]; at: number }
+  >();
+  const metricsCache = new Map<
+    string,
+    { metrics: MetricValue[]; at: number }
   >();
 
   const save = (): void => {
@@ -243,6 +253,63 @@ export function createLocalRealApi(proxyBase: string): Api {
     const acc = getAccount(accountId);
     const { projects } = await loadAccountFleet(acc, refresh);
     return projects;
+  };
+
+  const buildMetric = (
+    kind: MetricKind,
+    value: number | null,
+    src: 'measured' | 'estimated',
+    measuredAt: string
+  ): MetricValue =>
+    value === null
+      ? unavailableMetric(kind)
+      : { kind, state: src, value, quota: FREE_PLAN_QUOTAS[kind], measuredAt };
+
+  /** Métriques d'UN projet : SQL read-only via le proxy si actif + cache TTL.
+   *  Egress reste indisponible ; projet en pause / mesure ancienne → 'stale'. */
+  const collectProjectMetrics = async (
+    acc: RealAccount,
+    project: ProjectDto,
+    refresh: boolean
+  ): Promise<ProjectMetricsDto> => {
+    const key = metaKey(acc.id, project.ref);
+    const isActive = ACTIVE.has(project.status);
+    const cached = metricsCache.get(key);
+    const fresh = !!cached && Date.now() - cached.at < METRICS_TTL_MS;
+    if (isActive && (refresh || !fresh)) {
+      try {
+        const m = await client.collectMetrics(acc.pat, project.ref);
+        const at = new Date().toISOString();
+        metricsCache.set(key, {
+          at: Date.now(),
+          metrics: [
+            unavailableMetric('egress'),
+            buildMetric('dbSize', m.dbSizeBytes, 'measured', at),
+            buildMetric('mau', m.mau, 'estimated', at),
+            buildMetric('storage', m.storageBytes, 'measured', at),
+          ],
+        });
+      } catch {
+        // collecte impossible → on retombe sur le cache (ou indisponible)
+      }
+    }
+    const entry = metricsCache.get(key);
+    if (!entry) {
+      return {
+        accountId: acc.id,
+        ref: project.ref,
+        metrics: (['egress', 'dbSize', 'mau', 'storage'] as const).map(
+          unavailableMetric
+        ),
+      };
+    }
+    const stillFresh = Date.now() - entry.at < METRICS_TTL_MS;
+    const metrics = entry.metrics.map(mv =>
+      mv.value === null || (isActive && stillFresh)
+        ? mv
+        : { ...mv, state: 'stale' as const }
+    );
+    return { accountId: acc.id, ref: project.ref, metrics };
   };
 
   return {
@@ -435,22 +502,21 @@ export function createLocalRealApi(proxyBase: string): Api {
       save();
       return { accounts, generatedAt: new Date().toISOString() };
     },
-    async getFleetMetrics() {
-      // Métriques de quota non collectées en mode local (v1) → non disponibles.
-      const projects: FleetMetricsDto['projects'] = [];
+    async getFleetMetrics(refresh) {
+      const projects: ProjectMetricsDto[] = [];
       for (const acc of state.accounts) {
         if (!acc.enabled) continue;
-        const live = cache.get(acc.id)?.fleet ?? [];
+        let live: ProjectDto[];
+        try {
+          live = (await loadAccountFleet(acc, false)).projects;
+        } catch {
+          live = cache.get(acc.id)?.fleet ?? [];
+        }
         for (const p of live) {
-          projects.push({
-            accountId: acc.id,
-            ref: p.ref,
-            metrics: (['egress', 'dbSize', 'mau', 'storage'] as const).map(k =>
-              unavailableMetric(k)
-            ),
-          });
+          projects.push(await collectProjectMetrics(acc, p, refresh));
         }
       }
+      save();
       return { projects, generatedAt: new Date().toISOString() };
     },
     async getProject(accountId, ref, refresh) {

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, SearchX, Star, type LucideIcon } from 'lucide-react';
 import { useFleetStore } from '../../store/useFleetStore.ts';
 import { statusGroup, type StatusGroup } from '../../../shared/status.ts';
 import type { ProjectDto } from '../../../shared/contracts.ts';
@@ -10,13 +10,13 @@ import { EmptyState } from '../../shared/components/EmptyState.tsx';
 type Filter = 'all' | StatusGroup | 'favorite';
 type Sort = 'name' | 'status' | 'activity';
 
-const FILTERS: { id: Filter; label: string }[] = [
+const FILTERS: { id: Filter; label: string; icon?: LucideIcon }[] = [
   { id: 'all', label: 'Tous' },
   { id: 'active', label: 'Actifs' },
   { id: 'paused', label: 'En pause' },
   { id: 'transition', label: 'En cours' },
   { id: 'error', label: 'Erreurs' },
-  { id: 'favorite', label: '★ Favoris' },
+  { id: 'favorite', label: 'Favoris', icon: Star },
 ];
 
 export function ProjectsScreen() {
@@ -100,12 +100,13 @@ export function ProjectsScreen() {
               type="button"
               aria-pressed={filter === f.id}
               onClick={() => setFilter(f.id)}
-              className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium ${
+              className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium ${
                 filter === f.id
                   ? 'border-primary bg-primary/15 text-primary'
                   : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
               }`}
             >
+              {f.icon && <f.icon size={13} aria-hidden="true" />}
               {f.label}
             </button>
           ))}
@@ -123,7 +124,7 @@ export function ProjectsScreen() {
       </div>
 
       {total === 0 ? (
-        <EmptyState emoji="🔍" title="Aucun projet ne correspond">
+        <EmptyState icon={SearchX} title="Aucun projet ne correspond">
           Modifiez la recherche ou les filtres.
         </EmptyState>
       ) : (

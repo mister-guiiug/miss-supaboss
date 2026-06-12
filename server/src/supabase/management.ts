@@ -15,6 +15,10 @@
  * affiche « non disponible » (jamais de valeur inventée).
  */
 import {
+  SQL_DB_SIZE,
+  SQL_MAU_ESTIMATE,
+  SQL_STORAGE_SIZE,
+  extractScalar,
   parseOrganizations,
   parseProjects,
 } from '../../../shared/supabaseApi.ts';
@@ -27,14 +31,6 @@ import type {
 import type { ResilientClient } from './http.ts';
 
 const BASE_URL = 'https://api.supabase.com';
-
-/* Requêtes lancées en lecture seule (utilisateur supabase_read_only_user).
-   Références qualifiées par schéma — exigence documentée de l'endpoint. */
-const SQL_DB_SIZE = 'select pg_database_size(current_database()) as v;';
-const SQL_STORAGE_SIZE =
-  "select coalesce(sum((o.metadata->>'size')::bigint), 0) as v from storage.objects o;";
-const SQL_MAU_ESTIMATE =
-  "select count(*) as v from auth.users u where u.last_sign_in_at >= date_trunc('month', now());";
 
 export class ManagementApiProvider implements SupabaseProvider {
   private readonly http: ResilientClient;
@@ -145,36 +141,4 @@ export class ManagementApiProvider implements SupabaseProvider {
       return null; // métrique indisponible — l'appelant marque « unavailable »
     }
   }
-}
-
-/** Accepte [{v}], {result:[{v}]}, [[v]]… et retourne le premier nombre trouvé. */
-export function extractScalar(data: unknown): number | null {
-  const rows = Array.isArray(data)
-    ? data
-    : typeof data === 'object' && data !== null && 'result' in data
-      ? (data as { result: unknown }).result
-      : null;
-  if (!Array.isArray(rows) || rows.length === 0) return null;
-  const first: unknown = rows[0];
-  if (typeof first === 'number') return first;
-  if (Array.isArray(first)) {
-    const cell: unknown = first[0];
-    return numberish(cell);
-  }
-  if (typeof first === 'object' && first !== null) {
-    for (const value of Object.values(first)) {
-      const n = numberish(value);
-      if (n !== null) return n;
-    }
-  }
-  return null;
-}
-
-function numberish(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'string' && value.trim() !== '') {
-    const n = Number(value);
-    if (Number.isFinite(n)) return n;
-  }
-  return null;
 }

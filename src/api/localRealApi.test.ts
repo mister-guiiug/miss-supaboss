@@ -124,6 +124,50 @@ describe('localRealApi — Supabase réel via proxy', () => {
     vi.unstubAllGlobals();
   });
 
+  it('getFleetMetrics collecte les quotas par projet ACTIF (SQL via proxy)', async () => {
+    stubFetch((path, init) => {
+      if (path === '/v1/organizations') return json(ORGS);
+      if (path === '/v1/projects') return json(PROJECTS);
+      if (path?.endsWith('/database/query/read-only')) {
+        const body = JSON.parse(String(init?.body ?? '{}')) as {
+          query: string;
+        };
+        if (body.query.includes('pg_database_size'))
+          return json([{ v: 200 * 1024 * 1024 }]);
+        if (body.query.includes('storage.objects'))
+          return json([{ v: 30 * 1024 * 1024 }]);
+        if (body.query.includes('auth.users')) return json([{ v: 1200 }]);
+      }
+      return json(null, 404);
+    });
+    const api = createLocalRealApi(PROXY);
+    await api.createAccount({
+      alias: 'Khelypso',
+      color: '#3ecf8e',
+      pat: 'sbp_DEMOFAKEtoken',
+    });
+    await api.getFleet(true); // peuple le cache flotte
+    const fm = await api.getFleetMetrics(true);
+
+    // Projet ACTIF : db/storage mesurés, MAU estimé, egress indisponible.
+    const active = fm.projects.find(p => p.ref === 'aaaaaaaaaaaaaaaaaaaa');
+    const db = active?.metrics.find(m => m.kind === 'dbSize');
+    expect(db?.value).toBe(200 * 1024 * 1024);
+    expect(db?.state).toBe('measured');
+    expect(active?.metrics.find(m => m.kind === 'mau')?.value).toBe(1200);
+    expect(active?.metrics.find(m => m.kind === 'mau')?.state).toBe(
+      'estimated'
+    );
+    expect(active?.metrics.find(m => m.kind === 'egress')?.state).toBe(
+      'unavailable'
+    );
+
+    // Projet EN PAUSE : pas de collecte SQL → indisponible.
+    const paused = fm.projects.find(p => p.ref === 'bbbbbbbbbbbbbbbbbbbb');
+    expect(paused?.metrics.find(m => m.kind === 'dbSize')?.value).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
   it('favori (méta) conservé localement et fusionné à la flotte live', async () => {
     stubFetch(path =>
       path === '/v1/organizations' ? json(ORGS) : json(PROJECTS)

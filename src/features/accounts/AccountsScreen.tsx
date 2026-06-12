@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Plug, Plus, Trash2 } from 'lucide-react';
+import { FolderOpen, Pencil, Plug, Plus, Trash2 } from 'lucide-react';
 import type { AccountDto } from '../../../shared/contracts.ts';
 import {
   ACTIVE_PROJECT_LIMIT,
@@ -19,7 +19,7 @@ export function AccountsScreen() {
   const loadFleet = useFleetStore(s => s.loadFleet);
   const fromCache = useFleetStore(s => s.fromCache);
   const user = useSessionStore(s => s.user);
-  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<AccountDto | 'new' | null>(null);
   const [toDelete, setToDelete] = useState<AccountDto | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -37,7 +37,7 @@ export function AccountsScreen() {
         ? ` (${res.organizations.join(', ')})`
         : '';
       toast.success(
-        `${account.alias} : ${res.organizations.length} org${orgs} · ${res.projects} projets ✔`
+        `${account.alias} : ${res.organizations.length} org${orgs} · ${res.projects} projets`
       );
       await loadFleet(true);
     } catch (e) {
@@ -79,7 +79,7 @@ export function AccountsScreen() {
       {admin && (
         <button
           type="button"
-          onClick={() => setFormOpen(true)}
+          onClick={() => setEditing('new')}
           className="touch-target flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 font-semibold text-[#06281a]"
         >
           <Plus size={18} aria-hidden="true" /> Ajouter un compte Supabase
@@ -87,7 +87,7 @@ export function AccountsScreen() {
       )}
 
       {accounts.length === 0 ? (
-        <EmptyState emoji="🗂️" title="Aucun compte">
+        <EmptyState icon={FolderOpen} title="Aucun compte">
           Ajoutez votre premier compte Supabase avec un PAT (Personal Access
           Token).
         </EmptyState>
@@ -131,21 +131,44 @@ export function AccountsScreen() {
                 </button>
                 {admin && (
                   <>
-                    <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-[var(--sb-border)] px-3 py-2.5 font-medium">
-                      <input
-                        type="checkbox"
-                        checked={account.enabled}
+                    <span className="flex items-center gap-2 rounded-xl border border-[var(--sb-border)] px-3 py-2 font-medium">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={account.enabled}
+                        aria-label={`Activer ${account.alias}`}
                         disabled={busyId === account.id}
-                        onChange={() => void toggle(account)}
-                      />
-                      Actif dans l'app
-                    </label>
+                        onClick={() => void toggle(account)}
+                        className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
+                          account.enabled
+                            ? 'bg-primary'
+                            : 'bg-[var(--sb-surface-2)]'
+                        }`}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`inline-block size-5 rounded-full bg-white shadow transition-transform ${
+                            account.enabled ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                      Actif
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={`Renommer ${account.alias}`}
+                      disabled={busyId === account.id}
+                      onClick={() => setEditing(account)}
+                      className="touch-target ml-auto flex items-center justify-center rounded-xl border border-[var(--sb-border)] px-3 disabled:opacity-50"
+                    >
+                      <Pencil size={16} aria-hidden="true" />
+                    </button>
                     <button
                       type="button"
                       aria-label={`Supprimer ${account.alias}`}
                       disabled={busyId === account.id}
                       onClick={() => setToDelete(account)}
-                      className="touch-target ml-auto flex items-center justify-center rounded-xl border border-[var(--sb-critical)]/40 px-3 text-[var(--sb-critical)] disabled:opacity-50"
+                      className="touch-target flex items-center justify-center rounded-xl border border-[var(--sb-critical)]/40 px-3 text-[var(--sb-critical)] disabled:opacity-50"
                     >
                       <Trash2 size={16} aria-hidden="true" />
                     </button>
@@ -158,10 +181,12 @@ export function AccountsScreen() {
       )}
 
       <AccountForm
-        open={formOpen}
-        onClose={() => setFormOpen(false)}
+        key={editing === 'new' ? 'new' : (editing?.id ?? 'closed')}
+        open={editing !== null}
+        account={editing === 'new' ? null : editing}
+        onClose={() => setEditing(null)}
         onSaved={() => {
-          setFormOpen(false);
+          setEditing(null);
           void loadFleet(true);
         }}
       />
