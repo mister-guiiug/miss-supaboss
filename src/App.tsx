@@ -70,7 +70,12 @@ function Shell() {
   return (
     <div className="mx-auto flex min-h-dvh max-w-2xl flex-col">
       <AppHeader title={title} />
-      <main className="flex-1 px-3 py-4">
+      <main
+        className="flex-1 px-3 pt-4"
+        style={{
+          paddingBottom: 'calc(env(safe-area-inset-bottom) + 4.25rem)',
+        }}
+      >
         <ErrorBoundary level="route" key={pathname}>
           <Suspense fallback={<ListSkeleton count={3} />}>
             <Outlet />

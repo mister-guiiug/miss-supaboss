@@ -19,7 +19,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Navigation principale"
-      className="card sticky bottom-0 z-30 grid grid-cols-5 rounded-none border-x-0 border-b-0 pb-safe"
+      className="card fixed inset-x-0 bottom-0 z-30 mx-auto grid max-w-2xl grid-cols-5 rounded-none border-x-0 border-b-0 pb-safe"
     >
       {ITEMS.map(({ to, label, icon: Icon, end }) => (
         <NavLink
