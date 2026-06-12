@@ -1,7 +1,7 @@
 /**
  * API « réelle local-first » : la PWA (GitHub Pages, sans backend) interroge
  * directement la Supabase Management API via le proxy CORS
- * (cf. supabase/functions/supabase-management). Les comptes, le PAT et les
+ * (cf. proxy/ — Cloudflare Worker). Les comptes, le PAT et les
  * métadonnées (tags/favoris/notes/observations) sont stockés EN LOCAL
  * (localStorage) sur l'appareil — le PAT n'est transmis qu'au proxy.
  *

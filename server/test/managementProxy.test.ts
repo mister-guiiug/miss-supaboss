@@ -1,12 +1,9 @@
 /**
- * Proxy CORS Supabase (supabase/functions/supabase-management) : on vérifie le
- * garde-fou CORS, la liste blanche de chemins et le relais vers api.supabase.com.
+ * Proxy CORS Supabase (proxy/handler.ts) : on vérifie le garde-fou CORS, la
+ * liste blanche de chemins et le relais vers api.supabase.com.
  */
 import { describe, expect, it, vi } from 'vitest';
-import {
-  handleProxy,
-  parseOrigins,
-} from '../../supabase/functions/supabase-management/index.ts';
+import { handleProxy, parseOrigins } from '../../proxy/handler.ts';
 
 const ORIGIN = 'https://mister-guiiug.github.io';
 

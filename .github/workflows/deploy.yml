@@ -1,6 +1,7 @@
-# GitHub Pages héberge la DÉMO PUBLIQUE en mode mock (VITE_MOCK=1) :
-# aucun secret, aucun appel réel à Supabase. Le mode réel se déploie via
-# Docker (cf. README § Déploiement).
+# GitHub Pages héberge la PWA en mode mock par défaut (VITE_MOCK=1, aucun
+# secret). Mode RÉEL local-first : définir la variable de dépôt
+# SUPABASE_PROXY_URL (URL du Worker, cf. proxy/) → injectée en VITE_SUPABASE_PROXY.
+# Vide = la PWA reste en démo (rien ne casse).
 name: Deploy
 
 on:
@@ -22,3 +23,4 @@ jobs:
       use-base-path: true
       build-env: |
         VITE_MOCK=1
+        VITE_SUPABASE_PROXY=${{ vars.SUPABASE_PROXY_URL }}

@@ -1,0 +1,10 @@
+# Cloudflare Worker — proxy CORS pour la Supabase Management API.
+# Déploiement : depuis ce dossier, `wrangler deploy` (cf. README.md).
+name = "supaboss-management-proxy"
+main = "worker.ts"
+compatibility_date = "2025-06-01"
+
+# Origines navigateur autorisées (CSV). NON secret → committable.
+# Adapter à TON déploiement Pages (et localhost si test local du mode réel).
+[vars]
+ALLOWED_ORIGINS = "https://mister-guiiug.github.io,http://localhost:5204"
