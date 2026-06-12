@@ -6,5 +6,10 @@ compatibility_date = "2025-06-01"
 
 # Origines navigateur autorisées (CSV). NON secret → committable.
 # Adapter à TON déploiement Pages (et localhost si test local du mode réel).
+# Fail-closed : si cette variable est vide/absente, le proxy refuse TOUT
+# (aucune origine autorisée) au lieu d'ouvrir le relais. Une requête sans
+# en-tête Origin (curl) est elle aussi refusée. Pour un durcissement
+# supplémentaire (anti-abus du quota Worker), ajouter une règle de
+# rate-limiting côté tableau de bord Cloudflare.
 [vars]
 ALLOWED_ORIGINS = "https://mister-guiiug.github.io,http://localhost:5204"

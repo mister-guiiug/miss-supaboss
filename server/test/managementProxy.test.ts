@@ -119,9 +119,36 @@ describe('proxy management — CORS + liste blanche', () => {
     expect(res.status).toBe(401);
   });
 
-  it('parseOrigins : liste vide → ["*"], sinon découpe/trim', () => {
-    expect(parseOrigins('')).toEqual(['*']);
-    expect(parseOrigins(undefined)).toEqual(['*']);
+  it('requête sans en-tête Origin (curl/serveur) → 403, aucun relais', async () => {
+    const fetchImpl = vi.fn();
+    const res = await handleProxy(
+      makeReq('GET', { path: '/v1/projects', auth: 'Bearer sbp_x' }),
+      [ORIGIN],
+      fetchImpl as unknown as typeof fetch
+    );
+    expect(res.status).toBe(403);
+    expect(res.headers.get('access-control-allow-origin')).toBeNull();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('liste blanche vide (fail-closed) → 403 même pour une origine plausible', async () => {
+    const fetchImpl = vi.fn();
+    const res = await handleProxy(
+      makeReq('GET', {
+        path: '/v1/projects',
+        origin: ORIGIN,
+        auth: 'Bearer sbp_x',
+      }),
+      [],
+      fetchImpl as unknown as typeof fetch
+    );
+    expect(res.status).toBe(403);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('parseOrigins : vide/absent → [] (fail-closed), sinon découpe/trim', () => {
+    expect(parseOrigins('')).toEqual([]);
+    expect(parseOrigins(undefined)).toEqual([]);
     expect(parseOrigins('a, b ,c')).toEqual(['a', 'b', 'c']);
   });
 });
