@@ -1,6 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, PauseCircle, PlayCircle, Star, Zap } from 'lucide-react';
+import {
+  ArrowLeft,
+  FileQuestion,
+  PauseCircle,
+  PlayCircle,
+  Star,
+  Zap,
+} from 'lucide-react';
 import {
   findProject,
   metricsOf,
@@ -74,7 +81,7 @@ export function ProjectDetailScreen() {
 
   if (!project || !account) {
     return (
-      <EmptyState emoji="🤷" title="Projet introuvable">
+      <EmptyState icon={FileQuestion} title="Projet introuvable">
         <Link to="/projects" className="font-medium text-primary">
           ← Retour aux projets
         </Link>

@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   Download,
+  Flame,
   LogOut,
   Monitor,
   Moon,
+  OctagonAlert,
   RotateCcw,
   Sun,
   TestTube2,
+  TriangleAlert,
   Upload,
 } from 'lucide-react';
 import { useTheme, FamilyApps } from '@mister-guiiug/dev-wpa-config/react';
@@ -109,12 +112,12 @@ export function SettingsScreen() {
   };
 
   const numberField = (
-    label: string,
+    label: ReactNode,
     value: number,
     onChange: (v: number) => void
   ) => (
     <label className="flex items-center justify-between gap-2 text-sm">
-      <span>{label}</span>
+      <span className="flex items-center gap-1.5">{label}</span>
       <input
         type="number"
         value={value}
@@ -230,17 +233,47 @@ export function SettingsScreen() {
         <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
           Seuils d'alerte quotas (%)
         </h2>
-        {numberField('⚠ Avertissement (warn)', draft.thresholds.warn, v =>
-          setDraft(d => ({ ...d, thresholds: { ...d.thresholds, warn: v } }))
+        {numberField(
+          <>
+            <TriangleAlert
+              size={14}
+              aria-hidden="true"
+              className="text-[var(--sb-warn)]"
+            />{' '}
+            Avertissement (warn)
+          </>,
+          draft.thresholds.warn,
+          v =>
+            setDraft(d => ({ ...d, thresholds: { ...d.thresholds, warn: v } }))
         )}
-        {numberField('🔶 Élevé (high)', draft.thresholds.high, v =>
-          setDraft(d => ({ ...d, thresholds: { ...d.thresholds, high: v } }))
+        {numberField(
+          <>
+            <Flame
+              size={14}
+              aria-hidden="true"
+              className="text-[var(--sb-high)]"
+            />{' '}
+            Élevé (high)
+          </>,
+          draft.thresholds.high,
+          v =>
+            setDraft(d => ({ ...d, thresholds: { ...d.thresholds, high: v } }))
         )}
-        {numberField('🔴 Critique', draft.thresholds.critical, v =>
-          setDraft(d => ({
-            ...d,
-            thresholds: { ...d.thresholds, critical: v },
-          }))
+        {numberField(
+          <>
+            <OctagonAlert
+              size={14}
+              aria-hidden="true"
+              className="text-[var(--sb-critical)]"
+            />{' '}
+            Critique
+          </>,
+          draft.thresholds.critical,
+          v =>
+            setDraft(d => ({
+              ...d,
+              thresholds: { ...d.thresholds, critical: v },
+            }))
         )}
         {numberField('Polling (secondes)', draft.pollingSeconds, v =>
           setDraft(d => ({ ...d, pollingSeconds: v }))

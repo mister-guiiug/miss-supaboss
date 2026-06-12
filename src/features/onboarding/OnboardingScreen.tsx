@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ShieldCheck } from 'lucide-react';
+import { Hand, ShieldCheck } from 'lucide-react';
 import { useFleetStore } from '../../store/useFleetStore.ts';
 import { canAdmin, useSessionStore } from '../../store/useSessionStore.ts';
 import { AccountForm } from '../accounts/AccountForm.tsx';
@@ -12,27 +12,40 @@ export function OnboardingScreen() {
 
   return (
     <div className="mx-auto flex max-w-sm flex-col items-center gap-5 px-2 py-10 text-center">
-      <span aria-hidden="true" className="text-5xl">
-        👋
-      </span>
+      <Hand size={44} aria-hidden="true" className="text-primary" />
       <h1 className="text-xl font-bold">Bienvenue dans Miss Supaboss</h1>
       <ol className="card w-full space-y-3 p-5 text-left text-sm">
-        <li className="flex gap-2">
-          <span aria-hidden="true">1️⃣</span>
+        <li className="flex gap-2.5">
+          <span
+            aria-hidden="true"
+            className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary"
+          >
+            1
+          </span>
           <span>
             Sur <strong>supabase.com</strong> → Account → Access Tokens, créez
             un <strong>Personal Access Token</strong> par compte gratuit.
           </span>
         </li>
-        <li className="flex gap-2">
-          <span aria-hidden="true">2️⃣</span>
+        <li className="flex gap-2.5">
+          <span
+            aria-hidden="true"
+            className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary"
+          >
+            2
+          </span>
           <span>
             Ajoutez chaque compte ici avec un alias parlant (« Lab POC », «
             Démos clients »…).
           </span>
         </li>
-        <li className="flex gap-2">
-          <span aria-hidden="true">3️⃣</span>
+        <li className="flex gap-2.5">
+          <span
+            aria-hidden="true"
+            className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary"
+          >
+            3
+          </span>
           <span>
             Visualisez les projets actifs/en pause, les quotas Free Plan, et
             préparez vos démos en un geste.
@@ -63,6 +76,7 @@ export function OnboardingScreen() {
       )}
       <AccountForm
         open={formOpen}
+        account={null}
         onClose={() => setFormOpen(false)}
         onSaved={() => {
           setFormOpen(false);

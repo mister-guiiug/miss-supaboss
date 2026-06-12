@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Inbox, ScrollText } from 'lucide-react';
 import type { OperationDto } from '../../../shared/contracts.ts';
 import { api } from '../../api/index.ts';
 import { formatDateTime } from '../../../shared/format.ts';
@@ -48,7 +49,7 @@ export function HistoryScreen() {
 
   if (error) {
     return (
-      <EmptyState emoji="📭" title="Historique indisponible">
+      <EmptyState icon={Inbox} title="Historique indisponible">
         {online
           ? 'Le serveur n’a pas répondu.'
           : 'L’historique nécessite une connexion.'}
@@ -58,7 +59,7 @@ export function HistoryScreen() {
   if (operations === null) return <ListSkeleton count={5} />;
   if (operations.length === 0) {
     return (
-      <EmptyState emoji="🗒️" title="Aucune action pour l'instant">
+      <EmptyState icon={ScrollText} title="Aucune action pour l'instant">
         Les pauses, restaurations et changements de comptes apparaîtront ici.
       </EmptyState>
     );

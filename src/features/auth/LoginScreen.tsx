@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Sparkles } from 'lucide-react';
 import { ApiError, switchDemoMode } from '../../api/index.ts';
 import { useSessionStore } from '../../store/useSessionStore.ts';
 
@@ -87,9 +88,10 @@ export function LoginScreen() {
       <button
         type="button"
         onClick={() => void switchDemoMode(true)}
-        className="touch-target rounded-xl border border-[var(--sb-border)] px-4 text-sm font-medium text-[var(--sb-text-soft)]"
+        className="touch-target flex items-center justify-center gap-2 rounded-xl border border-[var(--sb-border)] px-4 text-sm font-medium text-[var(--sb-text-soft)]"
       >
-        🎭 Essayer en mode démo (données fictives, sans compte)
+        <Sparkles size={16} aria-hidden="true" /> Essayer en mode démo (données
+        fictives, sans compte)
       </button>
     </main>
   );

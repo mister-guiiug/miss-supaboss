@@ -1,6 +1,13 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, PlayCircle } from 'lucide-react';
+import {
+  ChevronRight,
+  Clapperboard,
+  PlayCircle,
+  SatelliteDish,
+  Siren,
+  TriangleAlert,
+} from 'lucide-react';
 import {
   allProjects,
   metricsOf,
@@ -92,7 +99,7 @@ export function DashboardScreen() {
   if (!fleet && loading) return <ListSkeleton count={3} />;
   if (!fleet) {
     return (
-      <EmptyState emoji="📡" title="Aucune donnée">
+      <EmptyState icon={SatelliteDish} title="Aucune donnée">
         Vérifiez la connexion au serveur puis rafraîchissez.
       </EmptyState>
     );
@@ -119,13 +126,24 @@ export function DashboardScreen() {
                 />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{account.alias}</p>
-                  <p className="truncate text-xs text-[var(--sb-text-soft)]">
-                    {account.enabled
-                      ? account.lastError
-                        ? `⚠ ${account.lastError}`
-                        : `synchro ${formatRelative(syncedAt)}`
-                      : 'désactivé'}
-                  </p>
+                  {!account.enabled ? (
+                    <p className="truncate text-xs text-[var(--sb-text-soft)]">
+                      désactivé
+                    </p>
+                  ) : account.lastError ? (
+                    <p className="flex items-center gap-1 text-xs text-[var(--sb-critical)]">
+                      <TriangleAlert
+                        size={12}
+                        aria-hidden="true"
+                        className="shrink-0"
+                      />
+                      <span className="truncate">{account.lastError}</span>
+                    </p>
+                  ) : (
+                    <p className="truncate text-xs text-[var(--sb-text-soft)]">
+                      synchro {formatRelative(syncedAt)}
+                    </p>
+                  )}
                 </div>
                 <span
                   className={`tnum rounded-full px-2.5 py-1 text-sm font-bold ${
@@ -150,8 +168,9 @@ export function DashboardScreen() {
       {/* Ce que je peux démarrer maintenant. */}
       {readyToStart.length > 0 && (
         <section aria-label="Prêts à présenter" className="card p-4">
-          <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
-            🎬 Prêts à démarrer maintenant
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
+            <Clapperboard size={15} aria-hidden="true" /> Prêts à démarrer
+            maintenant
           </h2>
           <ul className="mt-2 space-y-2">
             {readyToStart.map(p => (
@@ -179,8 +198,8 @@ export function DashboardScreen() {
       {/* Quotas proches du seuil. */}
       {alerts.length > 0 && (
         <section aria-label="Alertes quotas" className="card p-4">
-          <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
-            🚨 Quotas proches du seuil
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
+            <Siren size={15} aria-hidden="true" /> Quotas proches du seuil
           </h2>
           <ul className="mt-2 space-y-1.5 text-sm">
             {alerts.map(a => (

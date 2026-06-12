@@ -1,5 +1,9 @@
 import { useState } from 'react';
-import { accountCreateBodySchema } from '../../../shared/contracts.ts';
+import {
+  accountCreateBodySchema,
+  accountUpdateBodySchema,
+  type AccountDto,
+} from '../../../shared/contracts.ts';
 import { api, ApiError } from '../../api/index.ts';
 import { toast } from '../../store/useUiStore.ts';
 import { ConfirmSheet } from '../../shared/components/ConfirmSheet.tsx';
@@ -13,33 +17,59 @@ const COLORS = [
   '#f97316',
 ];
 
-/** Ajout d'un compte : le PAT part au serveur en HTTPS et n'en revient jamais. */
+/**
+ * Ajout OU modification d'un compte. À l'ajout, le PAT part au serveur en HTTPS
+ * et n'en revient jamais. En modification (renommage), on ne touche qu'à l'alias
+ * et la couleur — le PAT reste inchangé. Monté avec une `key` par cible côté
+ * parent → les champs sont pré-remplis depuis `account`.
+ */
 export function AccountForm({
   open,
+  account,
   onClose,
   onSaved,
 }: {
   open: boolean;
+  account: AccountDto | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [alias, setAlias] = useState('');
+  const isEdit = account !== null;
+  const [alias, setAlias] = useState(account?.alias ?? '');
   const [pat, setPat] = useState('');
-  const [color, setColor] = useState(COLORS[0] ?? '#3ecf8e');
+  const [color, setColor] = useState(account?.color ?? COLORS[0] ?? '#3ecf8e');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const submit = async (): Promise<void> => {
+    setError(null);
+    if (account) {
+      const parsed = accountUpdateBodySchema.safeParse({ alias, color });
+      if (!parsed.success) {
+        setError(parsed.error.issues[0]?.message ?? 'Saisie invalide');
+        return;
+      }
+      setBusy(true);
+      try {
+        await api.updateAccount(account.id, parsed.data);
+        toast.success(`Compte « ${parsed.data.alias ?? alias} » modifié`);
+        onSaved();
+      } catch (e) {
+        setError(e instanceof ApiError ? e.message : 'Modification impossible');
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     const parsed = accountCreateBodySchema.safeParse({ alias, pat, color });
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? 'Saisie invalide');
       return;
     }
     setBusy(true);
-    setError(null);
     try {
       await api.createAccount(parsed.data);
-      toast.success(`Compte « ${parsed.data.alias} » ajouté et vérifié ✔`);
+      toast.success(`Compte « ${parsed.data.alias} » ajouté et vérifié`);
       setAlias('');
       setPat('');
       onSaved();
@@ -53,8 +83,8 @@ export function AccountForm({
   return (
     <ConfirmSheet
       open={open}
-      title="Ajouter un compte Supabase"
-      confirmLabel="Tester et ajouter"
+      title={isEdit ? 'Modifier le compte' : 'Ajouter un compte Supabase'}
+      confirmLabel={isEdit ? 'Enregistrer' : 'Tester et ajouter'}
       busy={busy}
       onCancel={onClose}
       onConfirm={() => void submit()}
@@ -72,23 +102,25 @@ export function AccountForm({
             className="mt-1 w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 text-sm"
           />
         </label>
-        <label className="block">
-          <span className="text-xs font-medium text-[var(--sb-text-soft)]">
-            Personal Access Token (sbp_…)
-          </span>
-          <input
-            type="password"
-            value={pat}
-            onChange={e => setPat(e.target.value)}
-            placeholder="sbp_xxxxxxxx…"
-            autoComplete="off"
-            className="mt-1 w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 font-mono text-sm"
-          />
-          <span className="mt-1 block text-xs text-[var(--sb-text-soft)]">
-            Créé sur supabase.com → Account → Access Tokens. Stocké chiffré
-            (AES-256-GCM) côté serveur, jamais dans ce navigateur.
-          </span>
-        </label>
+        {!isEdit && (
+          <label className="block">
+            <span className="text-xs font-medium text-[var(--sb-text-soft)]">
+              Personal Access Token (sbp_…)
+            </span>
+            <input
+              type="password"
+              value={pat}
+              onChange={e => setPat(e.target.value)}
+              placeholder="sbp_xxxxxxxx…"
+              autoComplete="off"
+              className="mt-1 w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 font-mono text-sm"
+            />
+            <span className="mt-1 block text-xs text-[var(--sb-text-soft)]">
+              Créé sur supabase.com → Account → Access Tokens. Stocké chiffré
+              (AES-256-GCM) côté serveur, jamais dans ce navigateur.
+            </span>
+          </label>
+        )}
         <div
           role="radiogroup"
           aria-label="Couleur du compte"
