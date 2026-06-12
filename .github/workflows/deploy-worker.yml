@@ -1,0 +1,39 @@
+# Déploie le proxy CORS (proxy/, Cloudflare Worker) via `wrangler deploy`.
+# Secret REQUIS (à définir par l'utilisateur, jamais versionné) :
+#   CLOUDFLARE_API_TOKEN   — token d'API Cloudflare (scope Workers Scripts:Edit)
+# Secret OPTIONNEL :
+#   CLOUDFLARE_ACCOUNT_ID  — requis seulement si le token couvre plusieurs comptes
+#     (sinon wrangler infère le compte ; ou ajouter `account_id` à wrangler.toml).
+name: Deploy Worker
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['proxy/**']
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Garde — secret présent ?
+        id: guard
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -n "$TOKEN" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::CLOUDFLARE_API_TOKEN non défini — déploiement ignoré. Définissez le secret puis relancez ce workflow."
+          fi
+      - name: Deploy (wrangler)
+        if: steps.guard.outputs.ok == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: proxy
