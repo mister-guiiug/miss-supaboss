@@ -21,14 +21,15 @@ beforeEach(() => {
 });
 
 describe('mode démo (surcharge runtime)', () => {
-  it('setDemoMode pose et retire le drapeau persistant', () => {
+  it('setDemoMode écrit le drapeau persistant (1 = démo, 0 = réel)', () => {
     expect(isDemoOverride()).toBe(false);
     setDemoMode(true);
     expect(isDemoOverride()).toBe(true);
     expect(localStorage.getItem('miss-supaboss-demo-mode')).toBe('1');
     setDemoMode(false);
     expect(isDemoOverride()).toBe(false);
-    expect(localStorage.getItem('miss-supaboss-demo-mode')).toBeNull();
+    // '0' (et non absence) : l'opt-out « réel » doit être persistant sur la PWA.
+    expect(localStorage.getItem('miss-supaboss-demo-mode')).toBe('0');
   });
 
   it('resetDemoData purge l’état des fixtures, pas le drapeau', () => {

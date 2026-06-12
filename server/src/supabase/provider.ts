@@ -3,22 +3,15 @@
  * droit de demander. Permet de brancher demain une autre source de métriques
  * (exigence spec) et fournit le mode mock sans toucher au métier.
  */
-import type { SupabaseProjectStatus } from '../../../shared/status.ts';
+// Types bruts définis une seule fois dans le contrat partagé (réutilisés par
+// le client navigateur local-first). Importés pour usage local ET re-exportés
+// pour les consommateurs serveur existants.
+import type {
+  RawOrganization,
+  RawProject,
+} from '../../../shared/supabaseApi.ts';
 
-/** Projet brut tel que renvoyé par GET /v1/projects (champs utilisés). */
-export interface RawProject {
-  ref: string;
-  name: string;
-  region: string;
-  organizationSlug: string;
-  status: SupabaseProjectStatus;
-  createdAt: string;
-}
-
-export interface RawOrganization {
-  slug: string;
-  name: string;
-}
+export type { RawOrganization, RawProject };
 
 /**
  * Mesures collectées pour UN projet. `null` = indisponible (jamais inventé).

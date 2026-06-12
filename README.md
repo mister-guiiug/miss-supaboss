@@ -97,7 +97,11 @@ Métriques par requêtes SQL **read-only** (projet actif uniquement) :
 8. **Mode démo à chaud** : sur une instance réelle, Réglages → « Mode démo »
    bascule l'app sur les données fictives (et inversement) sans rebuild —
    badge « démo » dans l'en-tête, snapshot hors-ligne purgé à la bascule.
-   Sur le build Pages (`VITE_MOCK=1`), le mock est forcé (pas de backend).
+   Sur le build Pages (`VITE_MOCK=1`) sans proxy, le mock est forcé (pas de
+   backend). **Mode réel local-first** : en fournissant un proxy CORS
+   (`VITE_SUPABASE_PROXY`, cf. `supabase/functions/supabase-management/`), la
+   PWA Pages interroge directement la Management API avec ton PAT (stocké en
+   local) — la démo devient alors désactivable.
 
 ## 4. Structure des dossiers
 
