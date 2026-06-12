@@ -14,7 +14,10 @@
  * Garde-fous :
  *   - cible verrouillée sur https://api.supabase.com (jamais d'autre hôte) ;
  *   - liste blanche de chemins + méthodes (pas de relais arbitraire) ;
- *   - CORS restreint aux origines de ALLOWED_ORIGINS (sinon 403) ;
+ *   - relais réservé aux origines de ALLOWED_ORIGINS : une requête sans en-tête
+ *     Origin (curl/serveur) ou d'origine non listée est refusée (403) — empêche
+ *     l'usage du Worker comme relais anonyme vers Supabase ;
+ *   - fail-closed : ALLOWED_ORIGINS vide ⇒ aucune origine autorisée ;
  *   - Authorization obligatoire (401 sinon).
  */
 
@@ -68,8 +71,10 @@ export async function handleProxy(
     return new Response(null, { status: 204, headers: cors });
   }
 
-  // Origine navigateur non autorisée → refus net.
-  if (origin !== null && !cors.has('access-control-allow-origin')) {
+  // Relais réservé aux origines navigateur autorisées. `corsHeaders` n'a posé
+  // l'en-tête ACAO que si l'Origin est présent ET listé : son absence couvre
+  // donc à la fois l'origine non listée ET l'appel sans Origin (curl/serveur).
+  if (!cors.has('access-control-allow-origin')) {
     return json(
       403,
       { error: 'origin-forbidden', message: 'Origine non autorisée' },
@@ -132,11 +137,15 @@ export async function handleProxy(
   });
 }
 
-/** "a,b , c" → ["a","b","c"]. Vide → ["*"] (ouvert ; restreindre en prod). */
+/**
+ * "a,b , c" → ["a","b","c"]. Fail-closed : une valeur vide/absente donne une
+ * liste vide (aucune origine autorisée) plutôt qu'un joker — un déploiement
+ * sans ALLOWED_ORIGINS refuse tout au lieu d'ouvrir le relais. Pour autoriser
+ * explicitement toutes les origines, mettre "*".
+ */
 export function parseOrigins(raw: string | undefined): string[] {
-  const list = (raw ?? '')
+  return (raw ?? '')
     .split(',')
     .map(s => s.trim())
     .filter(Boolean);
-  return list.length > 0 ? list : ['*'];
 }
