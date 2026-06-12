@@ -1,5 +1,9 @@
 /**
- * Proxy CORS minimal et SANS ÉTAT pour la Supabase Management API.
+ * Cœur du proxy CORS pour la Supabase Management API — relais minimal et SANS
+ * ÉTAT, en standards Web purs (Request/Response/fetch). Aucune dépendance à un
+ * runtime : utilisé par l'entrée Cloudflare Worker (`worker.ts`), testable en
+ * Node, et adaptable à toute plateforme « fetch handler » (Deno Deploy,
+ * Vercel/Netlify Edge, Supabase Edge Function…).
  *
  * Pourquoi : `api.supabase.com` n'autorise le CORS navigateur que depuis
  * `supabase.com`. Une PWA local-first (GitHub Pages) ne peut donc PAS appeler
@@ -12,20 +16,11 @@
  *   - liste blanche de chemins + méthodes (pas de relais arbitraire) ;
  *   - CORS restreint aux origines de ALLOWED_ORIGINS (sinon 403) ;
  *   - Authorization obligatoire (401 sinon).
- *
- * Déploiement (Supabase Edge Function) :
- *   supabase functions deploy supabase-management --no-verify-jwt
- *   supabase secrets set ALLOWED_ORIGINS="https://<user>.github.io,http://localhost:5204"
- * Côté PWA : VITE_SUPABASE_PROXY="https://<ref>.functions.supabase.co/supabase-management"
- *
- * Portable : `handleProxy` n'utilise que des standards Web (Request/Response/
- * fetch) → adaptable tel quel en Cloudflare Worker
- * (`export default { fetch: (req, env) => handleProxy(req, parseOrigins(env.ALLOWED_ORIGINS)) }`).
  */
 
 const SUPABASE_API = 'https://api.supabase.com';
 
-/** Chemins autorisés au relais : { méthode, motif }. `ref` = 20 lettres min. */
+/** Chemins autorisés au relais : { méthode, motif }. `ref` = 20 lettres. */
 const ALLOWED: ReadonlyArray<{ method: string; pattern: RegExp }> = [
   { method: 'GET', pattern: /^\/v1\/organizations$/ },
   { method: 'GET', pattern: /^\/v1\/projects$/ },
@@ -144,17 +139,4 @@ export function parseOrigins(raw: string | undefined): string[] {
     .map(s => s.trim())
     .filter(Boolean);
   return list.length > 0 ? list : ['*'];
-}
-
-// Entrée Deno (Supabase Edge Function). Ignorée hors runtime Deno (tests Node).
-declare const Deno:
-  | {
-      serve: (handler: (req: Request) => Response | Promise<Response>) => void;
-      env: { get(key: string): string | undefined };
-    }
-  | undefined;
-
-if (typeof Deno !== 'undefined' && Deno?.serve) {
-  const allowedOrigins = parseOrigins(Deno.env.get('ALLOWED_ORIGINS'));
-  Deno.serve((req: Request) => handleProxy(req, allowedOrigins));
 }

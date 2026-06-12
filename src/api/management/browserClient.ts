@@ -1,6 +1,6 @@
 /**
  * Client navigateur de la Supabase Management API, via le proxy CORS
- * (cf. supabase/functions/supabase-management). Le PAT de l'utilisateur reste
+ * (cf. proxy/ — Cloudflare Worker). Le PAT de l'utilisateur reste
  * sur l'appareil (local-first) et n'est transmis qu'au proxy configuré, en
  * HTTPS, dans l'en-tête Authorization. Réponses validées par les schémas
  * partagés (`shared/supabaseApi`).
