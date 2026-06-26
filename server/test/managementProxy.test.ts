@@ -89,6 +89,33 @@ describe('proxy management — CORS + liste blanche', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
+  it('réponse relayée → Cache-Control: no-store + Vary: Authorization + sous-requête no-store (anti-fuite inter-comptes)', async () => {
+    const fetchImpl = vi.fn(
+      async (_url: string | URL | Request, _init?: RequestInit) =>
+        new Response('[{"slug":"alpha","name":"Alpha"}]', {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+    );
+    const res = await handleProxy(
+      makeReq('GET', {
+        path: '/v1/organizations',
+        origin: ORIGIN,
+        auth: 'Bearer sbp_A',
+      }),
+      [ORIGIN],
+      fetchImpl as unknown as typeof fetch
+    );
+    expect(res.status).toBe(200);
+    // Sans ces directives, un cache HTTP keyé par URL (identique pour tous les
+    // comptes) resservirait la réponse du compte A au compte B.
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    expect(res.headers.get('vary')?.toLowerCase()).toContain('authorization');
+    // La sous-requête upstream désactive aussi le cache de sous-requête Worker.
+    const init = fetchImpl.mock.calls[0]?.[1];
+    expect(init?.cache).toBe('no-store');
+  });
+
   it('pause d’un projet (POST) autorisée → relaie + corps transmis', async () => {
     const ref = 'abcdefghijklmnopqrst';
     const fetchImpl = vi.fn(async (url: string | URL | Request) => {
