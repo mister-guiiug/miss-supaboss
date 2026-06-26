@@ -7,6 +7,7 @@ import {
   SatelliteDish,
   Siren,
   TriangleAlert,
+  UsersRound,
 } from 'lucide-react';
 import {
   allProjects,
@@ -107,8 +108,18 @@ export function DashboardScreen() {
 
   return (
     <div className="space-y-4">
-      {/* Comptes : slots actifs / limite Free + état de synchro. */}
+      {/* Comptes : slots actifs / limite Free + état de synchro. En-tête
+          explicite (+ « Gérer ») pour que la section ne soit plus prise pour des
+          projets et que l'accès à la gestion des comptes soit nommé. */}
       <section aria-label="Comptes" className="space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
+            <UsersRound size={15} aria-hidden="true" /> Comptes
+          </h2>
+          <Link to="/accounts" className="text-sm font-medium text-primary">
+            Gérer →
+          </Link>
+        </div>
         {fleet.accounts.map(
           ({ account, projects: accountProjects, syncedAt }) => {
             const actives = activeProjects(accountProjects);
@@ -128,7 +139,7 @@ export function DashboardScreen() {
                   <p className="truncate font-semibold">{account.alias}</p>
                   {!account.enabled ? (
                     <p className="truncate text-xs text-[var(--sb-text-soft)]">
-                      désactivé
+                      Compte Supabase · désactivé
                     </p>
                   ) : account.lastError ? (
                     <p className="flex items-center gap-1 text-xs text-[var(--sb-critical)]">
@@ -141,7 +152,7 @@ export function DashboardScreen() {
                     </p>
                   ) : (
                     <p className="truncate text-xs text-[var(--sb-text-soft)]">
-                      synchro {formatRelative(syncedAt)}
+                      Compte Supabase · synchro {formatRelative(syncedAt)}
                     </p>
                   )}
                 </div>
