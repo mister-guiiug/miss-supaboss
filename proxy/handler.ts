@@ -37,7 +37,15 @@ const ALLOWED: ReadonlyArray<{ method: string; pattern: RegExp }> = [
 
 function corsHeaders(origin: string | null, allowedOrigins: string[]): Headers {
   const headers = new Headers({
-    vary: 'Origin',
+    // Isolation par compte. Chaque PAT interroge la MÊME URL (?path=/v1/...) :
+    // l'identité du compte ne vit QUE dans l'en-tête Authorization, qui ne fait
+    // PAS partie de la clé d'un cache HTTP. Sans ces directives, un cache
+    // (navigateur, CDN, cache de sous-requête Worker) pourrait resservir la
+    // réponse du compte A au compte B → fuite inter-comptes (« org/projets d'un
+    // autre compte »). On interdit donc tout stockage et on fait explicitement
+    // varier la clé de cache sur Authorization.
+    vary: 'Origin, Authorization',
+    'cache-control': 'no-store',
     'access-control-allow-methods': 'GET,POST,OPTIONS',
     'access-control-allow-headers': 'authorization,content-type',
     'access-control-max-age': '600',
@@ -110,6 +118,11 @@ export async function handleProxy(
   const upstreamInit: RequestInit = {
     method: request.method,
     headers: { authorization: auth, 'content-type': 'application/json' },
+    // Jamais de cache de sous-requête (runtime Cloudflare Worker) : sa clé de
+    // cache est l'URL — identique pour tous les comptes — et n'inclut PAS
+    // l'Authorization. Sans 'no-store', le compte B pourrait recevoir la réponse
+    // mise en cache lors de l'appel du compte A.
+    cache: 'no-store',
   };
   if (request.method === 'POST') {
     upstreamInit.body = await request.text();

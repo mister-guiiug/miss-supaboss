@@ -131,7 +131,12 @@ export function createLocalRealApi(proxyBase: string): Api {
   const client = new BrowserManagementClient(proxyBase);
   const cache = new Map<
     string,
-    { fleet: ProjectDto[]; orgs: string[]; at: number }
+    {
+      fleet: ProjectDto[];
+      orgs: string[];
+      organizations: { slug: string; name: string }[];
+      at: number;
+    }
   >();
   const metricsCache = new Map<
     string,
@@ -230,10 +235,18 @@ export function createLocalRealApi(proxyBase: string): Api {
   const loadAccountFleet = async (
     acc: RealAccount,
     refresh: boolean
-  ): Promise<{ orgs: string[]; projects: ProjectDto[] }> => {
+  ): Promise<{
+    orgs: string[];
+    organizations: { slug: string; name: string }[];
+    projects: ProjectDto[];
+  }> => {
     const cached = cache.get(acc.id);
     if (!refresh && cached && Date.now() - cached.at < FLEET_TTL_MS) {
-      return { orgs: cached.orgs, projects: cached.fleet };
+      return {
+        orgs: cached.orgs,
+        organizations: cached.organizations,
+        projects: cached.fleet,
+      };
     }
     const [organizations, rawProjects] = await Promise.all([
       client.listOrganizations(acc.pat),
@@ -248,10 +261,16 @@ export function createLocalRealApi(proxyBase: string): Api {
       )
     );
     const orgs = organizations.map(o => o.name);
-    cache.set(acc.id, { fleet: projects, orgs, at: Date.now() });
+    const orgList = organizations.map(o => ({ slug: o.slug, name: o.name }));
+    cache.set(acc.id, {
+      fleet: projects,
+      orgs,
+      organizations: orgList,
+      at: Date.now(),
+    });
     acc.lastSyncAt = new Date().toISOString();
     acc.lastError = null;
-    return { orgs, projects };
+    return { orgs, organizations: orgList, projects };
   };
 
   const toLite = (projects: ProjectDto[]) =>
@@ -511,15 +530,10 @@ export function createLocalRealApi(proxyBase: string): Api {
             };
           }
           try {
-            const { projects } = await loadAccountFleet(acc, refresh);
-            const organizations = [
-              ...new Map(
-                projects.map(p => [
-                  p.organizationSlug,
-                  { slug: p.organizationSlug, name: p.organizationName },
-                ])
-              ).values(),
-            ];
+            const { organizations, projects } = await loadAccountFleet(
+              acc,
+              refresh
+            );
             return {
               account: toAccountDto(acc),
               organizations,

@@ -38,6 +38,11 @@ export class BrowserManagementClient {
     try {
       res = await fetch(this.url(path), {
         ...init,
+        // Jamais le cache HTTP du navigateur : l'URL (?path=/v1/...) est
+        // identique pour tous les comptes et le PAT ne vit que dans l'en-tête
+        // Authorization. Sans 'no-store', un compte pourrait lire la réponse
+        // mise en cache d'un autre (fuite inter-comptes du nom d'org / projets).
+        cache: 'no-store',
         headers: {
           authorization: `Bearer ${pat}`,
           ...(init.body ? { 'content-type': 'application/json' } : {}),

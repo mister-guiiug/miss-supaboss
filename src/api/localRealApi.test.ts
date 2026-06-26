@@ -95,6 +95,32 @@ describe('localRealApi — Supabase réel via proxy', () => {
     vi.unstubAllGlobals();
   });
 
+  it('getFleet renvoie les organisations FRAÎCHES de /v1/organizations, pas reconstruites depuis les projets (cohérence éventuelle)', async () => {
+    // Scénario d'ajout d'une org/d'un compte : /v1/organizations liste déjà la
+    // nouvelle organisation (avec son NOM), mais /v1/projects est en retard
+    // (réplication) et ne renvoie encore AUCUN projet. La liste d'organisations
+    // doit refléter /v1/organizations, et non l'état projets antérieur d'un cran.
+    const NEW_ORG = [{ id: 'o2', slug: 'beta-slug', name: 'Beta' }];
+    stubFetch(path => {
+      if (path === '/v1/organizations') return json(NEW_ORG);
+      if (path === '/v1/projects') return json([]); // projets pas encore répliqués
+      return json(null, 404);
+    });
+    const api = createLocalRealApi(PROXY);
+    const acc = await api.createAccount({
+      alias: 'Beta',
+      color: '#3ecf8e',
+      pat: 'sbp_DEMOFAKEtoken',
+    });
+
+    const fleet = await api.getFleet(true);
+    const af = fleet.accounts.find(a => a.account.id === acc.id);
+    // L'org affichée = NOM frais de /v1/organizations, jamais dérivé des projets.
+    expect(af?.organizations).toEqual([{ slug: 'beta-slug', name: 'Beta' }]);
+    expect(af?.projects).toHaveLength(0);
+    vi.unstubAllGlobals();
+  });
+
   it('createAccount rejette un PAT invalide (401 du proxy)', async () => {
     stubFetch(() => json({ message: 'Unauthorized' }, 401));
     const api = createLocalRealApi(PROXY);
