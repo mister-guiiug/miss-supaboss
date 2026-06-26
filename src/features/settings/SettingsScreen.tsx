@@ -33,6 +33,7 @@ import {
 import { useFleetStore } from '../../store/useFleetStore.ts';
 import { canAdmin, useSessionStore } from '../../store/useSessionStore.ts';
 import { toast } from '../../store/useUiStore.ts';
+import { ConfirmSheet } from '../../shared/components/ConfirmSheet.tsx';
 import { clearSnapshot } from '../../offline/lastKnown.ts';
 import { REPO_URL } from '../../links.ts';
 
@@ -46,6 +47,7 @@ export function SettingsScreen() {
   const [passphrase, setPassphrase] = useState('');
   const [importBlob, setImportBlob] = useState('');
   const [busy, setBusy] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
   const [vaultEnabled, setVaultEnabled] = useState(
     () => api.vault?.isEnabled() ?? false
   );
@@ -212,26 +214,6 @@ export function SettingsScreen() {
         />
       </Link>
 
-      {/* Profil/compte : seulement en mode réel (auto-hébergé). La PWA locale
-          n'a pas de compte — pas de ligne « Connecté : … ». */}
-      {!IS_MOCK && (
-        <section className="card space-y-2 p-4" aria-label="Profil">
-          <p className="text-sm">
-            Connecté : <strong>{user?.email}</strong>{' '}
-            <span className="rounded-full bg-[var(--sb-surface-2)] px-2 py-0.5 text-xs font-medium">
-              {user?.role}
-            </span>
-          </p>
-          <button
-            type="button"
-            onClick={() => void logout()}
-            className="touch-target flex items-center gap-2 rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium"
-          >
-            <LogOut size={16} aria-hidden="true" /> Se déconnecter
-          </button>
-        </section>
-      )}
-
       <section className="card space-y-3 p-4" aria-label="Apparence">
         <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
           Apparence
@@ -312,7 +294,7 @@ export function SettingsScreen() {
 
       <section className="card space-y-3 p-4" aria-label="Alertes et synchro">
         <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
-          Seuils d'alerte quotas (%)
+          Alertes et synchronisation
         </h2>
         {numberField(
           <>
@@ -379,7 +361,8 @@ export function SettingsScreen() {
           aria-label="Chiffrement des jetons"
         >
           <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
-            <LockKeyhole size={15} aria-hidden="true" /> Chiffrement des PAT
+            <LockKeyhole size={15} aria-hidden="true" /> Sécurité — Chiffrement
+            des PAT
           </h2>
           {vaultEnabled ? (
             <>
@@ -453,7 +436,7 @@ export function SettingsScreen() {
       {canAdmin(user) && (
         <section className="card space-y-3 p-4" aria-label="Export / import">
           <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
-            Export / import chiffré des comptes
+            Sauvegarde — Export / import chiffré des comptes
           </h2>
           <p className="text-xs text-[var(--sb-text-soft)]">
             Blob AES-256-GCM dérivé d'une passphrase (scrypt) : portable vers
@@ -499,7 +482,7 @@ export function SettingsScreen() {
 
       <section className="card space-y-2 p-4" aria-label="Stockage local">
         <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
-          Stockage local
+          Maintenance — Stockage local
         </h2>
         <p className="text-xs text-[var(--sb-text-soft)]">
           Ce navigateur ne conserve que le dernier état non sensible (statuts,
@@ -518,6 +501,29 @@ export function SettingsScreen() {
         </button>
       </section>
 
+      {/* Session : identité + déconnexion. Descendue du haut vers le bas (action
+          rare et sensible). Mode réel uniquement (la PWA locale n'a pas de session). */}
+      {!IS_MOCK && (
+        <section className="card space-y-3 p-4" aria-label="Session">
+          <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
+            Session
+          </h2>
+          <p className="text-sm">
+            Connecté : <strong>{user?.email}</strong>{' '}
+            <span className="rounded-full bg-[var(--sb-surface-2)] px-2 py-0.5 text-xs font-medium">
+              {user?.role}
+            </span>
+          </p>
+          <button
+            type="button"
+            onClick={() => setConfirmLogout(true)}
+            className="touch-target flex items-center gap-2 rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium"
+          >
+            <LogOut size={16} aria-hidden="true" /> Se déconnecter
+          </button>
+        </section>
+      )}
+
       <section className="card p-4" aria-label="À propos">
         <p className="text-xs text-[var(--sb-text-soft)]">
           Miss Supaboss v{__APP_VERSION__}
@@ -526,6 +532,17 @@ export function SettingsScreen() {
           <FamilyApps currentAppId="miss-supaboss" repoUrl={REPO_URL} />
         </div>
       </section>
+
+      <ConfirmSheet
+        open={confirmLogout}
+        title="Se déconnecter ?"
+        confirmLabel="Se déconnecter"
+        danger
+        onCancel={() => setConfirmLogout(false)}
+        onConfirm={() => void logout()}
+      >
+        <p>Vous devrez ressaisir vos identifiants pour vous reconnecter.</p>
+      </ConfirmSheet>
     </div>
   );
 }
