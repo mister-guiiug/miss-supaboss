@@ -1,7 +1,10 @@
 import { useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import {
+  ChevronRight,
   Download,
   Flame,
+  History,
   LockKeyhole,
   LogOut,
   Monitor,
@@ -188,6 +191,27 @@ export function SettingsScreen() {
 
   return (
     <div className="space-y-4">
+      {/* Historique des opérations — relogé ici depuis le bottom nav (consultatif,
+          non quotidien) ; la route /history est inchangée. */}
+      <Link to="/history" className="card flex items-center gap-3 p-4">
+        <History
+          size={18}
+          aria-hidden="true"
+          className="text-[var(--sb-text-soft)]"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold">Historique des opérations</p>
+          <p className="text-xs text-[var(--sb-text-soft)]">
+            Journal des pauses, restaurations et tests
+          </p>
+        </div>
+        <ChevronRight
+          size={16}
+          aria-hidden="true"
+          className="text-[var(--sb-text-soft)]"
+        />
+      </Link>
+
       {/* Profil/compte : seulement en mode réel (auto-hébergé). La PWA locale
           n'a pas de compte — pas de ligne « Connecté : … ». */}
       {!IS_MOCK && (

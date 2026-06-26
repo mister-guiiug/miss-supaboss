@@ -1,17 +1,20 @@
 import { NavLink } from 'react-router-dom';
 import {
   Gauge,
-  History,
   LayoutDashboard,
   Server,
   Settings,
+  UsersRound,
 } from 'lucide-react';
 
+// « Comptes » est une destination de 1er niveau (objet métier racine : un projet
+// appartient à un compte) → 2e position, sous le pouce. L'Historique (consultatif,
+// non quotidien) est relogé en tête de Réglages pour rester à 5 onglets.
 const ITEMS = [
   { to: '/', label: 'Accueil', icon: LayoutDashboard, end: true },
+  { to: '/accounts', label: 'Comptes', icon: UsersRound, end: false },
   { to: '/projects', label: 'Projets', icon: Server, end: false },
   { to: '/quotas', label: 'Quotas', icon: Gauge, end: false },
-  { to: '/history', label: 'Historique', icon: History, end: false },
   { to: '/settings', label: 'Réglages', icon: Settings, end: false },
 ] as const;
 
