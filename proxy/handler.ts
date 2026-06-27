@@ -49,6 +49,12 @@ function corsHeaders(origin: string | null, allowedOrigins: string[]): Headers {
     'access-control-allow-methods': 'GET,POST,OPTIONS',
     'access-control-allow-headers': 'authorization,content-type',
     'access-control-max-age': '600',
+    // Durcissement défense-en-profondeur des réponses du Worker : même si le proxy ne sert que du JSON, on bloque les
+    // interprétations MIME-sniff, l'embed iframe et la fuite de referrer
+    // si une réponse d'erreur venait à être rendue par un navigateur.
+    'x-content-type-options': 'nosniff',
+    'x-frame-options': 'DENY',
+    'referrer-policy': 'no-referrer',
   });
   const ok =
     origin !== null &&

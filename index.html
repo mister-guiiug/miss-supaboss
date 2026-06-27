@@ -18,6 +18,29 @@
       content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
     />
 
+    <!-- Referrer-Policy : honoré par les navigateurs via <meta name="referrer">
+         (cf. WHATWG HTML, "referrer policy delivery"). Remplace un en-tête
+         non posable sur GitHub Pages. -->
+    <meta name="referrer" content="no-referrer" />
+
+    <!-- Frame-buster anti-clickjacking : `X-Frame-Options` et CSP
+         `frame-ancestors` étant des directives HEADER-ONLY (ignorées en <meta>
+         et non configurables sur GitHub Pages), on casse l'embed iframe en JS
+         dès le head — défense en profondeur, exécutée avant tout rendu. -->
+    <script>
+      (function () {
+        if (window.top !== window.self) {
+          try {
+            window.top.location.replace(window.self.location.href);
+          } catch (e) {
+            // Cross-origin top : on neutralise la page (l'attaquant ne peut plus
+            // l'utiliser comme leurre derrière son overlay).
+            document.documentElement.innerHTML = '';
+          }
+        }
+      })();
+    </script>
+
     <!-- Zod en mode « jitless » (aucun `new Function`) AVANT son chargement :
          compatible CSP stricte sans 'unsafe-eval'. Cf. zod $ZodConfig.jitless. -->
     <script>
