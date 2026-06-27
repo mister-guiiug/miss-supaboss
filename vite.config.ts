@@ -40,7 +40,13 @@ export default defineConfig(({ command, mode }) => {
       },
     },
     build: {
-      sourcemap: true,
+      // Pas de sourcemaps en production : `dist/` est servi tel quel par
+      // GitHub Pages (sans contrôle d'accès), inutile de leaker les sources
+      // transformées + commentaires internes en plus de ce qui est déjà sur
+      // le repo. Vite garde des sourcemaps inline en `vite serve` (dev), donc
+      // le DX local n'est pas affecté. À passer à `'hidden'` le jour où on
+      // branche un tracker d'erreurs (Sentry…) qui les upload séparément.
+      sourcemap: false,
       chunkSizeWarningLimit: 900,
       rollupOptions: {
         output: {
