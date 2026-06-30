@@ -14,11 +14,14 @@ import {
   type SettingsDto,
   type UserDto,
 } from '../../shared/contracts.ts';
+import { estimateRestoreDeadline } from '../../shared/guards.ts';
 import {
-  evaluateRestore,
-  estimateRestoreDeadline,
-} from '../../shared/guards.ts';
-import { isPausable, isRestorable } from '../../shared/status.ts';
+  assessRestore,
+  pausesBeforeRestore,
+  toRestoreAssessmentDto,
+  validatePause,
+  validateRestore,
+} from '../../shared/fleet/index.ts';
 import {
   FREE_PLAN_QUOTAS,
   MB,
@@ -571,23 +574,17 @@ export function createMockApi(): Api {
       const lite = toLite(
         state.projects.filter(p => p.accountId === accountId)
       );
-      const a = evaluateRestore(lite, ref);
-      return {
-        allowed: a.allowed,
-        reason: a.reason,
-        activeCount: a.activeCount,
-        limit: a.limit,
-        suggestions: a.suggestions.map(s => s.dto),
-      };
+      return toRestoreAssessmentDto(assessRestore(lite, ref));
     },
     async pauseProject(accountId, ref) {
       await sleep(500);
       const p = project(accountId, ref);
-      if (!isPausable(p.status)) {
+      const pauseFailure = validatePause(p, ref);
+      if (pauseFailure) {
         throw new ApiError(
-          409,
-          'not-pausable',
-          `« ${p.name} » n'est pas actif`
+          pauseFailure.status,
+          pauseFailure.code,
+          pauseFailure.message
         );
       }
       transition(p, 'PAUSING', 'INACTIVE', 5000);
@@ -605,50 +602,31 @@ export function createMockApi(): Api {
     async restoreProject(accountId, ref, options) {
       await sleep(500);
       const all = state.projects.filter(p => p.accountId === accountId);
-      const projected = toLite(all).map(l =>
-        options.pauseFirst.includes(l.ref) && l.ref !== ref
-          ? { ...l, status: 'INACTIVE' as const }
-          : l
-      );
-      const a = evaluateRestore(projected, ref);
-      if (!a.allowed && a.reason !== 'limit-reached') {
-        throw new ApiError(409, a.reason, 'Restauration impossible', {
-          ...a,
-          suggestions: a.suggestions.map(s => s.dto),
+      const lite = toLite(all);
+      const restoreFailure = validateRestore(lite, ref, options);
+      if (restoreFailure) {
+        throw new ApiError(
+          restoreFailure.status,
+          restoreFailure.code,
+          restoreFailure.message,
+          restoreFailure.assessment
+        );
+      }
+      const refsToPause = pausesBeforeRestore(all, options.pauseFirst, ref);
+      for (const refToPause of refsToPause) {
+        const toPause = project(accountId, refToPause);
+        transition(toPause, 'PAUSING', 'INACTIVE', 5000);
+        recordOp({
+          action: 'project.pause',
+          accountId,
+          accountAlias: account(accountId).alias,
+          projectRef: refToPause,
+          projectName: toPause.name,
+          status: 'ok',
+          detail: 'Pause préalable (préparation de démo)',
         });
       }
-      if (!a.allowed && !options.force) {
-        throw new ApiError(
-          409,
-          'limit-reached',
-          `Limite Free atteinte (${a.activeCount}/${a.limit})`,
-          { ...a, suggestions: a.suggestions.map(s => s.dto) }
-        );
-      }
-      for (const refToPause of options.pauseFirst) {
-        if (refToPause === ref) continue;
-        const toPause = project(accountId, refToPause);
-        if (isPausable(toPause.status)) {
-          transition(toPause, 'PAUSING', 'INACTIVE', 5000);
-          recordOp({
-            action: 'project.pause',
-            accountId,
-            accountAlias: account(accountId).alias,
-            projectRef: refToPause,
-            projectName: toPause.name,
-            status: 'ok',
-            detail: 'Pause préalable (préparation de démo)',
-          });
-        }
-      }
       const target = project(accountId, ref);
-      if (!isRestorable(target.status)) {
-        throw new ApiError(
-          409,
-          'not-restorable',
-          `« ${target.name} » n'est pas en pause`
-        );
-      }
       transition(target, 'RESTORING', 'ACTIVE_HEALTHY', 9000);
       recordOp({
         action: 'project.restore',

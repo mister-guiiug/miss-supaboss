@@ -14,7 +14,7 @@ import {
   projectsOfAccount,
   useFleetStore,
 } from '../../store/useFleetStore.ts';
-import { useSessionStore, canOperate } from '../../store/useSessionStore.ts';
+import { useSessionStore } from '../../store/useSessionStore.ts';
 import { toast } from '../../store/useUiStore.ts';
 import { ApiError } from '../../api/index.ts';
 import {
@@ -33,6 +33,7 @@ import { StatusBadge } from '../../shared/components/StatusBadge.tsx';
 import { QuotaBar } from '../../shared/components/QuotaBar.tsx';
 import { ConfirmSheet } from '../../shared/components/ConfirmSheet.tsx';
 import { EmptyState } from '../../shared/components/EmptyState.tsx';
+import { useActionGuard } from '../../shared/hooks/useActionGuard.ts';
 import { usePolling } from '../../shared/hooks/usePolling.ts';
 import { useOnline } from '../../shared/hooks/useOnline.ts';
 
@@ -44,12 +45,17 @@ export function ProjectDetailScreen() {
   const fleet = useFleetStore(s => s.fleet);
   const metrics = useFleetStore(s => s.metrics);
   const settings = useFleetStore(s => s.settings);
-  const fromCache = useFleetStore(s => s.fromCache);
   const loadFleet = useFleetStore(s => s.loadFleet);
   const pause = useFleetStore(s => s.pause);
   const updateMeta = useFleetStore(s => s.updateMeta);
   const user = useSessionStore(s => s.user);
   const online = useOnline();
+  const actionGuard = useActionGuard({
+    online: true,
+    operate: true,
+    writable: true,
+  });
+  const metaGuard = useActionGuard({ operate: true, writable: true });
 
   const project = useMemo(
     () => findProject(fleet, accountId, ref),
@@ -73,7 +79,7 @@ export function ProjectDetailScreen() {
   usePolling(
     () => void loadFleet(true),
     5_000,
-    transient && online && !fromCache
+    transient && online && actionGuard.allowed
   );
 
   const [confirmPause, setConfirmPause] = useState(false);
@@ -89,7 +95,6 @@ export function ProjectDetailScreen() {
     );
   }
 
-  const actionsEnabled = online && !fromCache && canOperate(user);
   const actives = activeProjects(accountProjects);
   const windowExpired = isRestoreWindowExpired(project.meta.restoreDeadline);
 
@@ -110,6 +115,7 @@ export function ProjectDetailScreen() {
   const toggleMeta = async (
     fields: Parameters<typeof updateMeta>[2]
   ): Promise<void> => {
+    if (!metaGuard.allowed) return;
     try {
       await updateMeta(accountId, ref, fields);
     } catch {
@@ -180,12 +186,11 @@ export function ProjectDetailScreen() {
           )}
         </dl>
 
-        {/* Actions principales — toujours confirmées, désactivées hors ligne. */}
         <div className="flex gap-2">
           {isPausable(project.status) && (
             <button
               type="button"
-              disabled={!actionsEnabled || busy}
+              disabled={!actionGuard.allowed || busy}
               onClick={() => setConfirmPause(true)}
               className="touch-target flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--sb-border)] px-4 font-semibold disabled:opacity-50"
             >
@@ -195,38 +200,38 @@ export function ProjectDetailScreen() {
           {isRestorable(project.status) && (
             <Link
               to={`/projects/${accountId}/${ref}/demo`}
-              aria-disabled={!actionsEnabled}
+              aria-disabled={!actionGuard.allowed}
               className={`touch-target flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 font-semibold text-[#06281a] ${
-                !actionsEnabled ? 'pointer-events-none opacity-50' : ''
+                !actionGuard.allowed ? 'pointer-events-none opacity-50' : ''
               }`}
             >
               <PlayCircle size={18} aria-hidden="true" /> Préparer la démo
             </Link>
           )}
         </div>
-        {!canOperate(user) && (
+        {actionGuard.reason === 'Droits opérateur requis' && (
           <p className="text-xs text-[var(--sb-text-soft)]">
             Lecture seule : votre rôle ({user?.role}) ne permet pas les actions.
           </p>
         )}
-        {fromCache && (
-          <p className="text-xs text-[var(--sb-warn)]">
-            Hors ligne : consultation du dernier état connu, actions
-            désactivées.
-          </p>
-        )}
+        {actionGuard.reason &&
+          actionGuard.reason !== 'Droits opérateur requis' && (
+            <p className="text-xs text-[var(--sb-warn)]">
+              {actionGuard.reason}
+            </p>
+          )}
       </section>
 
-      {/* Marqueurs & tags. */}
       <section className="card space-y-3 p-4" aria-label="Marqueurs">
         <div className="flex gap-2">
           <button
             type="button"
             aria-pressed={project.meta.favorite}
+            disabled={!metaGuard.allowed}
             onClick={() =>
               void toggleMeta({ favorite: !project.meta.favorite })
             }
-            className={`touch-target flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 text-sm font-medium ${
+            className={`touch-target flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 text-sm font-medium disabled:opacity-50 ${
               project.meta.favorite
                 ? 'border-[var(--sb-warn)] text-[var(--sb-warn)]'
                 : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
@@ -237,10 +242,11 @@ export function ProjectDetailScreen() {
           <button
             type="button"
             aria-pressed={project.meta.demoFrequent}
+            disabled={!metaGuard.allowed}
             onClick={() =>
               void toggleMeta({ demoFrequent: !project.meta.demoFrequent })
             }
-            className={`touch-target flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 text-sm font-medium ${
+            className={`touch-target flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 text-sm font-medium disabled:opacity-50 ${
               project.meta.demoFrequent
                 ? 'border-primary text-primary'
                 : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
@@ -257,6 +263,7 @@ export function ProjectDetailScreen() {
                 key={tag}
                 type="button"
                 aria-pressed={active}
+                disabled={!metaGuard.allowed}
                 onClick={() =>
                   void toggleMeta({
                     tags: active
@@ -264,7 +271,7 @@ export function ProjectDetailScreen() {
                       : [...project.meta.tags, tag],
                   })
                 }
-                className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+                className={`rounded-full border px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
                   active
                     ? 'border-primary bg-primary/15 text-primary'
                     : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
@@ -277,7 +284,6 @@ export function ProjectDetailScreen() {
         </div>
       </section>
 
-      {/* Quotas Free Plan du projet. */}
       <section className="card space-y-3 p-4" aria-label="Quotas Free Plan">
         <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
           Quotas Free Plan

@@ -13,7 +13,12 @@ import type {
 } from '../../shared/contracts.ts';
 import { DEFAULT_SETTINGS } from '../../shared/contracts.ts';
 import { api, ApiError } from '../api/index.ts';
-import { saveSnapshot, loadSnapshot } from '../offline/lastKnown.ts';
+import { loadSnapshot } from '../offline/lastKnown.ts';
+import {
+  fetchFleetRefresh,
+  fetchMetricsRefresh,
+} from '../shared/queries/fleet.ts';
+import { invalidateAfterFleetMutation } from '../shared/queries/invalidate.ts';
 import { toast } from './useUiStore.ts';
 
 interface FleetState {
@@ -63,13 +68,7 @@ export const useFleetStore = create<FleetState>((set, get) => ({
   async loadFleet(refresh = false) {
     set({ loading: true });
     try {
-      const fleet = await api.getFleet(refresh);
-      set({ fleet, loading: false, error: null, fromCache: false });
-      void saveSnapshot({
-        fleet,
-        metrics: get().metrics,
-        savedAt: new Date().toISOString(),
-      });
+      await fetchFleetRefresh(refresh);
     } catch (error) {
       const message =
         error instanceof ApiError
@@ -85,23 +84,12 @@ export const useFleetStore = create<FleetState>((set, get) => ({
   async loadMetrics(refresh = false) {
     set({ metricsLoading: true });
     try {
-      const metrics = await api.getFleetMetrics(refresh);
-      set({ metrics, metricsLoading: false });
-      // Sur un rafraîchissement explicite, on remonte les échecs DE COLLECTE
-      // (proxy/PAT) au lieu de les confondre silencieusement avec « non
-      // disponible ». Un chargement de fond reste muet.
-      if (refresh && metrics.refreshErrors && metrics.refreshErrors > 0) {
+      await fetchMetricsRefresh(refresh);
+      const metrics = get().metrics;
+      if (refresh && metrics?.refreshErrors && metrics.refreshErrors > 0) {
         toast.error(
           `Métriques indisponibles pour ${metrics.refreshErrors} projet(s) — proxy ou PAT à vérifier.`
         );
-      }
-      const fleet = get().fleet;
-      if (fleet) {
-        void saveSnapshot({
-          fleet,
-          metrics,
-          savedAt: new Date().toISOString(),
-        });
       }
     } catch {
       set({ metricsLoading: false });
@@ -111,7 +99,8 @@ export const useFleetStore = create<FleetState>((set, get) => ({
 
   async loadSettings() {
     try {
-      set({ settings: await api.getSettings() });
+      const settings = await api.getSettings();
+      set({ settings });
     } catch {
       // valeurs par défaut conservées
     }
@@ -139,6 +128,7 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     await api.pauseProject(accountId, ref);
     toast.success('Mise en pause lancée');
     await get().loadFleet(true);
+    invalidateAfterFleetMutation();
   },
 
   async restore(accountId, ref, options = {}) {
@@ -148,11 +138,13 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     });
     toast.success('Restauration lancée');
     await get().loadFleet(true);
+    invalidateAfterFleetMutation();
   },
 
   async updateMeta(accountId, ref, fields) {
     await api.updateProjectMeta(accountId, ref, fields);
     await get().loadFleet(false);
+    invalidateAfterFleetMutation();
   },
 }));
 

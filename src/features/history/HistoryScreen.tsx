@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react';
 import { Inbox, ScrollText } from 'lucide-react';
 import type { OperationDto } from '../../../shared/contracts.ts';
-import { api } from '../../api/index.ts';
 import { formatDateTime } from '../../../shared/format.ts';
 import { ListSkeleton } from '../../shared/components/Skeleton.tsx';
 import { EmptyState } from '../../shared/components/EmptyState.tsx';
 import { useOnline } from '../../shared/hooks/useOnline.ts';
+import { useOperations } from '../../shared/hooks/useOperations.ts';
 
 const ACTION_LABELS: Record<OperationDto['action'], string> = {
   login: 'Connexion',
@@ -28,26 +27,10 @@ const STATUS_STYLE: Record<OperationDto['status'], string> = {
 
 /** Journal d'audit : qui a fait quoi, quand, sur quel projet, avec quel résultat. */
 export function HistoryScreen() {
-  const [operations, setOperations] = useState<OperationDto[] | null>(null);
-  const [error, setError] = useState(false);
+  const { data: operations, isLoading, isError } = useOperations(100);
   const online = useOnline();
 
-  useEffect(() => {
-    let cancelled = false;
-    void api
-      .listOperations(100)
-      .then(ops => {
-        if (!cancelled) setOperations(ops);
-      })
-      .catch(() => {
-        if (!cancelled) setError(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (error) {
+  if (isError) {
     return (
       <EmptyState icon={Inbox} title="Historique indisponible">
         {online
@@ -56,7 +39,7 @@ export function HistoryScreen() {
       </EmptyState>
     );
   }
-  if (operations === null) return <ListSkeleton count={5} />;
+  if (isLoading || operations === undefined) return <ListSkeleton count={5} />;
   if (operations.length === 0) {
     return (
       <EmptyState icon={ScrollText} title="Aucune action pour l'instant">

@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
 import {
   HashRouter,
   Navigate,
@@ -10,6 +11,7 @@ import {
 import { useSessionStore } from './store/useSessionStore.ts';
 import { useFleetStore } from './store/useFleetStore.ts';
 import { api, IS_MOCK } from './api/index.ts';
+import { useFleetBootstrap } from './shared/queries/fleet.ts';
 import { AppHeader } from './shared/components/AppHeader.tsx';
 import { BottomNav } from './shared/components/BottomNav.tsx';
 import { ErrorBoundary } from './shared/components/ErrorBoundary.tsx';
@@ -22,6 +24,7 @@ import { OfflineScreen } from './features/offline/OfflineScreen.tsx';
 import { OnboardingScreen } from './features/onboarding/OnboardingScreen.tsx';
 import { DashboardScreen } from './features/dashboard/DashboardScreen.tsx';
 import { ProjectsScreen } from './features/projects/ProjectsScreen.tsx';
+import { getQueryClient } from './shared/queries/client.ts';
 
 const ProjectDetailScreen = lazy(() =>
   import('./features/projects/ProjectDetailScreen.tsx').then(m => ({
@@ -91,44 +94,18 @@ function Shell() {
 
 function AuthedApp() {
   const fleet = useFleetStore(s => s.fleet);
-  const loading = useFleetStore(s => s.loading);
   const fromCache = useFleetStore(s => s.fromCache);
-  const loadFleet = useFleetStore(s => s.loadFleet);
-  const loadMetrics = useFleetStore(s => s.loadMetrics);
-  const loadSettings = useFleetStore(s => s.loadSettings);
-  const hydrateFromCache = useFleetStore(s => s.hydrateFromCache);
-  const [noData, setNoData] = useState(false);
-
-  useEffect(() => {
-    void (async () => {
-      await Promise.all([loadSettings(), loadFleet(false)]);
-      const { fleet: loaded } = useFleetStore.getState();
-      if (loaded) {
-        void loadMetrics(false);
-        return;
-      }
-      // Synchro impossible (hors ligne ?) → dernier état connu, sinon écran dédié.
-      const hydrated = await hydrateFromCache();
-      setNoData(!hydrated);
-    })();
-  }, [loadSettings, loadFleet, loadMetrics, hydrateFromCache]);
+  const { isLoading, offlineEmpty, retry } = useFleetBootstrap();
 
   const empty = useMemo(
     () => fleet !== null && fleet.accounts.length === 0,
     [fleet]
   );
 
-  if (noData) {
-    return (
-      <OfflineScreen
-        onRetry={() => {
-          setNoData(false);
-          void loadFleet(true);
-        }}
-      />
-    );
+  if (offlineEmpty) {
+    return <OfflineScreen onRetry={retry} />;
   }
-  if (!fleet && (loading || !fromCache)) {
+  if (!fleet && (isLoading || !fromCache)) {
     return (
       <div className="mx-auto max-w-2xl px-3 py-6">
         <ListSkeleton count={4} />
@@ -208,9 +185,11 @@ function Inner() {
 
 export function App() {
   return (
-    <ErrorBoundary level="app">
-      <Inner />
-      <ToastViewport />
-    </ErrorBoundary>
+    <QueryClientProvider client={getQueryClient()}>
+      <ErrorBoundary level="app">
+        <Inner />
+        <ToastViewport />
+      </ErrorBoundary>
+    </QueryClientProvider>
   );
 }

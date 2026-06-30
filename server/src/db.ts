@@ -15,7 +15,7 @@ import type {
   MetricValue,
 } from '../../shared/quotas.ts';
 import { FREE_PLAN_QUOTAS } from '../../shared/quotas.ts';
-import { countsTowardActiveLimit } from '../../shared/status.ts';
+import { observeStatusTransition } from '../../shared/fleet/index.ts';
 import type { SupabaseProjectStatus } from '../../shared/status.ts';
 import type {
   OperationAction,
@@ -352,35 +352,45 @@ export class Store {
   ): ProjectMetaRow {
     const existing = this.getProjectMeta(accountId, ref);
     if (!existing) {
-      const active = countsTowardActiveLimit(status);
+      const observed = observeStatusTransition(null, status, now);
       this.db
         .prepare(
           `INSERT INTO project_meta(account_id, ref, first_seen_at, last_seen_active_at, paused_at, last_status)
            VALUES (?,?,?,?,?,?)`
         )
-        .run(accountId, ref, now, active ? now : null, null, status);
+        .run(
+          accountId,
+          ref,
+          now,
+          observed.lastSeenActiveAt,
+          observed.pausedAt,
+          status
+        );
       return this.getProjectMeta(accountId, ref) as ProjectMetaRow;
     }
 
-    let lastSeenActiveAt = existing.lastSeenActiveAt;
-    let pausedAt = existing.pausedAt;
-    if (countsTowardActiveLimit(status)) {
-      lastSeenActiveAt = now;
-      pausedAt = null;
-    } else if (
-      status === 'INACTIVE' &&
-      existing.lastStatus !== 'INACTIVE' &&
-      pausedAt === null
-    ) {
-      pausedAt = countsTowardActiveLimit(existing.lastStatus) ? now : null;
-    }
+    const observed = observeStatusTransition(
+      {
+        lastSeenActiveAt: existing.lastSeenActiveAt,
+        pausedAt: existing.pausedAt,
+        lastStatus: existing.lastStatus,
+      },
+      status,
+      now
+    );
     this.db
       .prepare(
         `UPDATE project_meta SET last_seen_active_at=?, paused_at=?, last_status=?
          WHERE account_id=? AND ref=?`
       )
-      .run(lastSeenActiveAt, pausedAt, status, accountId, ref);
-    return { ...existing, lastSeenActiveAt, pausedAt, lastStatus: status };
+      .run(
+        observed.lastSeenActiveAt,
+        observed.pausedAt,
+        status,
+        accountId,
+        ref
+      );
+    return { ...existing, ...observed, lastStatus: status };
   }
 
   /** Pose une date de pause certaine (pause déclenchée par Miss Supaboss). */

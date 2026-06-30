@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -8,10 +8,9 @@ import {
   PartyPopper,
   TriangleAlert,
 } from 'lucide-react';
-import type { RestoreAssessmentDto } from '../../../shared/contracts.ts';
 import { isRestoreWindowExpired } from '../../../shared/guards.ts';
 import { worstLevel } from '../../../shared/quotas.ts';
-import { api, ApiError } from '../../api/index.ts';
+import { ApiError } from '../../api/index.ts';
 import {
   findProject,
   metricsOf,
@@ -21,10 +20,13 @@ import { toast } from '../../store/useUiStore.ts';
 import { StatusBadge } from '../../shared/components/StatusBadge.tsx';
 import { EmptyState } from '../../shared/components/EmptyState.tsx';
 import { Skeleton } from '../../shared/components/Skeleton.tsx';
+import { useActionGuard } from '../../shared/hooks/useActionGuard.ts';
 import { usePolling } from '../../shared/hooks/usePolling.ts';
-import { useOnline } from '../../shared/hooks/useOnline.ts';
+import { useAssessRestore } from '../../shared/queries/fleet.ts';
 
 type Phase = 'check' | 'plan' | 'launching' | 'waiting' | 'ready' | 'failed';
+
+type UserPhase = 'assess' | 'launching' | 'waiting';
 
 export function PrepareDemoScreen() {
   const { accountId = '', ref = '' } = useParams();
@@ -33,7 +35,11 @@ export function PrepareDemoScreen() {
   const settings = useFleetStore(s => s.settings);
   const loadFleet = useFleetStore(s => s.loadFleet);
   const restore = useFleetStore(s => s.restore);
-  const online = useOnline();
+  const launchGuard = useActionGuard({
+    online: true,
+    operate: true,
+    writable: true,
+  });
 
   const project = useMemo(
     () => findProject(fleet, accountId, ref),
@@ -44,82 +50,118 @@ export function PrepareDemoScreen() {
     [metrics, accountId, ref]
   );
 
-  const [phase, setPhase] = useState<Phase>('check');
-  const [assessment, setAssessment] = useState<RestoreAssessmentDto | null>(
-    null
+  const [userPhase, setUserPhase] = useState<UserPhase>('assess');
+  const [selectedPauses, setSelectedPauses] = useState<string[] | null>(null);
+  const [launchError, setLaunchError] = useState<string | null>(null);
+  const [assessKey, setAssessKey] = useState(0);
+
+  const assessQ = useAssessRestore(
+    accountId,
+    ref,
+    launchGuard.allowed && userPhase === 'assess'
   );
-  const [selectedPauses, setSelectedPauses] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
 
-  // Étape 1 — vérifier capacité (slots actifs) et restaurabilité.
-  useEffect(() => {
-    if (phase !== 'check') return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const a = await api.assessRestore(accountId, ref);
-        if (cancelled) return;
-        setAssessment(a);
-        setSelectedPauses(a.suggestions.map(s => s.ref));
-        setPhase('plan');
-      } catch (e) {
-        if (cancelled) return;
-        setError(e instanceof ApiError ? e.message : 'Vérification impossible');
-        setPhase('failed');
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [phase, accountId, ref]);
+  const assessment = assessQ.data ?? null;
+  const effectivePauses = useMemo(
+    () => selectedPauses ?? assessment?.suggestions.map(s => s.ref) ?? [],
+    [selectedPauses, assessment]
+  );
 
-  // Étape 4 — l'issue est DÉRIVÉE du statut observé (pas de setState
-  // dans un effect) : 'waiting' devient 'ready' ou 'failed' au rendu.
   const restoreFailed =
     project?.status === 'RESTORE_FAILED' || project?.status === 'INIT_FAILED';
-  const displayPhase: Phase =
-    phase === 'waiting'
-      ? project?.status === 'ACTIVE_HEALTHY'
-        ? 'ready'
-        : restoreFailed
-          ? 'failed'
-          : 'waiting'
-      : phase;
-  const displayError =
-    error ??
-    (displayPhase === 'failed'
-      ? 'La restauration a échoué côté Supabase — réessayez ou consultez le dashboard Supabase.'
-      : null);
 
-  // Polling 5 s jusqu'à l'état actif.
+  const displayPhase: Phase = useMemo(() => {
+    if (!launchGuard.allowed) return 'failed';
+    if (userPhase === 'launching') return 'launching';
+    if (userPhase === 'waiting') {
+      if (project?.status === 'ACTIVE_HEALTHY') return 'ready';
+      if (restoreFailed) return 'failed';
+      return 'waiting';
+    }
+    if (launchError || assessQ.isError) return 'failed';
+    if (assessQ.isLoading || assessQ.isFetching) return 'check';
+    if (assessQ.isSuccess && assessment) return 'plan';
+    return 'check';
+  }, [
+    launchGuard.allowed,
+    userPhase,
+    project?.status,
+    restoreFailed,
+    launchError,
+    assessQ.isError,
+    assessQ.isLoading,
+    assessQ.isFetching,
+    assessQ.isSuccess,
+    assessment,
+  ]);
+
+  const displayError = useMemo(() => {
+    if (launchError) return launchError;
+    if (!launchGuard.allowed) return launchGuard.reason;
+    if (assessQ.isError) {
+      return assessQ.error instanceof ApiError
+        ? assessQ.error.message
+        : 'Vérification impossible';
+    }
+    if (displayPhase === 'failed' && userPhase === 'waiting') {
+      return 'La restauration a échoué côté Supabase — réessayez ou consultez le dashboard Supabase.';
+    }
+    return null;
+  }, [
+    launchError,
+    launchGuard.allowed,
+    launchGuard.reason,
+    assessQ.isError,
+    assessQ.error,
+    displayPhase,
+    userPhase,
+  ]);
+
   usePolling(
     () => void loadFleet(true),
     5_000,
-    displayPhase === 'waiting' && online
+    displayPhase === 'waiting' && launchGuard.allowed
   );
 
   const launch = useCallback(async () => {
-    if (!assessment) return;
-    setPhase('launching');
+    if (!assessment || !launchGuard.allowed) return;
+    setLaunchError(null);
+    setUserPhase('launching');
     try {
       await restore(accountId, ref, {
-        pauseFirst: selectedPauses,
-        force: !assessment.allowed && selectedPauses.length === 0,
+        pauseFirst: effectivePauses,
+        force: !assessment.allowed && effectivePauses.length === 0,
       });
-      setPhase('waiting');
+      setUserPhase('waiting');
     } catch (e) {
       if (e instanceof ApiError && e.assessment) {
-        // Garde-fou serveur : re-propose les pauses à jour.
-        setAssessment(e.assessment);
         setSelectedPauses(e.assessment.suggestions.map(s => s.ref));
-        setPhase('plan');
+        setUserPhase('assess');
+        setAssessKey(k => k + 1);
         toast.error(e.message);
         return;
       }
-      setError(e instanceof ApiError ? e.message : 'Restauration impossible');
-      setPhase('failed');
+      setLaunchError(
+        e instanceof ApiError ? e.message : 'Restauration impossible'
+      );
+      setUserPhase('assess');
     }
-  }, [assessment, accountId, ref, selectedPauses, restore]);
+  }, [
+    assessment,
+    accountId,
+    ref,
+    effectivePauses,
+    restore,
+    launchGuard.allowed,
+  ]);
+
+  const retryAssess = useCallback(() => {
+    setLaunchError(null);
+    setSelectedPauses(null);
+    setUserPhase('assess');
+    setAssessKey(k => k + 1);
+    void assessQ.refetch();
+  }, [assessQ]);
 
   if (!project) {
     return (
@@ -159,7 +201,7 @@ export function PrepareDemoScreen() {
             : 4;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" key={assessKey}>
       <Link
         to={`/projects/${accountId}/${ref}`}
         className="flex items-center gap-1 text-sm font-medium text-[var(--sb-text-soft)]"
@@ -177,7 +219,6 @@ export function PrepareDemoScreen() {
         <StatusBadge status={project.status} />
       </header>
 
-      {/* Fil d'étapes. */}
       <ol className="card space-y-2 p-4" aria-label="Étapes">
         {steps.map((s, i) => (
           <li
@@ -271,13 +312,15 @@ export function PrepareDemoScreen() {
                 >
                   <input
                     type="checkbox"
-                    checked={selectedPauses.includes(s.ref)}
+                    checked={effectivePauses.includes(s.ref)}
                     onChange={e =>
-                      setSelectedPauses(prev =>
-                        e.target.checked
-                          ? [...prev, s.ref]
-                          : prev.filter(r => r !== s.ref)
-                      )
+                      setSelectedPauses(prev => {
+                        const base =
+                          prev ?? assessment.suggestions.map(x => x.ref);
+                        return e.target.checked
+                          ? [...base, s.ref]
+                          : base.filter(r => r !== s.ref);
+                      })
                     }
                   />
                   <span className="min-w-0 flex-1 truncate font-medium">
@@ -286,7 +329,7 @@ export function PrepareDemoScreen() {
                   <StatusBadge status={s.status} />
                 </label>
               ))}
-              {selectedPauses.length === 0 && (
+              {effectivePauses.length === 0 && (
                 <p className="text-xs text-[var(--sb-warn)]">
                   Aucune pause sélectionnée : la restauration forcera le
                   dépassement et risque d'être refusée par Supabase.
@@ -296,14 +339,19 @@ export function PrepareDemoScreen() {
           )}
           <button
             type="button"
-            disabled={!online}
+            {...launchGuard.disabledProps}
             onClick={() => void launch()}
             className="touch-target w-full rounded-xl bg-primary px-4 font-semibold text-[#06281a] disabled:opacity-50"
           >
-            {needsPauses && selectedPauses.length > 0
-              ? `Suspendre ${selectedPauses.length} projet(s) puis restaurer`
+            {needsPauses && effectivePauses.length > 0
+              ? `Suspendre ${effectivePauses.length} projet(s) puis restaurer`
               : 'Lancer la restauration'}
           </button>
+          {launchGuard.reason && (
+            <p className="text-xs text-[var(--sb-warn)]">
+              {launchGuard.reason}
+            </p>
+          )}
         </section>
       )}
 
@@ -353,10 +401,7 @@ export function PrepareDemoScreen() {
           </p>
           <button
             type="button"
-            onClick={() => {
-              setError(null);
-              setPhase('check');
-            }}
+            onClick={retryAssess}
             className="touch-target w-full rounded-xl border border-[var(--sb-border)] px-4 font-semibold"
           >
             Réessayer la vérification

@@ -20,10 +20,19 @@ import {
   type UserDto,
 } from '../../shared/contracts.ts';
 import {
-  evaluateRestore,
-  estimateRestoreDeadline,
-} from '../../shared/guards.ts';
-import { isPausable, isRestorable } from '../../shared/status.ts';
+  assessRestore,
+  buildProjectMeta,
+  FLEET_TTL_MS,
+  METRICS_TTL_MS,
+  observeStatusTransition,
+  pausesBeforeRestore,
+  readFleetCache,
+  toRestoreAssessmentDto,
+  validatePause,
+  validateRestore,
+} from '../../shared/fleet/index.ts';
+import type { SupabaseProjectStatus } from '../../shared/status.ts';
+import { countsTowardActiveLimit } from '../../shared/status.ts';
 import {
   FREE_PLAN_QUOTAS,
   unavailableMetric,
@@ -43,9 +52,6 @@ const LOCAL_USER: UserDto = {
 
 /** État réel persisté localement (séparé des fixtures de démo). */
 export const REAL_STORAGE_KEY = 'miss-supaboss-real-v1';
-
-const FLEET_TTL_MS = 15_000;
-const METRICS_TTL_MS = 5 * 60_000;
 
 interface RealAccount {
   id: string;
@@ -72,6 +78,7 @@ interface RealMeta {
   notes: string;
   lastSeenActiveAt: string | null;
   pausedAt: string | null;
+  lastStatus?: SupabaseProjectStatus;
 }
 
 interface RealState {
@@ -109,7 +116,6 @@ function loadState(): RealState {
   return emptyState();
 }
 
-const ACTIVE = new Set(['ACTIVE_HEALTHY', 'ACTIVE_UNHEALTHY']);
 const metaKey = (accountId: string, ref: string): string =>
   `${accountId}:${ref}`;
 
@@ -182,21 +188,28 @@ export function createLocalRealApi(proxyBase: string): Api {
   /** Récupère/initialise la méta locale et l'« observe » selon le statut live. */
   const observe = (accountId: string, raw: RawProject): RealMeta => {
     const key = metaKey(accountId, raw.ref);
-    const meta: RealMeta = state.meta[key] ?? {
-      tags: [],
-      favorite: false,
-      demoFrequent: false,
-      notes: '',
-      lastSeenActiveAt: null,
-      pausedAt: null,
-    };
+    const existing = state.meta[key];
     const now = new Date().toISOString();
-    if (ACTIVE.has(raw.status)) {
-      meta.lastSeenActiveAt = now;
-      meta.pausedAt = null;
-    } else if (raw.status === 'INACTIVE') {
-      meta.pausedAt = meta.pausedAt ?? now;
-    }
+    const observed = observeStatusTransition(
+      existing
+        ? {
+            lastSeenActiveAt: existing.lastSeenActiveAt,
+            pausedAt: existing.pausedAt,
+            lastStatus: existing.lastStatus ?? 'UNKNOWN',
+          }
+        : null,
+      raw.status,
+      now
+    );
+    const meta: RealMeta = {
+      tags: existing?.tags ?? [],
+      favorite: existing?.favorite ?? false,
+      demoFrequent: existing?.demoFrequent ?? false,
+      notes: existing?.notes ?? '',
+      lastSeenActiveAt: observed.lastSeenActiveAt,
+      pausedAt: observed.pausedAt,
+      lastStatus: observed.lastStatus,
+    };
     state.meta[key] = meta;
     return meta;
   };
@@ -216,18 +229,16 @@ export function createLocalRealApi(proxyBase: string): Api {
       organizationName: orgName,
       status: raw.status,
       createdAt: raw.createdAt,
-      meta: {
-        tags: meta.tags,
-        favorite: meta.favorite,
-        demoFrequent: meta.demoFrequent,
-        notes: meta.notes,
-        lastSeenActiveAt: meta.lastSeenActiveAt,
-        pausedAt: meta.pausedAt,
-        restoreDeadline: estimateRestoreDeadline(
-          meta.pausedAt,
-          state.settings.restoreWindowDays
-        ),
-      },
+      meta: buildProjectMeta(
+        {
+          tags: meta.tags,
+          favorite: meta.favorite,
+          demoFrequent: meta.demoFrequent,
+          notes: meta.notes,
+        },
+        meta,
+        state.settings.restoreWindowDays
+      ),
     };
   };
 
@@ -241,13 +252,21 @@ export function createLocalRealApi(proxyBase: string): Api {
     projects: ProjectDto[];
   }> => {
     const cached = cache.get(acc.id);
-    if (!refresh && cached && Date.now() - cached.at < FLEET_TTL_MS) {
-      return {
-        orgs: cached.orgs,
-        organizations: cached.organizations,
-        projects: cached.fleet,
-      };
-    }
+    const hit = readFleetCache(
+      cached
+        ? {
+            value: {
+              orgs: cached.orgs,
+              organizations: cached.organizations,
+              projects: cached.fleet,
+            },
+            at: cached.at,
+          }
+        : undefined,
+      refresh,
+      FLEET_TTL_MS
+    );
+    if (hit) return hit;
     const [organizations, rawProjects] = await Promise.all([
       client.listOrganizations(acc.pat),
       client.listProjects(acc.pat),
@@ -315,7 +334,7 @@ export function createLocalRealApi(proxyBase: string): Api {
     refresh: boolean
   ): Promise<{ dto: ProjectMetricsDto; refreshFailed: boolean }> => {
     const key = metaKey(acc.id, project.ref);
-    const isActive = ACTIVE.has(project.status);
+    const isActive = countsTowardActiveLimit(project.status);
     const cached = metricsCache.get(key);
     const fresh = !!cached && Date.now() - cached.at < METRICS_TTL_MS;
     let refreshFailed = false;
@@ -597,32 +616,21 @@ export function createLocalRealApi(proxyBase: string): Api {
     },
     async assessRestore(accountId, ref) {
       const lite = toLite(await projectsOf(accountId, false));
-      const a = evaluateRestore(lite, ref);
-      return {
-        allowed: a.allowed,
-        reason: a.reason,
-        activeCount: a.activeCount,
-        limit: a.limit,
-        suggestions: a.suggestions.map(s => s.dto),
-      };
+      return toRestoreAssessmentDto(assessRestore(lite, ref));
     },
     async pauseProject(accountId, ref) {
       const acc = getAccount(accountId);
       const projects = await projectsOf(accountId, false);
       const p = projects.find(x => x.ref === ref);
-      if (!p)
+      const pauseFailure = validatePause(p, ref);
+      if (pauseFailure) {
         throw new ApiError(
-          404,
-          'project-not-found',
-          `Projet ${ref} introuvable`
-        );
-      if (!isPausable(p.status)) {
-        throw new ApiError(
-          409,
-          'not-pausable',
-          `« ${p.name} » n'est pas actif`
+          pauseFailure.status,
+          pauseFailure.code,
+          pauseFailure.message
         );
       }
+      const project = p!;
       await client.pause(acc.pat, ref);
       cache.delete(accountId);
       recordOp({
@@ -630,7 +638,7 @@ export function createLocalRealApi(proxyBase: string): Api {
         accountId,
         accountAlias: acc.alias,
         projectRef: ref,
-        projectName: p.name,
+        projectName: project.name,
         status: 'ok',
         detail: null,
       });
@@ -639,49 +647,34 @@ export function createLocalRealApi(proxyBase: string): Api {
     async restoreProject(accountId, ref, options) {
       const acc = getAccount(accountId);
       const projects = await projectsOf(accountId, false);
-      const projected = toLite(projects).map(l =>
-        options.pauseFirst.includes(l.ref) && l.ref !== ref
-          ? { ...l, status: 'INACTIVE' as const }
-          : l
+      const lite = toLite(projects);
+      const restoreFailure = validateRestore(lite, ref, options);
+      if (restoreFailure) {
+        throw new ApiError(
+          restoreFailure.status,
+          restoreFailure.code,
+          restoreFailure.message,
+          restoreFailure.assessment
+        );
+      }
+      const target = projects.find(x => x.ref === ref)!;
+      const refsToPause = pausesBeforeRestore(
+        projects,
+        options.pauseFirst,
+        ref
       );
-      const a = evaluateRestore(projected, ref);
-      if (!a.allowed && a.reason !== 'limit-reached') {
-        throw new ApiError(409, a.reason, 'Restauration impossible', {
-          ...a,
-          suggestions: a.suggestions.map(s => s.dto),
+      for (const refToPause of refsToPause) {
+        const toPause = projects.find(x => x.ref === refToPause)!;
+        await client.pause(acc.pat, refToPause);
+        recordOp({
+          action: 'project.pause',
+          accountId,
+          accountAlias: acc.alias,
+          projectRef: refToPause,
+          projectName: toPause.name,
+          status: 'ok',
+          detail: 'Pause préalable (préparation de démo)',
         });
-      }
-      if (!a.allowed && !options.force) {
-        throw new ApiError(
-          409,
-          'limit-reached',
-          `Limite Free atteinte (${a.activeCount}/${a.limit})`,
-          { ...a, suggestions: a.suggestions.map(s => s.dto) }
-        );
-      }
-      const target = projects.find(x => x.ref === ref);
-      if (!target || !isRestorable(target.status)) {
-        throw new ApiError(
-          409,
-          'not-restorable',
-          `« ${target?.name ?? ref} » n'est pas en pause`
-        );
-      }
-      for (const refToPause of options.pauseFirst) {
-        if (refToPause === ref) continue;
-        const toPause = projects.find(x => x.ref === refToPause);
-        if (toPause && isPausable(toPause.status)) {
-          await client.pause(acc.pat, refToPause);
-          recordOp({
-            action: 'project.pause',
-            accountId,
-            accountAlias: acc.alias,
-            projectRef: refToPause,
-            projectName: toPause.name,
-            status: 'ok',
-            detail: 'Pause préalable (préparation de démo)',
-          });
-        }
       }
       await client.restore(acc.pat, ref);
       cache.delete(accountId);
