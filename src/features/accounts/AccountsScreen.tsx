@@ -7,8 +7,9 @@ import {
 } from '../../../shared/guards.ts';
 import { formatRelative } from '../../../shared/format.ts';
 import { api, ApiError } from '../../api/index.ts';
+import { useActionGuard } from '../../shared/hooks/useActionGuard.ts';
+import { invalidateAfterFleetMutation } from '../../shared/queries/invalidate.ts';
 import { projectsOfAccount, useFleetStore } from '../../store/useFleetStore.ts';
-import { canAdmin, useSessionStore } from '../../store/useSessionStore.ts';
 import { toast } from '../../store/useUiStore.ts';
 import { ConfirmSheet } from '../../shared/components/ConfirmSheet.tsx';
 import { EmptyState } from '../../shared/components/EmptyState.tsx';
@@ -18,7 +19,8 @@ export function AccountsScreen() {
   const fleet = useFleetStore(s => s.fleet);
   const loadFleet = useFleetStore(s => s.loadFleet);
   const fromCache = useFleetStore(s => s.fromCache);
-  const user = useSessionStore(s => s.user);
+  const adminGuard = useActionGuard({ admin: true, writable: true });
+  const admin = adminGuard.allowed;
   const [editing, setEditing] = useState<AccountDto | 'new' | null>(null);
   const [toDelete, setToDelete] = useState<AccountDto | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -27,7 +29,6 @@ export function AccountsScreen() {
     () => fleet?.accounts.map(a => a.account) ?? [],
     [fleet]
   );
-  const admin = canAdmin(user) && !fromCache;
 
   const test = async (account: AccountDto): Promise<void> => {
     setBusyId(account.id);
@@ -40,6 +41,7 @@ export function AccountsScreen() {
         `${account.alias} : ${res.organizations.length} org${orgs} · ${res.projects} projets`
       );
       await loadFleet(true);
+      invalidateAfterFleetMutation();
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Test impossible');
     } finally {
@@ -52,6 +54,7 @@ export function AccountsScreen() {
     try {
       await api.updateAccount(account.id, { enabled: !account.enabled });
       await loadFleet(true);
+      invalidateAfterFleetMutation();
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Mise à jour impossible');
     } finally {
@@ -67,6 +70,7 @@ export function AccountsScreen() {
       toast.success(`Compte « ${toDelete.alias} » supprimé`);
       setToDelete(null);
       await loadFleet(true);
+      invalidateAfterFleetMutation();
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Suppression impossible');
     } finally {
@@ -188,6 +192,7 @@ export function AccountsScreen() {
         onSaved={() => {
           setEditing(null);
           void loadFleet(true);
+          invalidateAfterFleetMutation();
         }}
       />
 

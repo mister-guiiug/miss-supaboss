@@ -3,12 +3,15 @@
  * (Management API ou mock) et garde-fous métier partagés.
  * Toute action est journalisée dans `operations` (audit).
  */
+import { estimateRestoreDeadline } from '../../shared/guards.ts';
 import {
-  evaluateRestore,
-  estimateRestoreDeadline,
-  type ProjectLite,
-} from '../../shared/guards.ts';
-import { isPausable } from '../../shared/status.ts';
+  assessRestore,
+  pausesBeforeRestore,
+  toLiteProjects,
+  toRestoreAssessmentDto,
+  validatePause,
+  validateRestore,
+} from '../../shared/fleet/index.ts';
 import {
   FREE_PLAN_QUOTAS,
   unavailableMetric,
@@ -47,15 +50,16 @@ export class FleetError extends Error {
   }
 }
 
-const FLEET_TTL_MS = 15_000;
-const METRICS_TTL_MS = 5 * 60_000;
+import {
+  FLEET_TTL_MS,
+  METRICS_TTL_MS,
+  readFleetCache,
+} from '../../shared/fleet/index.ts';
 
 interface CacheEntry {
   fleet: AccountFleetDto;
   at: number;
 }
-
-type Lite = ProjectLite & { dto: ProjectDto };
 
 export class FleetService {
   private readonly cache = new Map<string, CacheEntry>();
@@ -100,9 +104,12 @@ export class FleetService {
     refresh: boolean
   ): Promise<AccountFleetDto> {
     const cached = this.cache.get(accountId);
-    if (!refresh && cached && Date.now() - cached.at < FLEET_TTL_MS) {
-      return cached.fleet;
-    }
+    const hit = readFleetCache(
+      cached ? { value: cached.fleet, at: cached.at } : undefined,
+      refresh,
+      FLEET_TTL_MS
+    );
+    if (hit) return hit;
     const account = this.store.getAccount(accountId);
     if (!account) {
       throw new FleetError(404, 'account-not-found', 'Compte introuvable');
@@ -178,11 +185,12 @@ export class FleetService {
       accountId,
       ref
     );
-    if (!isPausable(project.status)) {
+    const pauseFailure = validatePause(project, ref);
+    if (pauseFailure) {
       throw new FleetError(
-        409,
-        'not-pausable',
-        `Le projet « ${project.name} » n'est pas actif (statut ${project.status})`
+        pauseFailure.status,
+        pauseFailure.code,
+        pauseFailure.message
       );
     }
     const operationId = this.store.recordOperation({
@@ -214,7 +222,9 @@ export class FleetService {
     ref: string
   ): Promise<RestoreAssessmentDto> {
     const fleet = await this.accountFleet(accountId, true);
-    return toAssessmentDto(evaluateRestore(toLite(fleet.projects), ref));
+    return toRestoreAssessmentDto(
+      assessRestore(toLiteProjects(fleet.projects), ref)
+    );
   }
 
   async restore(
@@ -225,33 +235,23 @@ export class FleetService {
   ): Promise<{ operationId: number }> {
     const { account, pat } = await this.loadActionContext(accountId, ref);
     const fleet = await this.accountFleet(accountId, true);
-    const lite = toLite(fleet.projects);
-
-    // Simule l'effet des pauses demandées avant d'évaluer le garde-fou.
-    const projected = lite.map(p =>
-      options.pauseFirst.includes(p.ref) && p.ref !== ref
-        ? { ...p, status: 'INACTIVE' as const }
-        : p
-    );
-    const assessment = evaluateRestore(projected, ref);
-    if (!assessment.allowed && assessment.reason !== 'limit-reached') {
+    const lite = toLiteProjects(fleet.projects);
+    const restoreFailure = validateRestore(lite, ref, options);
+    if (restoreFailure) {
       throw new FleetError(
-        409,
-        assessment.reason,
-        'Restauration impossible',
-        toAssessmentDto(assessment)
-      );
-    }
-    if (!assessment.allowed && !options.force) {
-      throw new FleetError(
-        409,
-        'limit-reached',
-        `Limite Free atteinte (${assessment.activeCount}/${assessment.limit} projets actifs)`,
-        toAssessmentDto(assessment)
+        restoreFailure.status,
+        restoreFailure.code,
+        restoreFailure.message,
+        restoreFailure.assessment
       );
     }
 
     const target = fleet.projects.find(p => p.ref === ref);
+    const refsToPause = pausesBeforeRestore(
+      fleet.projects,
+      options.pauseFirst,
+      ref
+    );
     const operationId = this.store.recordOperation({
       userEmail,
       action: 'project.restore',
@@ -262,8 +262,7 @@ export class FleetService {
       status: 'pending',
     });
     try {
-      for (const toPause of options.pauseFirst) {
-        if (toPause === ref) continue;
+      for (const toPause of refsToPause) {
         await this.pause(userEmail, accountId, toPause);
       }
       await this.provider.restoreProject(account.id, pat, ref);
@@ -429,31 +428,6 @@ function metric(
 ): MetricValue {
   if (value === null) return unavailableMetric(kind);
   return { kind, state, value, quota: FREE_PLAN_QUOTAS[kind], measuredAt };
-}
-
-function toLite(projects: readonly ProjectDto[]): Lite[] {
-  return projects.map(dto => ({
-    ref: dto.ref,
-    name: dto.name,
-    status: dto.status,
-    favorite: dto.meta.favorite,
-    demoFrequent: dto.meta.demoFrequent,
-    tags: dto.meta.tags,
-    lastSeenActiveAt: dto.meta.lastSeenActiveAt,
-    dto,
-  }));
-}
-
-function toAssessmentDto(
-  assessment: ReturnType<typeof evaluateRestore<Lite>>
-): RestoreAssessmentDto {
-  return {
-    allowed: assessment.allowed,
-    reason: assessment.reason,
-    activeCount: assessment.activeCount,
-    limit: assessment.limit,
-    suggestions: assessment.suggestions.map(s => s.dto),
-  };
 }
 
 function toAccountDto(row: {

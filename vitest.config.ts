@@ -16,7 +16,7 @@ export default defineConfig({
     coverage: {
       ...coveragePreset,
       provider: 'v8',
-      include: ['shared/**', 'server/src/**', 'src/domain/**'],
+      include: ['shared/**', 'server/src/**', 'shared/fleet/**'],
       thresholds: { statements: 60, branches: 75, functions: 65, lines: 60 },
     },
     projects: [
