@@ -31,6 +31,14 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     base: basePath,
+    optimizeDeps: {
+      // Ne pas prébundler le package famille : esbuild replie l'import dynamique
+      // optionnel de @sentry/react (peer absente) en littéral, que
+      // vite:import-analysis échoue ensuite à résoudre en dev — ce qui casse le
+      // serveur dev des E2E (dev:mock). Le package est un petit ESM pur : servir
+      // la source telle quelle est sans coût.
+      exclude: ['@mister-guiiug/dev-wpa-config'],
+    },
     define: {
       __APP_VERSION__: JSON.stringify(version),
     },
