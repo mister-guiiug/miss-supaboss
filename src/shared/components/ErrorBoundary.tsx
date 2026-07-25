@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { TriangleAlert } from 'lucide-react';
+import { recordError } from '@mister-guiiug/dev-wpa-config/react/observability';
 
 interface Props {
   children: ReactNode;
@@ -18,6 +19,11 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   override componentDidCatch(error: Error, info: ErrorInfo): void {
+    recordError(error, {
+      source: 'error-boundary',
+      level: this.props.level,
+      react: info.componentStack,
+    });
     console.error(
       'ErrorBoundary',
       this.props.level,
