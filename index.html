@@ -2,21 +2,11 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <!--
-      CSP défense en profondeur (template famille).
-      connect-src : 'self' (backend même origine) + l'origine du proxy Supabase
-      AJOUTÉE au build depuis VITE_SUPABASE_PROXY (mode réel local-first, cf.
-      vite.config — le PAT transite alors vers ce proxy). En démo/mock (Pages
-      sans proxy), reste 'self' : aucun appel réseau de données.
-      'unsafe-inline' requis : script anti-FOUC + styles Tailwind 4 / SW.
-      Pas de 'unsafe-eval' : Zod tourne en mode « jitless » (script ci-dessous).
-      `frame-ancestors` retiré : directive HEADER-ONLY, ignorée en <meta> (et non
-      configurable sur GitHub Pages) — laissait juste un avertissement console.
-    -->
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
-    />
+    <!-- CSP injectée au build par cspPlugin (@mister-guiiug/dev-wpa-config/vite-csp) :
+         script-src par hash SHA-256 des 3 scripts inline ci-dessous (frame-buster,
+         zod jitless, anti-FOUC), plus de 'unsafe-inline'. connect-src étend 'self'
+         avec l'origine du proxy Supabase (VITE_SUPABASE_PROXY) au build — cf.
+         vite.config. frame-ancestors omis (header-only ; frame-buster JS ci-dessous). -->
 
     <!-- Referrer-Policy : honoré par les navigateurs via <meta name="referrer">
          (cf. WHATWG HTML, "referrer policy delivery"). Remplace un en-tête

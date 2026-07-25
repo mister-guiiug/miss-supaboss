@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { cspPlugin } from '@mister-guiiug/dev-wpa-config/vite-csp';
 import { readFileSync } from 'node:fs';
 
 const { version } = JSON.parse(readFileSync('./package.json', 'utf-8')) as {
@@ -139,20 +140,15 @@ export default defineConfig(({ command, mode }) => {
           ],
         },
       }),
-      // Étend la CSP `connect-src` avec l'origine du proxy quand
-      // VITE_SUPABASE_PROXY est défini (mode réel local-first) — sinon laisse
-      // 'self' (démo/mock). Une seule source de vérité : la variable de build.
-      {
-        name: 'csp-connect-proxy',
-        transformIndexHtml(html: string) {
-          return proxyOrigin
-            ? html.replace(
-                "connect-src 'self'",
-                `connect-src 'self' ${proxyOrigin}`
-              )
-            : html;
-        },
-      },
+      // CSP durcie : script-src par hash SHA-256 des 3 scripts inline
+      // (frame-buster, zod jitless, anti-FOUC), plus de 'unsafe-inline'.
+      // connect-src étend 'self' avec l'origine du proxy Supabase quand
+      // VITE_SUPABASE_PROXY est défini (mode réel local-first), sinon 'self'
+      // (démo/mock). frame-ancestors omis (header-only ; frame-buster JS).
+      cspPlugin({
+        dev: command === 'serve',
+        connectSrc: proxyOrigin ? ["'self'", proxyOrigin] : ["'self'"],
+      }),
     ],
   };
 });
