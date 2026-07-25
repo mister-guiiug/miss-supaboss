@@ -6,20 +6,27 @@ import type { ProjectDto } from '../../../shared/contracts.ts';
 import { ProjectCard } from '../../shared/components/ProjectCard.tsx';
 import { ListSkeleton } from '../../shared/components/Skeleton.tsx';
 import { EmptyState } from '../../shared/components/EmptyState.tsx';
+import { useI18n } from '../../i18n/index.ts';
+import type { Messages } from '../../i18n/messages.ts';
 
 type Filter = 'all' | StatusGroup | 'favorite';
 type Sort = 'name' | 'status' | 'activity';
 
-const FILTERS: { id: Filter; label: string; icon?: LucideIcon }[] = [
-  { id: 'all', label: 'Tous' },
-  { id: 'active', label: 'Actifs' },
-  { id: 'paused', label: 'En pause' },
-  { id: 'transition', label: 'En cours' },
-  { id: 'error', label: 'Erreurs' },
-  { id: 'favorite', label: 'Favoris', icon: Star },
+const FILTERS: {
+  id: Filter;
+  labelKey: keyof Messages['projects']['filter'];
+  icon?: LucideIcon;
+}[] = [
+  { id: 'all', labelKey: 'all' },
+  { id: 'active', labelKey: 'active' },
+  { id: 'paused', labelKey: 'paused' },
+  { id: 'transition', labelKey: 'transition' },
+  { id: 'error', labelKey: 'error' },
+  { id: 'favorite', labelKey: 'favorite', icon: Star },
 ];
 
 export function ProjectsScreen() {
+  const { t } = useI18n();
   const fleet = useFleetStore(s => s.fleet);
   const loading = useFleetStore(s => s.loading);
   const [query, setQuery] = useState('');
@@ -84,15 +91,15 @@ export function ProjectsScreen() {
             type="search"
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Rechercher nom, ref, tag…"
-            aria-label="Rechercher un projet"
+            placeholder={t('projects.searchPlaceholder')}
+            aria-label={t('projects.searchAria')}
             className="w-full bg-transparent text-sm outline-none placeholder:text-[var(--sb-text-soft)]"
           />
         </label>
         <div
           className="flex gap-1.5 overflow-x-auto pb-1"
           role="group"
-          aria-label="Filtres"
+          aria-label={t('projects.filtersAria')}
         >
           {FILTERS.map(f => (
             <button
@@ -107,25 +114,25 @@ export function ProjectsScreen() {
               }`}
             >
               {f.icon && <f.icon size={13} aria-hidden="true" />}
-              {f.label}
+              {t(`projects.filter.${f.labelKey}`)}
             </button>
           ))}
           <select
-            aria-label="Trier"
+            aria-label={t('projects.sortAria')}
             value={sort}
             onChange={e => setSort(e.target.value as Sort)}
             className="shrink-0 rounded-full border border-[var(--sb-border)] bg-[var(--sb-surface)] px-3 py-1.5 text-xs font-medium"
           >
-            <option value="status">Tri : statut</option>
-            <option value="name">Tri : nom</option>
-            <option value="activity">Tri : activité</option>
+            <option value="status">{t('projects.sort.status')}</option>
+            <option value="name">{t('projects.sort.name')}</option>
+            <option value="activity">{t('projects.sort.activity')}</option>
           </select>
         </div>
       </div>
 
       {total === 0 ? (
-        <EmptyState icon={SearchX} title="Aucun projet ne correspond">
-          Modifiez la recherche ou les filtres.
+        <EmptyState icon={SearchX} title={t('projects.emptyTitle')}>
+          {t('projects.emptyBody')}
         </EmptyState>
       ) : (
         groups.map(g => (
@@ -137,7 +144,7 @@ export function ProjectsScreen() {
                 style={{ background: g.account.color }}
               />
               {g.account.alias}
-              {!g.account.enabled && ' (désactivé)'}
+              {!g.account.enabled && t('projects.disabledSuffix')}
             </h2>
             <div className="space-y-2">
               {g.projects.map(p => (

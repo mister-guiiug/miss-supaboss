@@ -5,6 +5,7 @@ import {
   canOperate,
   useSessionStore,
 } from '../../store/useSessionStore.ts';
+import { useI18n } from '../../i18n/index.ts';
 import { useOnline } from './useOnline.ts';
 
 export interface ActionGuardOptions {
@@ -15,21 +16,20 @@ export interface ActionGuardOptions {
   writable?: boolean;
 }
 
+/** Code stable du motif de blocage (indépendant de la langue). */
+export type GuardReasonCode = 'offline' | 'readonly' | 'operate' | 'admin';
+
 export interface ActionGuardResult {
   allowed: boolean;
+  /** Motif traduit, prêt à afficher (ou `null` si l'action est permise). */
   reason: string | null;
+  /** Motif sous forme de code stable, pour tester le cas sans dépendre du texte. */
+  reasonCode: GuardReasonCode | null;
   disabled: boolean;
   /** Props à étaler sur un bouton désactivable. */
   disabledProps: { disabled: boolean; 'aria-disabled'?: true };
   wrap: <T extends (...args: never[]) => unknown>(fn: T) => T;
 }
-
-const REASONS = {
-  offline: 'Connexion requise',
-  readonly: 'Lecture seule (hors ligne)',
-  operate: 'Droits opérateur requis',
-  admin: 'Droits administrateur requis',
-} as const;
 
 export function useActionGuard(
   options: ActionGuardOptions = {}
@@ -37,16 +37,28 @@ export function useActionGuard(
   const online = useOnline();
   const fromCache = useFleetStore(s => s.fromCache);
   const user = useSessionStore(s => s.user);
+  const { t } = useI18n();
 
   return useMemo(() => {
-    let reason: string | null = null;
+    let reasonCode: GuardReasonCode | null = null;
 
-    if (options.online && !online) reason = REASONS.offline;
-    else if (options.writable && fromCache) reason = REASONS.readonly;
-    else if (options.operate && !canOperate(user)) reason = REASONS.operate;
-    else if (options.admin && !canAdmin(user)) reason = REASONS.admin;
+    if (options.online && !online) reasonCode = 'offline';
+    else if (options.writable && fromCache) reasonCode = 'readonly';
+    else if (options.operate && !canOperate(user)) reasonCode = 'operate';
+    else if (options.admin && !canAdmin(user)) reasonCode = 'admin';
 
-    const allowed = reason === null;
+    const reason =
+      reasonCode === null
+        ? null
+        : reasonCode === 'offline'
+          ? t('guard.offline')
+          : reasonCode === 'readonly'
+            ? t('guard.readonly')
+            : reasonCode === 'operate'
+              ? t('guard.operate')
+              : t('guard.admin');
+
+    const allowed = reasonCode === null;
 
     const wrap = <T extends (...args: never[]) => unknown>(fn: T): T =>
       ((...args: Parameters<T>) => {
@@ -57,6 +69,7 @@ export function useActionGuard(
     return {
       allowed,
       reason,
+      reasonCode,
       disabled: !allowed,
       disabledProps: allowed
         ? { disabled: false }
@@ -67,6 +80,7 @@ export function useActionGuard(
     online,
     fromCache,
     user,
+    t,
     options.online,
     options.writable,
     options.operate,

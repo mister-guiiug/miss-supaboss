@@ -11,9 +11,11 @@ import { formatRelative } from '../../../shared/format.ts';
 import { QuotaBar } from '../../shared/components/QuotaBar.tsx';
 import { ListSkeleton } from '../../shared/components/Skeleton.tsx';
 import { EmptyState } from '../../shared/components/EmptyState.tsx';
+import { useI18n } from '../../i18n/index.ts';
 
 /** Synthèse globale → détail par compte → détail par projet. */
 export function QuotasScreen() {
+  const { t } = useI18n();
   const fleet = useFleetStore(s => s.fleet);
   const metrics = useFleetStore(s => s.metrics);
   const settings = useFleetStore(s => s.settings);
@@ -65,13 +67,13 @@ export function QuotasScreen() {
   if (!metrics && metricsLoading) return <ListSkeleton count={3} />;
   if (!metrics) {
     return (
-      <EmptyState icon={Gauge} title="Métriques pas encore collectées">
+      <EmptyState icon={Gauge} title={t('quotas.emptyTitle')}>
         <button
           type="button"
           onClick={() => void loadMetrics(true)}
           className="font-medium text-primary"
         >
-          Collecter maintenant →
+          {t('quotas.collectNow')} →
         </button>
       </EmptyState>
     );
@@ -81,7 +83,9 @@ export function QuotasScreen() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-[var(--sb-text-soft)]">
-          Synchro métriques {formatRelative(metrics.generatedAt)}
+          {t('quotas.syncMetrics', {
+            rel: formatRelative(metrics.generatedAt),
+          })}
         </p>
         <button
           type="button"
@@ -89,21 +93,22 @@ export function QuotasScreen() {
           onClick={() => void loadMetrics(true)}
           className="rounded-full border border-[var(--sb-border)] px-3 py-1.5 text-xs font-medium disabled:opacity-50"
         >
-          {metricsLoading ? 'Collecte…' : 'Rafraîchir'}
+          {metricsLoading ? t('quotas.collecting') : t('quotas.refresh')}
         </button>
       </div>
 
-      <section className="card space-y-3 p-4" aria-label="Synthèse globale">
+      <section
+        className="card space-y-3 p-4"
+        aria-label={t('quotas.globalAria')}
+      >
         <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
-          <Globe size={15} aria-hidden="true" /> Synthèse multi-comptes (somme
-          indicative)
+          <Globe size={15} aria-hidden="true" /> {t('quotas.globalTitle')}
         </h2>
         {globalSummary.map(m => (
           <QuotaBar key={m.kind} metric={m} thresholds={settings.thresholds} />
         ))}
         <p className="text-xs text-[var(--sb-text-soft)]">
-          Les quotas Free s'appliquent par organisation : cette somme sert de
-          vue d'ensemble, pas de calcul de facturation.
+          {t('quotas.globalNote')}
         </p>
       </section>
 
@@ -111,7 +116,7 @@ export function QuotasScreen() {
         <section
           key={account.id}
           className="card space-y-3 p-4"
-          aria-label={`Quotas ${account.alias}`}
+          aria-label={t('quotas.accountAria', { alias: account.alias })}
         >
           <h2 className="flex items-center gap-2 text-sm font-semibold">
             <span
@@ -131,9 +136,9 @@ export function QuotasScreen() {
         </section>
       ))}
 
-      <section className="space-y-2" aria-label="Détail par projet">
+      <section className="space-y-2" aria-label={t('quotas.byProjectAria')}>
         <h2 className="px-1 text-sm font-semibold text-[var(--sb-text-soft)]">
-          Détail par projet
+          {t('quotas.byProjectTitle')}
         </h2>
         {byProject.map(({ account, project, metrics: pm }) => (
           <Link
@@ -149,7 +154,7 @@ export function QuotasScreen() {
             </p>
             {pm.length === 0 ? (
               <p className="text-xs text-[var(--sb-text-soft)]">
-                Aucune mesure (projet jamais vu actif).
+                {t('quotas.noMeasure')}
               </p>
             ) : (
               pm.map(m => (

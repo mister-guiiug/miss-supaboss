@@ -9,10 +9,12 @@ import {
   switchDemoMode,
 } from '../../api/index.ts';
 import { useFleetStore } from '../../store/useFleetStore.ts';
+import { useI18n } from '../../i18n/index.ts';
 import { useOnline } from '../hooks/useOnline.ts';
 import { ConfirmSheet } from './ConfirmSheet.tsx';
 
 export function AppHeader({ title }: { title: string }) {
+  const { t } = useI18n();
   const loading = useFleetStore(s => s.loading);
   const fleet = useFleetStore(s => s.fleet);
   const fromCache = useFleetStore(s => s.fromCache);
@@ -26,9 +28,9 @@ export function AppHeader({ title }: { title: string }) {
   const demoOn = REAL_AVAILABLE ? IS_MOCK : isDemoSeed();
 
   const syncLabel = fromCache
-    ? `hors ligne — état ${formatRelative(cacheSavedAt)}`
+    ? t('header.offlineState', { rel: formatRelative(cacheSavedAt) })
     : fleet
-      ? `synchro ${formatRelative(fleet.generatedAt)}`
+      ? t('header.synced', { rel: formatRelative(fleet.generatedAt) })
       : '';
 
   return (
@@ -49,11 +51,11 @@ export function AppHeader({ title }: { title: string }) {
               ? () => setConfirmExitDemo(true)
               : () => void setDemoSeed(false)
           }
-          aria-label="Désactiver les données de démo"
-          title="Désactiver les données de démo"
+          aria-label={t('header.disableDemo')}
+          title={t('header.disableDemo')}
           className="flex items-center gap-1 rounded-full border border-primary/40 bg-primary/15 px-2.5 py-1.5 text-xs font-semibold text-primary"
         >
-          démo
+          {t('header.demoBadge')}
           <X size={12} aria-hidden="true" />
         </button>
       )}
@@ -62,12 +64,12 @@ export function AppHeader({ title }: { title: string }) {
           className="flex items-center gap-1 rounded-full bg-[var(--sb-warn)]/15 px-2 py-1 text-xs font-medium text-[var(--sb-warn)]"
           role="status"
         >
-          <WifiOff size={13} aria-hidden="true" /> hors ligne
+          <WifiOff size={13} aria-hidden="true" /> {t('header.offline')}
         </span>
       )}
       <button
         type="button"
-        aria-label="Rafraîchir les données"
+        aria-label={t('header.refresh')}
         className="touch-target mt-1 flex items-center justify-center rounded-xl border border-[var(--sb-border)] disabled:opacity-50"
         disabled={loading || !online}
         onClick={() => {
@@ -85,15 +87,12 @@ export function AppHeader({ title }: { title: string }) {
       {IS_MOCK && REAL_AVAILABLE && (
         <ConfirmSheet
           open={confirmExitDemo}
-          title="Quitter le mode démo ?"
-          confirmLabel="Désactiver la démo"
+          title={t('header.exitDemoTitle')}
+          confirmLabel={t('header.exitDemoConfirm')}
           onCancel={() => setConfirmExitDemo(false)}
           onConfirm={() => void switchDemoMode(false)}
         >
-          <p>
-            Retour aux données réelles — l'application se recharge. Les données
-            de démo sont remises à zéro : la prochaine démo repartira propre.
-          </p>
+          <p>{t('header.exitDemoBody')}</p>
         </ConfirmSheet>
       )}
     </header>

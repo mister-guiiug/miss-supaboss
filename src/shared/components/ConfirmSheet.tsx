@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { useI18n } from '../../i18n/index.ts';
 
 /**
  * Feuille de confirmation modale (mobile-first, bottom sheet). Utilisée pour
@@ -23,6 +24,7 @@ export function ConfirmSheet({
   onCancel: () => void;
   children?: ReactNode;
 }) {
+  const { t } = useI18n();
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -50,7 +52,7 @@ export function ConfirmSheet({
             onClick={onCancel}
             disabled={busy}
           >
-            Annuler
+            {t('common.cancel')}
           </button>
           <button
             type="button"
@@ -62,7 +64,7 @@ export function ConfirmSheet({
             onClick={onConfirm}
             disabled={busy}
           >
-            {busy ? 'En cours…' : confirmLabel}
+            {busy ? t('common.working') : confirmLabel}
           </button>
         </div>
       </div>

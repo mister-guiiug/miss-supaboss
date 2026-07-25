@@ -7,6 +7,7 @@ import {
 import { api, ApiError } from '../../api/index.ts';
 import { toast } from '../../store/useUiStore.ts';
 import { ConfirmSheet } from '../../shared/components/ConfirmSheet.tsx';
+import { useI18n } from '../../i18n/index.ts';
 
 const COLORS = [
   '#3ecf8e',
@@ -34,6 +35,7 @@ export function AccountForm({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useI18n();
   const isEdit = account !== null;
   const [alias, setAlias] = useState(account?.alias ?? '');
   const [pat, setPat] = useState('');
@@ -46,16 +48,20 @@ export function AccountForm({
     if (account) {
       const parsed = accountUpdateBodySchema.safeParse({ alias, color });
       if (!parsed.success) {
-        setError(parsed.error.issues[0]?.message ?? 'Saisie invalide');
+        setError(parsed.error.issues[0]?.message ?? t('accounts.form.invalid'));
         return;
       }
       setBusy(true);
       try {
         await api.updateAccount(account.id, parsed.data);
-        toast.success(`Compte « ${parsed.data.alias ?? alias} » modifié`);
+        toast.success(
+          t('accounts.form.updated', { alias: parsed.data.alias ?? alias })
+        );
         onSaved();
       } catch (e) {
-        setError(e instanceof ApiError ? e.message : 'Modification impossible');
+        setError(
+          e instanceof ApiError ? e.message : t('accounts.form.updateFail')
+        );
       } finally {
         setBusy(false);
       }
@@ -63,18 +69,18 @@ export function AccountForm({
     }
     const parsed = accountCreateBodySchema.safeParse({ alias, pat, color });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? 'Saisie invalide');
+      setError(parsed.error.issues[0]?.message ?? t('accounts.form.invalid'));
       return;
     }
     setBusy(true);
     try {
       await api.createAccount(parsed.data);
-      toast.success(`Compte « ${parsed.data.alias} » ajouté et vérifié`);
+      toast.success(t('accounts.form.added', { alias: parsed.data.alias }));
       setAlias('');
       setPat('');
       onSaved();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Ajout impossible');
+      setError(e instanceof ApiError ? e.message : t('accounts.form.addFail'));
     } finally {
       setBusy(false);
     }
@@ -83,8 +89,8 @@ export function AccountForm({
   return (
     <ConfirmSheet
       open={open}
-      title={isEdit ? 'Modifier le compte' : 'Ajouter un compte Supabase'}
-      confirmLabel={isEdit ? 'Enregistrer' : 'Tester et ajouter'}
+      title={isEdit ? t('accounts.form.editTitle') : t('accounts.add')}
+      confirmLabel={isEdit ? t('common.save') : t('accounts.form.testAndAdd')}
       busy={busy}
       onCancel={onClose}
       onConfirm={() => void submit()}
@@ -92,20 +98,20 @@ export function AccountForm({
       <div className="space-y-3 text-left">
         <label className="block">
           <span className="text-xs font-medium text-[var(--sb-text-soft)]">
-            Alias lisible
+            {t('accounts.form.aliasLabel')}
           </span>
           <input
             type="text"
             value={alias}
             onChange={e => setAlias(e.target.value)}
-            placeholder="Ex. Lab POC interne"
+            placeholder={t('accounts.form.aliasPlaceholder')}
             className="mt-1 w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 text-sm"
           />
         </label>
         {!isEdit && (
           <label className="block">
             <span className="text-xs font-medium text-[var(--sb-text-soft)]">
-              Personal Access Token (sbp_…)
+              {t('accounts.form.patLabel')}
             </span>
             <input
               type="password"
@@ -116,14 +122,13 @@ export function AccountForm({
               className="mt-1 w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 font-mono text-sm"
             />
             <span className="mt-1 block text-xs text-[var(--sb-text-soft)]">
-              Créé sur supabase.com → Account → Access Tokens. Stocké chiffré
-              (AES-256-GCM) côté serveur, jamais dans ce navigateur.
+              {t('accounts.form.patHint')}
             </span>
           </label>
         )}
         <div
           role="radiogroup"
-          aria-label="Couleur du compte"
+          aria-label={t('accounts.form.colorAria')}
           className="flex gap-2"
         >
           {COLORS.map(c => (
@@ -132,7 +137,7 @@ export function AccountForm({
               type="button"
               role="radio"
               aria-checked={color === c}
-              aria-label={`Couleur ${c}`}
+              aria-label={t('accounts.form.colorSwatchAria', { color: c })}
               onClick={() => setColor(c)}
               className={`size-8 rounded-full border-2 ${
                 color === c ? 'border-[var(--sb-text)]' : 'border-transparent'

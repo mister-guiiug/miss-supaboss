@@ -23,12 +23,14 @@ import { Skeleton } from '../../shared/components/Skeleton.tsx';
 import { useActionGuard } from '../../shared/hooks/useActionGuard.ts';
 import { usePolling } from '../../shared/hooks/usePolling.ts';
 import { useAssessRestore } from '../../shared/queries/fleet.ts';
+import { useI18n } from '../../i18n/index.ts';
 
 type Phase = 'check' | 'plan' | 'launching' | 'waiting' | 'ready' | 'failed';
 
 type UserPhase = 'assess' | 'launching' | 'waiting';
 
 export function PrepareDemoScreen() {
+  const { t } = useI18n();
   const { accountId = '', ref = '' } = useParams();
   const fleet = useFleetStore(s => s.fleet);
   const metrics = useFleetStore(s => s.metrics);
@@ -101,10 +103,10 @@ export function PrepareDemoScreen() {
     if (assessQ.isError) {
       return assessQ.error instanceof ApiError
         ? assessQ.error.message
-        : 'Vérification impossible';
+        : t('demo.assessFail');
     }
     if (displayPhase === 'failed' && userPhase === 'waiting') {
-      return 'La restauration a échoué côté Supabase — réessayez ou consultez le dashboard Supabase.';
+      return t('demo.restoreFailedServer');
     }
     return null;
   }, [
@@ -115,6 +117,7 @@ export function PrepareDemoScreen() {
     assessQ.error,
     displayPhase,
     userPhase,
+    t,
   ]);
 
   usePolling(
@@ -141,9 +144,7 @@ export function PrepareDemoScreen() {
         toast.error(e.message);
         return;
       }
-      setLaunchError(
-        e instanceof ApiError ? e.message : 'Restauration impossible'
-      );
+      setLaunchError(e instanceof ApiError ? e.message : t('demo.restoreFail'));
       setUserPhase('assess');
     }
   }, [
@@ -153,6 +154,7 @@ export function PrepareDemoScreen() {
     effectivePauses,
     restore,
     launchGuard.allowed,
+    t,
   ]);
 
   const retryAssess = useCallback(() => {
@@ -165,9 +167,9 @@ export function PrepareDemoScreen() {
 
   if (!project) {
     return (
-      <EmptyState icon={FileQuestion} title="Projet introuvable">
+      <EmptyState icon={FileQuestion} title={t('projectDetail.notFound')}>
         <Link to="/projects" className="font-medium text-primary">
-          ← Retour aux projets
+          ← {t('projectDetail.backToProjects')}
         </Link>
       </EmptyState>
     );
@@ -181,11 +183,11 @@ export function PrepareDemoScreen() {
     assessment.reason === 'limit-reached';
 
   const steps = [
-    { id: 'capacity', label: 'Vérifier quotas et capacité' },
-    { id: 'plan', label: 'Libérer un slot si nécessaire' },
-    { id: 'restore', label: 'Lancer la restauration' },
-    { id: 'follow', label: 'Suivre la progression' },
-    { id: 'ready', label: 'Projet prêt à présenter' },
+    { id: 'capacity', label: t('demo.step.capacity') },
+    { id: 'plan', label: t('demo.step.plan') },
+    { id: 'restore', label: t('demo.step.restore') },
+    { id: 'follow', label: t('demo.step.follow') },
+    { id: 'ready', label: t('demo.step.ready') },
   ];
   const currentStep =
     displayPhase === 'check'
@@ -212,14 +214,14 @@ export function PrepareDemoScreen() {
       <header className="card flex items-center justify-between gap-2 p-4">
         <div>
           <h1 className="flex items-center gap-1.5 text-lg font-bold">
-            <Clapperboard size={18} aria-hidden="true" /> Préparer la démo
+            <Clapperboard size={18} aria-hidden="true" /> {t('demo.prepare')}
           </h1>
           <p className="text-xs text-[var(--sb-text-soft)]">{project.name}</p>
         </div>
         <StatusBadge status={project.status} />
       </header>
 
-      <ol className="card space-y-2 p-4" aria-label="Étapes">
+      <ol className="card space-y-2 p-4" aria-label={t('demo.stepsAria')}>
         {steps.map((s, i) => (
           <li
             key={s.id}
@@ -255,7 +257,7 @@ export function PrepareDemoScreen() {
         <div
           className="card space-y-2 p-4"
           role="status"
-          aria-label="Vérification"
+          aria-label={t('demo.checkAria')}
         >
           <Skeleton className="h-4 w-2/3" />
           <Skeleton className="h-4 w-1/2" />
@@ -265,14 +267,12 @@ export function PrepareDemoScreen() {
       {displayPhase === 'plan' && assessment && (
         <section className="card space-y-3 p-4">
           <p className="text-sm">
-            Compte :{' '}
+            {t('demo.accountLabel')}{' '}
             <strong className="tnum">
               {assessment.activeCount}/{assessment.limit}
             </strong>{' '}
-            projets actifs.{' '}
-            {needsPauses
-              ? 'Limite Free atteinte — libérez un slot :'
-              : 'Un slot est disponible.'}
+            {t('demo.activeProjects')}{' '}
+            {needsPauses ? t('demo.limitReached') : t('demo.slotAvailable')}
           </p>
           {quotaLevelWorst === 'critical' && (
             <p className="flex items-start gap-1.5 rounded-lg bg-[var(--sb-critical)]/10 p-2 text-sm text-[var(--sb-critical)]">
@@ -281,10 +281,7 @@ export function PrepareDemoScreen() {
                 aria-hidden="true"
                 className="mt-0.5 shrink-0"
               />
-              <span>
-                Un quota est en zone critique sur ce projet — la démo peut être
-                dégradée (voir l'écran Quotas).
-              </span>
+              <span>{t('demo.criticalQuota')}</span>
             </p>
           )}
           {windowExpired && (
@@ -294,16 +291,13 @@ export function PrepareDemoScreen() {
                 aria-hidden="true"
                 className="mt-0.5 shrink-0"
               />
-              <span>
-                Fenêtre de restauration estimée dépassée : la restauration
-                directe peut être refusée par Supabase.
-              </span>
+              <span>{t('demo.windowExpired')}</span>
             </p>
           )}
           {needsPauses && (
             <fieldset className="space-y-2">
               <legend className="text-sm font-medium">
-                Projets à mettre en pause d'abord (suggestion automatique) :
+                {t('demo.pauseLegend')}
               </legend>
               {assessment.suggestions.map(s => (
                 <label
@@ -331,8 +325,7 @@ export function PrepareDemoScreen() {
               ))}
               {effectivePauses.length === 0 && (
                 <p className="text-xs text-[var(--sb-warn)]">
-                  Aucune pause sélectionnée : la restauration forcera le
-                  dépassement et risque d'être refusée par Supabase.
+                  {t('demo.noPauseSelected')}
                 </p>
               )}
             </fieldset>
@@ -344,8 +337,8 @@ export function PrepareDemoScreen() {
             className="touch-target w-full rounded-xl bg-primary px-4 font-semibold text-[#06281a] disabled:opacity-50"
           >
             {needsPauses && effectivePauses.length > 0
-              ? `Suspendre ${effectivePauses.length} projet(s) puis restaurer`
-              : 'Lancer la restauration'}
+              ? t('demo.suspendAndRestore', { count: effectivePauses.length })
+              : t('demo.launchRestore')}
           </button>
           {launchGuard.reason && (
             <p className="text-xs text-[var(--sb-warn)]">
@@ -359,12 +352,11 @@ export function PrepareDemoScreen() {
         <section className="card space-y-2 p-4" role="status">
           <p className="sb-pulse text-sm font-medium">
             {displayPhase === 'launching'
-              ? 'Envoi de la demande à Supabase…'
-              : 'Restauration en cours — généralement 1 à 3 minutes…'}
+              ? t('demo.sending')
+              : t('demo.restoring')}
           </p>
           <p className="text-xs text-[var(--sb-text-soft)]">
-            Vous pouvez quitter cet écran : le statut continue d'être suivi
-            depuis le tableau de bord.
+            {t('demo.canLeave')}
           </p>
         </section>
       )}
@@ -376,15 +368,15 @@ export function PrepareDemoScreen() {
             className="mx-auto text-primary"
             size={36}
           />
-          <h2 className="text-lg font-bold">Projet prêt à présenter !</h2>
+          <h2 className="text-lg font-bold">{t('demo.readyTitle')}</h2>
           <p className="text-sm text-[var(--sb-text-soft)]">
-            « {project.name} » est actif et sain. Bonne démo !
+            {t('demo.readyBody', { name: project.name })}
           </p>
           <Link
             to={`/projects/${accountId}/${ref}`}
             className="touch-target flex items-center justify-center rounded-xl border border-[var(--sb-border)] px-4 font-semibold"
           >
-            Voir le projet
+            {t('demo.viewProject')}
           </Link>
         </section>
       )}
@@ -404,7 +396,7 @@ export function PrepareDemoScreen() {
             onClick={retryAssess}
             className="touch-target w-full rounded-xl border border-[var(--sb-border)] px-4 font-semibold"
           >
-            Réessayer la vérification
+            {t('demo.retryCheck')}
           </button>
         </section>
       )}

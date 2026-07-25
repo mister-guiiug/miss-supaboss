@@ -18,6 +18,7 @@ import {
   Unlock,
   Upload,
 } from 'lucide-react';
+import { Languages } from 'lucide-react';
 import { useTheme, FamilyApps } from '@mister-guiiug/dev-wpa-config/react';
 import { settingsSchema } from '../../../shared/contracts.ts';
 import {
@@ -36,8 +37,10 @@ import { toast } from '../../store/useUiStore.ts';
 import { ConfirmSheet } from '../../shared/components/ConfirmSheet.tsx';
 import { clearSnapshot } from '../../offline/lastKnown.ts';
 import { REPO_URL } from '../../links.ts';
+import { useI18n } from '../../i18n/index.ts';
 
 export function SettingsScreen() {
+  const { t, locale, setLocale, locales } = useI18n();
   const settings = useFleetStore(s => s.settings);
   const saveSettings = useFleetStore(s => s.saveSettings);
   const user = useSessionStore(s => s.user);
@@ -57,14 +60,14 @@ export function SettingsScreen() {
   const save = async (): Promise<void> => {
     const parsed = settingsSchema.safeParse(draft);
     if (!parsed.success) {
-      toast.error(parsed.error.issues[0]?.message ?? 'Valeurs invalides');
+      toast.error(
+        parsed.error.issues[0]?.message ?? t('settings.invalidValues')
+      );
       return;
     }
-    const t = parsed.data.thresholds;
-    if (!(t.warn < t.high && t.high < t.critical)) {
-      toast.error(
-        'Les seuils doivent être croissants (warn < high < critical)'
-      );
+    const th = parsed.data.thresholds;
+    if (!(th.warn < th.high && th.high < th.critical)) {
+      toast.error(t('settings.thresholdsOrder'));
       return;
     }
     await saveSettings(parsed.data);
@@ -72,18 +75,16 @@ export function SettingsScreen() {
 
   const doExport = async (): Promise<void> => {
     if (passphrase.length < 8) {
-      toast.error('Passphrase : 8 caractères minimum');
+      toast.error(t('settings.passphraseMin'));
       return;
     }
     setBusy(true);
     try {
       const { blob, count } = await api.exportAccounts(passphrase);
       await navigator.clipboard.writeText(blob);
-      toast.success(
-        `${count} compte(s) exporté(s) — blob copié au presse-papier`
-      );
+      toast.success(t('settings.exportOk', { count }));
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Export impossible');
+      toast.error(e instanceof ApiError ? e.message : t('settings.exportFail'));
     } finally {
       setBusy(false);
     }
@@ -91,7 +92,7 @@ export function SettingsScreen() {
 
   const doImport = async (): Promise<void> => {
     if (passphrase.length < 8 || importBlob.length === 0) {
-      toast.error('Passphrase et blob requis');
+      toast.error(t('settings.passphraseBlobRequired'));
       return;
     }
     setBusy(true);
@@ -100,10 +101,10 @@ export function SettingsScreen() {
         passphrase,
         importBlob
       );
-      toast.success(`${imported}/${total} compte(s) importé(s)`);
+      toast.success(t('settings.importOk', { imported, total }));
       setImportBlob('');
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Import impossible');
+      toast.error(e instanceof ApiError ? e.message : t('settings.importFail'));
     } finally {
       setBusy(false);
     }
@@ -113,11 +114,11 @@ export function SettingsScreen() {
     const vault = api.vault;
     if (!vault) return;
     if (vaultPass.length < 8) {
-      toast.error('Phrase secrète : 8 caractères minimum');
+      toast.error(t('settings.vaultMin'));
       return;
     }
     if (vaultPass !== vaultPass2) {
-      toast.error('Les deux phrases ne correspondent pas');
+      toast.error(t('settings.vaultMismatch'));
       return;
     }
     setBusy(true);
@@ -126,11 +127,9 @@ export function SettingsScreen() {
       setVaultEnabled(true);
       setVaultPass('');
       setVaultPass2('');
-      toast.success(
-        'Chiffrement activé — la phrase sera demandée au prochain démarrage.'
-      );
+      toast.success(t('settings.vaultEnabled'));
     } catch {
-      toast.error('Activation du chiffrement impossible');
+      toast.error(t('settings.vaultEnableFail'));
     } finally {
       setBusy(false);
     }
@@ -143,11 +142,9 @@ export function SettingsScreen() {
     try {
       await vault.disable();
       setVaultEnabled(false);
-      toast.success(
-        'Chiffrement désactivé — les PAT sont de nouveau en clair sur cet appareil.'
-      );
+      toast.success(t('settings.vaultDisabled'));
     } catch {
-      toast.error('Désactivation impossible');
+      toast.error(t('settings.vaultDisableFail'));
     } finally {
       setBusy(false);
     }
@@ -202,9 +199,9 @@ export function SettingsScreen() {
           className="text-[var(--sb-text-soft)]"
         />
         <div className="min-w-0 flex-1">
-          <p className="font-semibold">Historique des opérations</p>
+          <p className="font-semibold">{t('settings.historyTitle')}</p>
           <p className="text-xs text-[var(--sb-text-soft)]">
-            Journal des pauses, restaurations et tests
+            {t('settings.historySubtitle')}
           </p>
         </div>
         <ChevronRight
@@ -214,16 +211,27 @@ export function SettingsScreen() {
         />
       </Link>
 
-      <section className="card space-y-3 p-4" aria-label="Apparence">
+      <section
+        className="card space-y-3 p-4"
+        aria-label={t('settings.appearance')}
+      >
         <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
-          Apparence
+          {t('settings.appearance')}
         </h2>
-        <div role="radiogroup" aria-label="Thème" className="flex gap-2">
+        <div
+          role="radiogroup"
+          aria-label={t('settings.themeAria')}
+          className="flex gap-2"
+        >
           {(
             [
-              { id: 'light', label: 'Clair', Icon: Sun },
-              { id: 'dark', label: 'Sombre', Icon: Moon },
-              { id: 'system', label: 'Système', Icon: Monitor },
+              { id: 'light', label: t('settings.theme.light'), Icon: Sun },
+              { id: 'dark', label: t('settings.theme.dark'), Icon: Moon },
+              {
+                id: 'system',
+                label: t('settings.theme.system'),
+                Icon: Monitor,
+              },
             ] as const
           ).map(({ id, label, Icon }) => (
             <button
@@ -244,9 +252,43 @@ export function SettingsScreen() {
         </div>
       </section>
 
-      <section className="card space-y-3 p-4" aria-label="Mode démo">
+      <section
+        className="card space-y-3 p-4"
+        aria-label={t('settings.language')}
+      >
         <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
-          <TestTube2 size={15} aria-hidden="true" /> Mode démo
+          <Languages size={15} aria-hidden="true" /> {t('settings.language')}
+        </h2>
+        <div
+          role="radiogroup"
+          aria-label={t('settings.languageAria')}
+          className="flex gap-2"
+        >
+          {locales.map(loc => (
+            <button
+              key={loc}
+              type="button"
+              role="radio"
+              aria-checked={locale === loc}
+              onClick={() => setLocale(loc)}
+              className={`flex flex-1 items-center justify-center rounded-xl border px-3 py-2.5 text-sm font-medium ${
+                locale === loc
+                  ? 'border-primary bg-primary/15 text-primary'
+                  : 'border-[var(--sb-border)]'
+              }`}
+            >
+              {t(`languages.${loc}`)}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section
+        className="card space-y-3 p-4"
+        aria-label={t('settings.demoTitle')}
+      >
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
+          <TestTube2 size={15} aria-hidden="true" /> {t('settings.demoTitle')}
         </h2>
 
         {/* Interrupteur à bascule : ON = données d'exemple, OFF = store local
@@ -257,14 +299,14 @@ export function SettingsScreen() {
             className="min-w-0 text-xs text-[var(--sb-text-soft)]"
           >
             {REAL_AVAILABLE
-              ? 'Données simulées pour découvrir l’application. Désactive pour te connecter à ton vrai Supabase (PAT) — le jeton reste sur cet appareil.'
-              : 'Données d’exemple pour découvrir l’application. Désactive pour partir d’un espace vide — tout est stocké sur cet appareil.'}
+              ? t('settings.demoDescReal')
+              : t('settings.demoDescLocal')}
           </p>
           <button
             type="button"
             role="switch"
             aria-checked={demoOn}
-            aria-label="Mode démo"
+            aria-label={t('settings.demoTitle')}
             aria-describedby="demo-desc"
             onClick={onToggleDemo}
             className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
@@ -286,15 +328,17 @@ export function SettingsScreen() {
             onClick={() => void resetDemo()}
             className="touch-target flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--sb-border)] px-4 text-sm font-medium"
           >
-            <RotateCcw size={15} aria-hidden="true" /> Réinitialiser les données
-            de démo
+            <RotateCcw size={15} aria-hidden="true" /> {t('settings.resetDemo')}
           </button>
         )}
       </section>
 
-      <section className="card space-y-3 p-4" aria-label="Alertes et synchro">
+      <section
+        className="card space-y-3 p-4"
+        aria-label={t('settings.alertsAria')}
+      >
         <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
-          Alertes et synchronisation
+          {t('settings.alertsTitle')}
         </h2>
         {numberField(
           <>
@@ -303,7 +347,7 @@ export function SettingsScreen() {
               aria-hidden="true"
               className="text-[var(--sb-warn)]"
             />{' '}
-            Avertissement (warn)
+            {t('settings.thresholdWarn')}
           </>,
           draft.thresholds.warn,
           v =>
@@ -316,7 +360,7 @@ export function SettingsScreen() {
               aria-hidden="true"
               className="text-[var(--sb-high)]"
             />{' '}
-            Élevé (high)
+            {t('settings.thresholdHigh')}
           </>,
           draft.thresholds.high,
           v =>
@@ -329,7 +373,7 @@ export function SettingsScreen() {
               aria-hidden="true"
               className="text-[var(--sb-critical)]"
             />{' '}
-            Critique
+            {t('settings.thresholdCritical')}
           </>,
           draft.thresholds.critical,
           v =>
@@ -338,31 +382,29 @@ export function SettingsScreen() {
               thresholds: { ...d.thresholds, critical: v },
             }))
         )}
-        {numberField('Polling (secondes)', draft.pollingSeconds, v =>
+        {numberField(t('settings.polling'), draft.pollingSeconds, v =>
           setDraft(d => ({ ...d, pollingSeconds: v }))
         )}
-        {numberField(
-          'Fenêtre de restauration (jours)',
-          draft.restoreWindowDays,
-          v => setDraft(d => ({ ...d, restoreWindowDays: v }))
+        {numberField(t('settings.restoreWindow'), draft.restoreWindowDays, v =>
+          setDraft(d => ({ ...d, restoreWindowDays: v }))
         )}
         <button
           type="button"
           onClick={() => void save()}
           className="touch-target w-full rounded-xl bg-primary px-4 font-semibold text-[#06281a]"
         >
-          Enregistrer les réglages
+          {t('settings.saveSettings')}
         </button>
       </section>
 
       {api.vault && canAdmin(user) && (
         <section
           className="card space-y-3 p-4"
-          aria-label="Chiffrement des jetons"
+          aria-label={t('settings.vaultAria')}
         >
           <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
-            <LockKeyhole size={15} aria-hidden="true" /> Sécurité — Chiffrement
-            des PAT
+            <LockKeyhole size={15} aria-hidden="true" />{' '}
+            {t('settings.vaultHeading')}
           </h2>
           {vaultEnabled ? (
             <>
@@ -372,8 +414,7 @@ export function SettingsScreen() {
                   aria-hidden="true"
                   className="mt-0.5 shrink-0 text-primary"
                 />
-                Actif : les PAT sont chiffrés au repos (AES-256-GCM, clé dérivée
-                de votre phrase). La phrase est demandée à chaque ouverture.
+                {t('settings.vaultActiveInfo')}
               </p>
               <div className="flex gap-2">
                 <button
@@ -381,7 +422,7 @@ export function SettingsScreen() {
                   onClick={lockVault}
                   className="touch-target flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium"
                 >
-                  <Unlock size={16} aria-hidden="true" /> Verrouiller
+                  <Unlock size={16} aria-hidden="true" /> {t('settings.lock')}
                 </button>
                 <button
                   type="button"
@@ -389,34 +430,31 @@ export function SettingsScreen() {
                   onClick={() => void disableVault()}
                   className="touch-target flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--sb-critical)] px-3 text-sm font-semibold text-[var(--sb-critical)] disabled:opacity-50"
                 >
-                  Désactiver
+                  {t('settings.disable')}
                 </button>
               </div>
             </>
           ) : (
             <>
               <p className="text-xs text-[var(--sb-text-soft)]">
-                Par défaut, le PAT est stocké en clair sur cet appareil. Activez
-                le chiffrement pour le protéger au repos par une phrase secrète
-                (demandée au démarrage). Phrase oubliée = PAT à ressaisir
-                (régénérables sur Supabase).
+                {t('settings.vaultDisabledInfo')}
               </p>
               <input
                 type="password"
                 value={vaultPass}
                 onChange={e => setVaultPass(e.target.value)}
-                placeholder="Phrase secrète (min. 8 caractères)"
+                placeholder={t('settings.vaultNewPlaceholder')}
                 autoComplete="new-password"
-                aria-label="Nouvelle phrase secrète"
+                aria-label={t('settings.vaultNewAria')}
                 className="w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 text-sm"
               />
               <input
                 type="password"
                 value={vaultPass2}
                 onChange={e => setVaultPass2(e.target.value)}
-                placeholder="Confirmer la phrase secrète"
+                placeholder={t('settings.vaultConfirm')}
                 autoComplete="new-password"
-                aria-label="Confirmer la phrase secrète"
+                aria-label={t('settings.vaultConfirm')}
                 className="w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 text-sm"
               />
               <button
@@ -425,8 +463,8 @@ export function SettingsScreen() {
                 onClick={() => void enableVault()}
                 className="touch-target flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 font-semibold text-[#06281a] disabled:opacity-50"
               >
-                <LockKeyhole size={16} aria-hidden="true" /> Activer le
-                chiffrement
+                <LockKeyhole size={16} aria-hidden="true" />{' '}
+                {t('settings.enableEncryption')}
               </button>
             </>
           )}
@@ -434,21 +472,23 @@ export function SettingsScreen() {
       )}
 
       {canAdmin(user) && (
-        <section className="card space-y-3 p-4" aria-label="Export / import">
+        <section
+          className="card space-y-3 p-4"
+          aria-label={t('settings.exportAria')}
+        >
           <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
-            Sauvegarde — Export / import chiffré des comptes
+            {t('settings.exportHeading')}
           </h2>
           <p className="text-xs text-[var(--sb-text-soft)]">
-            Blob AES-256-GCM dérivé d'une passphrase (scrypt) : portable vers
-            une autre instance Miss Supaboss. Ne le stockez pas en clair.
+            {t('settings.exportInfo')}
           </p>
           <input
             type="password"
             value={passphrase}
             onChange={e => setPassphrase(e.target.value)}
-            placeholder="Passphrase (min. 8 caractères)"
+            placeholder={t('settings.exportPassphrasePlaceholder')}
             autoComplete="off"
-            aria-label="Passphrase d'export"
+            aria-label={t('settings.exportPassphraseAria')}
             className="w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 text-sm"
           />
           <div className="flex gap-2">
@@ -458,7 +498,7 @@ export function SettingsScreen() {
               onClick={() => void doExport()}
               className="touch-target flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium disabled:opacity-50"
             >
-              <Download size={16} aria-hidden="true" /> Exporter
+              <Download size={16} aria-hidden="true" /> {t('settings.export')}
             </button>
             <button
               type="button"
@@ -466,50 +506,54 @@ export function SettingsScreen() {
               onClick={() => void doImport()}
               className="touch-target flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium disabled:opacity-50"
             >
-              <Upload size={16} aria-hidden="true" /> Importer
+              <Upload size={16} aria-hidden="true" /> {t('settings.import')}
             </button>
           </div>
           <textarea
             value={importBlob}
             onChange={e => setImportBlob(e.target.value)}
-            placeholder="Coller ici un blob supaboss-export-v1:… pour importer"
-            aria-label="Blob d'import"
+            placeholder={t('settings.importPlaceholder')}
+            aria-label={t('settings.importAria')}
             rows={3}
             className="w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 font-mono text-xs"
           />
         </section>
       )}
 
-      <section className="card space-y-2 p-4" aria-label="Stockage local">
+      <section
+        className="card space-y-2 p-4"
+        aria-label={t('settings.storageAria')}
+      >
         <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
-          Maintenance — Stockage local
+          {t('settings.storageHeading')}
         </h2>
         <p className="text-xs text-[var(--sb-text-soft)]">
-          Ce navigateur ne conserve que le dernier état non sensible (statuts,
-          quotas) pour la consultation hors ligne — jamais de PAT ni de session
-          en clair.
+          {t('settings.storageInfo')}
         </p>
         <button
           type="button"
           onClick={() => {
             void clearSnapshot();
-            toast.success('Cache hors-ligne vidé');
+            toast.success(t('settings.cacheCleared'));
           }}
           className="touch-target rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium"
         >
-          Vider le cache hors-ligne
+          {t('settings.clearCache')}
         </button>
       </section>
 
       {/* Session : identité + déconnexion. Descendue du haut vers le bas (action
           rare et sensible). Mode réel uniquement (la PWA locale n'a pas de session). */}
       {!IS_MOCK && (
-        <section className="card space-y-3 p-4" aria-label="Session">
+        <section
+          className="card space-y-3 p-4"
+          aria-label={t('settings.session')}
+        >
           <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
-            Session
+            {t('settings.session')}
           </h2>
           <p className="text-sm">
-            Connecté : <strong>{user?.email}</strong>{' '}
+            {t('settings.connectedAs')} <strong>{user?.email}</strong>{' '}
             <span className="rounded-full bg-[var(--sb-surface-2)] px-2 py-0.5 text-xs font-medium">
               {user?.role}
             </span>
@@ -519,14 +563,14 @@ export function SettingsScreen() {
             onClick={() => setConfirmLogout(true)}
             className="touch-target flex items-center gap-2 rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium"
           >
-            <LogOut size={16} aria-hidden="true" /> Se déconnecter
+            <LogOut size={16} aria-hidden="true" /> {t('settings.logout')}
           </button>
         </section>
       )}
 
-      <section className="card p-4" aria-label="À propos">
+      <section className="card p-4" aria-label={t('settings.aboutAria')}>
         <p className="text-xs text-[var(--sb-text-soft)]">
-          Miss Supaboss v{__APP_VERSION__}
+          {t('settings.version', { version: __APP_VERSION__ })}
         </p>
         <div className="mt-3">
           <FamilyApps currentAppId="miss-supaboss" repoUrl={REPO_URL} />
@@ -535,13 +579,13 @@ export function SettingsScreen() {
 
       <ConfirmSheet
         open={confirmLogout}
-        title="Se déconnecter ?"
-        confirmLabel="Se déconnecter"
+        title={t('settings.logoutTitle')}
+        confirmLabel={t('settings.logout')}
         danger
         onCancel={() => setConfirmLogout(false)}
         onConfirm={() => void logout()}
       >
-        <p>Vous devrez ressaisir vos identifiants pour vous reconnecter.</p>
+        <p>{t('settings.logoutBody')}</p>
       </ConfirmSheet>
     </div>
   );

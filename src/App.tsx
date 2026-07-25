@@ -25,6 +25,7 @@ import { OnboardingScreen } from './features/onboarding/OnboardingScreen.tsx';
 import { DashboardScreen } from './features/dashboard/DashboardScreen.tsx';
 import { ProjectsScreen } from './features/projects/ProjectsScreen.tsx';
 import { getQueryClient } from './shared/queries/client.ts';
+import { useI18n } from './i18n/index.ts';
 
 const ProjectDetailScreen = lazy(() =>
   import('./features/projects/ProjectDetailScreen.tsx').then(m => ({
@@ -57,19 +58,19 @@ const SettingsScreen = lazy(() =>
   }))
 );
 
-const TITLES: Record<string, string> = {
-  '/': 'Miss Supaboss',
-  '/projects': 'Projets',
-  '/accounts': 'Comptes',
-  '/quotas': 'Quotas Free Plan',
-  '/history': 'Historique',
-  '/settings': 'Réglages',
-};
-
 function Shell() {
   const { pathname } = useLocation();
+  const { t } = useI18n();
+  const titles: Record<string, string> = {
+    '/': t('common.appName'),
+    '/projects': t('titles.projects'),
+    '/accounts': t('titles.accounts'),
+    '/quotas': t('titles.quotas'),
+    '/history': t('titles.history'),
+    '/settings': t('titles.settings'),
+  };
   const base = `/${pathname.split('/')[1] ?? ''}`;
-  const title = TITLES[pathname] ?? TITLES[base] ?? 'Miss Supaboss';
+  const title = titles[pathname] ?? titles[base] ?? t('common.appName');
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-2xl flex-col">

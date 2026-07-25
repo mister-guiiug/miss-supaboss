@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { KeyRound, LockKeyhole, ShieldAlert } from 'lucide-react';
 import { api } from '../../api/index.ts';
 import { toast } from '../../store/useUiStore.ts';
+import { useI18n } from '../../i18n/index.ts';
 
 /**
  * Coffre activé mais verrouillé (mode local-first, chiffrement opt-in) : on
@@ -10,6 +11,7 @@ import { toast } from '../../store/useUiStore.ts';
  * chiffrés, irrécupérables — les PAT se régénèrent côté Supabase).
  */
 export function UnlockScreen({ onUnlocked }: { onUnlocked: () => void }) {
+  const { t } = useI18n();
   const [passphrase, setPassphrase] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
@@ -32,7 +34,7 @@ export function UnlockScreen({ onUnlocked }: { onUnlocked: () => void }) {
 
   const doReset = (): void => {
     api.vault?.reset();
-    toast.success('Coffre réinitialisé.');
+    toast.success(t('unlock.resetDone'));
     window.location.reload();
   };
 
@@ -40,10 +42,9 @@ export function UnlockScreen({ onUnlocked }: { onUnlocked: () => void }) {
     <div className="mx-auto flex min-h-dvh max-w-sm flex-col items-center justify-center gap-5 px-4 text-center">
       <LockKeyhole size={44} aria-hidden="true" className="text-primary" />
       <div>
-        <h1 className="text-xl font-bold">Coffre verrouillé</h1>
+        <h1 className="text-xl font-bold">{t('unlock.title')}</h1>
         <p className="mt-1 text-sm text-[var(--sb-text-soft)]">
-          Saisissez votre phrase secrète pour déchiffrer les PAT stockés sur cet
-          appareil.
+          {t('unlock.body')}
         </p>
       </div>
 
@@ -58,15 +59,15 @@ export function UnlockScreen({ onUnlocked }: { onUnlocked: () => void }) {
             setPassphrase(e.target.value);
             setError(false);
           }}
-          placeholder="Phrase secrète"
+          placeholder={t('unlock.passphrase')}
           autoComplete="current-password"
-          aria-label="Phrase secrète"
+          aria-label={t('unlock.passphrase')}
           aria-invalid={error}
           className="w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 text-sm"
         />
         {error && (
           <p className="flex items-center justify-center gap-1.5 text-xs text-[var(--sb-critical)]">
-            <ShieldAlert size={14} aria-hidden="true" /> Phrase incorrecte.
+            <ShieldAlert size={14} aria-hidden="true" /> {t('unlock.wrong')}
           </p>
         )}
         <button
@@ -75,7 +76,7 @@ export function UnlockScreen({ onUnlocked }: { onUnlocked: () => void }) {
           className="touch-target flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 font-semibold text-[#06281a] disabled:opacity-50"
         >
           <KeyRound size={18} aria-hidden="true" />
-          {busy ? 'Déverrouillage…' : 'Déverrouiller'}
+          {busy ? t('unlock.unlocking') : t('unlock.unlock')}
         </button>
       </form>
 
@@ -87,8 +88,7 @@ export function UnlockScreen({ onUnlocked }: { onUnlocked: () => void }) {
               aria-hidden="true"
               className="mt-0.5 shrink-0"
             />
-            Réinitialiser efface définitivement les comptes chiffrés de cet
-            appareil. Les PAT restent régénérables sur Supabase.
+            {t('unlock.resetWarning')}
           </p>
           <div className="flex gap-2">
             <button
@@ -96,14 +96,14 @@ export function UnlockScreen({ onUnlocked }: { onUnlocked: () => void }) {
               onClick={() => setConfirmReset(false)}
               className="touch-target flex-1 rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium"
             >
-              Annuler
+              {t('common.cancel')}
             </button>
             <button
               type="button"
               onClick={doReset}
               className="touch-target flex-1 rounded-xl border border-[var(--sb-critical)] px-3 text-sm font-semibold text-[var(--sb-critical)]"
             >
-              Réinitialiser
+              {t('unlock.reset')}
             </button>
           </div>
         </div>
@@ -113,7 +113,7 @@ export function UnlockScreen({ onUnlocked }: { onUnlocked: () => void }) {
           onClick={() => setConfirmReset(true)}
           className="text-xs text-[var(--sb-text-soft)] underline"
         >
-          Phrase oubliée ?
+          {t('unlock.forgot')}
         </button>
       )}
     </div>

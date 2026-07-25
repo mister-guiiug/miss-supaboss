@@ -36,10 +36,12 @@ import { EmptyState } from '../../shared/components/EmptyState.tsx';
 import { useActionGuard } from '../../shared/hooks/useActionGuard.ts';
 import { usePolling } from '../../shared/hooks/usePolling.ts';
 import { useOnline } from '../../shared/hooks/useOnline.ts';
+import { useI18n } from '../../i18n/index.ts';
 
 const SUGGESTED_TAGS = ['poc', 'demo', 'archive', 'critique-demo'];
 
 export function ProjectDetailScreen() {
+  const { t } = useI18n();
   const { accountId = '', ref = '' } = useParams();
   const navigate = useNavigate();
   const fleet = useFleetStore(s => s.fleet);
@@ -87,9 +89,9 @@ export function ProjectDetailScreen() {
 
   if (!project || !account) {
     return (
-      <EmptyState icon={FileQuestion} title="Projet introuvable">
+      <EmptyState icon={FileQuestion} title={t('projectDetail.notFound')}>
         <Link to="/projects" className="font-medium text-primary">
-          ← Retour aux projets
+          ← {t('projectDetail.backToProjects')}
         </Link>
       </EmptyState>
     );
@@ -105,7 +107,7 @@ export function ProjectDetailScreen() {
       setConfirmPause(false);
     } catch (error) {
       toast.error(
-        error instanceof ApiError ? error.message : 'Pause impossible'
+        error instanceof ApiError ? error.message : t('projectDetail.pauseFail')
       );
     } finally {
       setBusy(false);
@@ -119,7 +121,7 @@ export function ProjectDetailScreen() {
     try {
       await updateMeta(accountId, ref, fields);
     } catch {
-      toast.error('Mise à jour des tags impossible');
+      toast.error(t('projectDetail.metaFail'));
     }
   };
 
@@ -130,7 +132,7 @@ export function ProjectDetailScreen() {
         onClick={() => navigate(-1)}
         className="flex items-center gap-1 text-sm font-medium text-[var(--sb-text-soft)]"
       >
-        <ArrowLeft size={16} aria-hidden="true" /> Retour
+        <ArrowLeft size={16} aria-hidden="true" /> {t('common.back')}
       </button>
 
       <section className="card space-y-3 p-4">
@@ -146,41 +148,47 @@ export function ProjectDetailScreen() {
 
         <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
           <div>
-            <dt className="text-xs text-[var(--sb-text-soft)]">Compte</dt>
+            <dt className="text-xs text-[var(--sb-text-soft)]">
+              {t('projectDetail.account')}
+            </dt>
             <dd className="font-medium">{account.alias}</dd>
           </div>
           <div>
-            <dt className="text-xs text-[var(--sb-text-soft)]">Créé le</dt>
+            <dt className="text-xs text-[var(--sb-text-soft)]">
+              {t('projectDetail.createdAt')}
+            </dt>
             <dd className="font-medium">{formatDateTime(project.createdAt)}</dd>
           </div>
           <div>
             <dt className="text-xs text-[var(--sb-text-soft)]">
-              Dernière activité observée
+              {t('projectDetail.lastActivity')}
             </dt>
             <dd className="font-medium">
               {formatRelative(project.meta.lastSeenActiveAt)}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-[var(--sb-text-soft)]">Mis en pause</dt>
+            <dt className="text-xs text-[var(--sb-text-soft)]">
+              {t('projectDetail.pausedAt')}
+            </dt>
             <dd className="font-medium">
               {project.meta.pausedAt
                 ? formatDateTime(project.meta.pausedAt)
                 : statusGroup(project.status) === 'paused'
-                  ? 'date inconnue'
+                  ? t('projectDetail.unknownDate')
                   : '—'}
             </dd>
           </div>
           {project.meta.restoreDeadline && (
             <div className="col-span-2">
               <dt className="text-xs text-[var(--sb-text-soft)]">
-                Restaurable jusqu'au (estimation)
+                {t('projectDetail.restorableUntil')}
               </dt>
               <dd
                 className={`font-medium ${windowExpired ? 'text-[var(--sb-critical)]' : ''}`}
               >
                 {formatDateTime(project.meta.restoreDeadline)}
-                {windowExpired && ' — fenêtre probablement dépassée'}
+                {windowExpired && t('projectDetail.windowLikelyExpired')}
               </dd>
             </div>
           )}
@@ -194,7 +202,8 @@ export function ProjectDetailScreen() {
               onClick={() => setConfirmPause(true)}
               className="touch-target flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--sb-border)] px-4 font-semibold disabled:opacity-50"
             >
-              <PauseCircle size={18} aria-hidden="true" /> Mettre en pause
+              <PauseCircle size={18} aria-hidden="true" />{' '}
+              {t('projectDetail.pause')}
             </button>
           )}
           {isRestorable(project.status) && (
@@ -205,24 +214,24 @@ export function ProjectDetailScreen() {
                 !actionGuard.allowed ? 'pointer-events-none opacity-50' : ''
               }`}
             >
-              <PlayCircle size={18} aria-hidden="true" /> Préparer la démo
+              <PlayCircle size={18} aria-hidden="true" /> {t('demo.prepare')}
             </Link>
           )}
         </div>
-        {actionGuard.reason === 'Droits opérateur requis' && (
+        {actionGuard.reasonCode === 'operate' && (
           <p className="text-xs text-[var(--sb-text-soft)]">
-            Lecture seule : votre rôle ({user?.role}) ne permet pas les actions.
+            {t('projectDetail.readOnlyRole', { role: user?.role ?? '' })}
           </p>
         )}
-        {actionGuard.reason &&
-          actionGuard.reason !== 'Droits opérateur requis' && (
-            <p className="text-xs text-[var(--sb-warn)]">
-              {actionGuard.reason}
-            </p>
-          )}
+        {actionGuard.reason && actionGuard.reasonCode !== 'operate' && (
+          <p className="text-xs text-[var(--sb-warn)]">{actionGuard.reason}</p>
+        )}
       </section>
 
-      <section className="card space-y-3 p-4" aria-label="Marqueurs">
+      <section
+        className="card space-y-3 p-4"
+        aria-label={t('projectDetail.markersAria')}
+      >
         <div className="flex gap-2">
           <button
             type="button"
@@ -237,7 +246,7 @@ export function ProjectDetailScreen() {
                 : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
             }`}
           >
-            <Star size={16} aria-hidden="true" /> Favori
+            <Star size={16} aria-hidden="true" /> {t('common.favorite')}
           </button>
           <button
             type="button"
@@ -252,10 +261,14 @@ export function ProjectDetailScreen() {
                 : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
             }`}
           >
-            <Zap size={16} aria-hidden="true" /> Démo fréquente
+            <Zap size={16} aria-hidden="true" /> {t('common.demoFrequent')}
           </button>
         </div>
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Tags">
+        <div
+          className="flex flex-wrap gap-1.5"
+          role="group"
+          aria-label={t('projectDetail.tagsAria')}
+        >
           {SUGGESTED_TAGS.map(tag => {
             const active = project.meta.tags.includes(tag);
             return (
@@ -284,13 +297,13 @@ export function ProjectDetailScreen() {
         </div>
       </section>
 
-      <section className="card space-y-3 p-4" aria-label="Quotas Free Plan">
+      <section className="card space-y-3 p-4" aria-label={t('titles.quotas')}>
         <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
-          Quotas Free Plan
+          {t('titles.quotas')}
         </h2>
         {projectMetrics.length === 0 ? (
           <p className="text-sm text-[var(--sb-text-soft)]">
-            Pas encore de mesures — rafraîchissez depuis l'écran Quotas.
+            {t('projectDetail.noMetrics')}
           </p>
         ) : (
           projectMetrics.map(m => (
@@ -305,16 +318,18 @@ export function ProjectDetailScreen() {
 
       <ConfirmSheet
         open={confirmPause}
-        title={`Mettre « ${project.name} » en pause ?`}
-        confirmLabel="Mettre en pause"
+        title={t('projectDetail.pauseTitle', { name: project.name })}
+        confirmLabel={t('projectDetail.pause')}
         busy={busy}
         onCancel={() => setConfirmPause(false)}
         onConfirm={() => void doPause()}
       >
         <p>
-          Le projet sera arrêté côté Supabase (compte {account.alias},{' '}
-          {actives.length}/{ACTIVE_PROJECT_LIMIT} actifs). Sa restauration
-          prendra ensuite une à plusieurs minutes.
+          {t('projectDetail.pauseBody', {
+            alias: account.alias,
+            active: actives.length,
+            limit: ACTIVE_PROJECT_LIMIT,
+          })}
         </p>
       </ConfirmSheet>
     </div>

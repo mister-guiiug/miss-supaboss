@@ -1,3 +1,5 @@
+import { useI18n } from '../../i18n/index.ts';
+
 export function Skeleton({ className = '' }: { className?: string }) {
   return <div aria-hidden="true" className={`skeleton ${className}`} />;
 }
@@ -13,8 +15,9 @@ export function CardSkeleton() {
 }
 
 export function ListSkeleton({ count = 3 }: { count?: number }) {
+  const { t } = useI18n();
   return (
-    <div role="status" aria-label="Chargement…" className="space-y-3">
+    <div role="status" aria-label={t('common.loading')} className="space-y-3">
       {Array.from({ length: count }, (_, i) => (
         <CardSkeleton key={i} />
       ))}

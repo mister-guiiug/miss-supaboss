@@ -13,9 +13,11 @@ import { projectsOfAccount, useFleetStore } from '../../store/useFleetStore.ts';
 import { toast } from '../../store/useUiStore.ts';
 import { ConfirmSheet } from '../../shared/components/ConfirmSheet.tsx';
 import { EmptyState } from '../../shared/components/EmptyState.tsx';
+import { useI18n } from '../../i18n/index.ts';
 import { AccountForm } from './AccountForm.tsx';
 
 export function AccountsScreen() {
+  const { t } = useI18n();
   const fleet = useFleetStore(s => s.fleet);
   const loadFleet = useFleetStore(s => s.loadFleet);
   const fromCache = useFleetStore(s => s.fromCache);
@@ -38,12 +40,17 @@ export function AccountsScreen() {
         ? ` (${res.organizations.join(', ')})`
         : '';
       toast.success(
-        `${account.alias} : ${res.organizations.length} org${orgs} · ${res.projects} projets`
+        t('accounts.testSuccess', {
+          alias: account.alias,
+          count: res.organizations.length,
+          list: orgs,
+          projects: res.projects,
+        })
       );
       await loadFleet(true);
       invalidateAfterFleetMutation();
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Test impossible');
+      toast.error(e instanceof ApiError ? e.message : t('accounts.testError'));
     } finally {
       setBusyId(null);
     }
@@ -56,7 +63,9 @@ export function AccountsScreen() {
       await loadFleet(true);
       invalidateAfterFleetMutation();
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Mise à jour impossible');
+      toast.error(
+        e instanceof ApiError ? e.message : t('accounts.updateError')
+      );
     } finally {
       setBusyId(null);
     }
@@ -67,12 +76,14 @@ export function AccountsScreen() {
     setBusyId(toDelete.id);
     try {
       await api.deleteAccount(toDelete.id);
-      toast.success(`Compte « ${toDelete.alias} » supprimé`);
+      toast.success(t('accounts.deleted', { alias: toDelete.alias }));
       setToDelete(null);
       await loadFleet(true);
       invalidateAfterFleetMutation();
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Suppression impossible');
+      toast.error(
+        e instanceof ApiError ? e.message : t('accounts.deleteError')
+      );
     } finally {
       setBusyId(null);
     }
@@ -86,14 +97,13 @@ export function AccountsScreen() {
           onClick={() => setEditing('new')}
           className="touch-target flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 font-semibold text-[#06281a]"
         >
-          <Plus size={18} aria-hidden="true" /> Ajouter un compte Supabase
+          <Plus size={18} aria-hidden="true" /> {t('accounts.add')}
         </button>
       )}
 
       {accounts.length === 0 ? (
-        <EmptyState icon={FolderOpen} title="Aucun compte">
-          Ajoutez votre premier compte Supabase avec un PAT (Personal Access
-          Token).
+        <EmptyState icon={FolderOpen} title={t('accounts.emptyTitle')}>
+          {t('accounts.emptyBody')}
         </EmptyState>
       ) : (
         accounts.map(account => {
@@ -110,8 +120,10 @@ export function AccountsScreen() {
                 <div className="min-w-0 flex-1">
                   <h2 className="truncate font-semibold">{account.alias}</h2>
                   <p className="truncate text-xs text-[var(--sb-text-soft)]">
-                    PAT {account.patHint} · synchro{' '}
-                    {formatRelative(account.lastSyncAt)}
+                    {t('accounts.patLine', {
+                      hint: account.patHint,
+                      rel: formatRelative(account.lastSyncAt),
+                    })}
                   </p>
                 </div>
                 <span className="tnum rounded-full bg-[var(--sb-surface-2)] px-2.5 py-1 text-sm font-bold">
@@ -131,7 +143,9 @@ export function AccountsScreen() {
                   className="touch-target flex items-center gap-1.5 rounded-xl border border-[var(--sb-border)] px-3 font-medium disabled:opacity-50"
                 >
                   <Plug size={15} aria-hidden="true" />
-                  {busyId === account.id ? 'Test…' : 'Tester'}
+                  {busyId === account.id
+                    ? t('accounts.testing')
+                    : t('accounts.test')}
                 </button>
                 {admin && (
                   <>
@@ -140,7 +154,9 @@ export function AccountsScreen() {
                         type="button"
                         role="switch"
                         aria-checked={account.enabled}
-                        aria-label={`Activer ${account.alias}`}
+                        aria-label={t('accounts.enableAria', {
+                          alias: account.alias,
+                        })}
                         disabled={busyId === account.id}
                         onClick={() => void toggle(account)}
                         className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
@@ -156,11 +172,13 @@ export function AccountsScreen() {
                           }`}
                         />
                       </button>
-                      Actif
+                      {t('accounts.active')}
                     </span>
                     <button
                       type="button"
-                      aria-label={`Renommer ${account.alias}`}
+                      aria-label={t('accounts.renameAria', {
+                        alias: account.alias,
+                      })}
                       disabled={busyId === account.id}
                       onClick={() => setEditing(account)}
                       className="touch-target ml-auto flex items-center justify-center rounded-xl border border-[var(--sb-border)] px-3 disabled:opacity-50"
@@ -169,7 +187,9 @@ export function AccountsScreen() {
                     </button>
                     <button
                       type="button"
-                      aria-label={`Supprimer ${account.alias}`}
+                      aria-label={t('accounts.deleteAria', {
+                        alias: account.alias,
+                      })}
                       disabled={busyId === account.id}
                       onClick={() => setToDelete(account)}
                       className="touch-target flex items-center justify-center rounded-xl border border-[var(--sb-critical)]/40 px-3 text-[var(--sb-critical)] disabled:opacity-50"
@@ -198,18 +218,14 @@ export function AccountsScreen() {
 
       <ConfirmSheet
         open={toDelete !== null}
-        title={`Supprimer « ${toDelete?.alias ?? ''} » ?`}
-        confirmLabel="Supprimer"
+        title={t('accounts.deleteTitle', { alias: toDelete?.alias ?? '' })}
+        confirmLabel={t('common.delete')}
         danger
         busy={busyId === toDelete?.id}
         onCancel={() => setToDelete(null)}
         onConfirm={() => void remove()}
       >
-        <p>
-          Le PAT chiffré, les tags et l'historique de méta de ce compte seront
-          supprimés de Miss Supaboss. Les projets Supabase eux-mêmes ne sont PAS
-          touchés.
-        </p>
+        <p>{t('accounts.deleteBody')}</p>
       </ConfirmSheet>
     </div>
   );

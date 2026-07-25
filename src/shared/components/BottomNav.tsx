@@ -6,25 +6,27 @@ import {
   Settings,
   UsersRound,
 } from 'lucide-react';
+import { useI18n } from '../../i18n/index.ts';
 
 // « Comptes » est une destination de 1er niveau (objet métier racine : un projet
 // appartient à un compte) → 2e position, sous le pouce. L'Historique (consultatif,
 // non quotidien) est relogé en tête de Réglages pour rester à 5 onglets.
 const ITEMS = [
-  { to: '/', label: 'Accueil', icon: LayoutDashboard, end: true },
-  { to: '/accounts', label: 'Comptes', icon: UsersRound, end: false },
-  { to: '/projects', label: 'Projets', icon: Server, end: false },
-  { to: '/quotas', label: 'Quotas', icon: Gauge, end: false },
-  { to: '/settings', label: 'Réglages', icon: Settings, end: false },
+  { to: '/', labelKey: 'nav.home', icon: LayoutDashboard, end: true },
+  { to: '/accounts', labelKey: 'nav.accounts', icon: UsersRound, end: false },
+  { to: '/projects', labelKey: 'nav.projects', icon: Server, end: false },
+  { to: '/quotas', labelKey: 'nav.quotas', icon: Gauge, end: false },
+  { to: '/settings', labelKey: 'nav.settings', icon: Settings, end: false },
 ] as const;
 
 export function BottomNav() {
+  const { t } = useI18n();
   return (
     <nav
-      aria-label="Navigation principale"
+      aria-label={t('nav.aria')}
       className="card fixed inset-x-0 bottom-0 z-30 mx-auto grid max-w-2xl grid-cols-5 rounded-none border-x-0 border-b-0 pb-safe"
     >
-      {ITEMS.map(({ to, label, icon: Icon, end }) => (
+      {ITEMS.map(({ to, labelKey, icon: Icon, end }) => (
         <NavLink
           key={to}
           to={to}
@@ -36,7 +38,7 @@ export function BottomNav() {
           }
         >
           <Icon size={22} aria-hidden="true" />
-          {label}
+          {t(labelKey)}
         </NavLink>
       ))}
     </nav>

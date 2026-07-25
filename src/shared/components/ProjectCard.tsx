@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Star, Zap } from 'lucide-react';
 import type { ProjectDto } from '../../../shared/contracts.ts';
 import { formatRelative } from '../../../shared/format.ts';
+import { useI18n } from '../../i18n/index.ts';
 import { StatusBadge } from './StatusBadge.tsx';
 
 export function AccountChip({
@@ -32,13 +33,18 @@ export function ProjectCard({
   accountAlias: string;
   accountColor: string;
 }) {
+  const { t } = useI18n();
   const { meta } = project;
   const activity =
     project.status === 'INACTIVE'
       ? meta.pausedAt
-        ? `en pause depuis ${formatRelative(meta.pausedAt).replace('il y a ', '')}`
-        : 'en pause (date inconnue)'
-      : `activité ${formatRelative(meta.lastSeenActiveAt)}`;
+        ? t('projectCard.pausedSince', {
+            rel: formatRelative(meta.pausedAt).replace('il y a ', ''),
+          })
+        : t('projectCard.pausedUnknown')
+      : t('projectCard.activity', {
+          rel: formatRelative(meta.lastSeenActiveAt),
+        });
 
   return (
     <Link
@@ -52,14 +58,14 @@ export function ProjectCard({
             {meta.favorite && (
               <Star
                 size={14}
-                aria-label="Favori"
+                aria-label={t('common.favorite')}
                 className="shrink-0 fill-[var(--sb-warn)] text-[var(--sb-warn)]"
               />
             )}
             {meta.demoFrequent && (
               <Zap
                 size={14}
-                aria-label="Démo fréquente"
+                aria-label={t('common.demoFrequent')}
                 className="shrink-0 text-primary"
               />
             )}

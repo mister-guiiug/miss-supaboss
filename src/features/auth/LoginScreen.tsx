@@ -2,8 +2,10 @@ import { useState, type FormEvent } from 'react';
 import { Sparkles } from 'lucide-react';
 import { ApiError, switchDemoMode } from '../../api/index.ts';
 import { useSessionStore } from '../../store/useSessionStore.ts';
+import { useI18n } from '../../i18n/index.ts';
 
 export function LoginScreen() {
+  const { t } = useI18n();
   const login = useSessionStore(s => s.login);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,8 +21,8 @@ export function LoginScreen() {
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 401
-          ? 'Identifiants invalides'
-          : 'Connexion impossible (serveur joignable ?)'
+          ? t('login.invalidCreds')
+          : t('login.connectFail')
       );
     } finally {
       setBusy(false);
@@ -37,15 +39,15 @@ export function LoginScreen() {
           height={72}
           className="mx-auto rounded-2xl"
         />
-        <h1 className="mt-3 text-2xl font-bold">Miss Supaboss</h1>
+        <h1 className="mt-3 text-2xl font-bold">{t('common.appName')}</h1>
         <p className="text-sm text-[var(--sb-text-soft)]">
-          Pilotage multi-comptes Supabase Free
+          {t('login.subtitle')}
         </p>
       </div>
       <form onSubmit={e => void submit(e)} className="card space-y-3 p-5">
         <label className="block">
           <span className="text-xs font-medium text-[var(--sb-text-soft)]">
-            E-mail
+            {t('login.email')}
           </span>
           <input
             type="email"
@@ -58,7 +60,7 @@ export function LoginScreen() {
         </label>
         <label className="block">
           <span className="text-xs font-medium text-[var(--sb-text-soft)]">
-            Mot de passe
+            {t('login.password')}
           </span>
           <input
             type="password"
@@ -79,19 +81,18 @@ export function LoginScreen() {
           disabled={busy}
           className="touch-target w-full rounded-xl bg-primary px-4 font-semibold text-[#06281a] disabled:opacity-60"
         >
-          {busy ? 'Connexion…' : 'Se connecter'}
+          {busy ? t('login.signingIn') : t('login.signIn')}
         </button>
       </form>
       <p className="text-center text-xs text-[var(--sb-text-soft)]">
-        Compte initial : voir la console serveur au premier démarrage.
+        {t('login.initialAccount')}
       </p>
       <button
         type="button"
         onClick={() => void switchDemoMode(true)}
         className="touch-target flex items-center justify-center gap-2 rounded-xl border border-[var(--sb-border)] px-4 text-sm font-medium text-[var(--sb-text-soft)]"
       >
-        <Sparkles size={16} aria-hidden="true" /> Essayer en mode démo (données
-        fictives, sans compte)
+        <Sparkles size={16} aria-hidden="true" /> {t('login.tryDemo')}
       </button>
     </main>
   );

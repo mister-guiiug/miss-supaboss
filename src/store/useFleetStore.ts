@@ -19,6 +19,7 @@ import {
   fetchMetricsRefresh,
 } from '../shared/queries/fleet.ts';
 import { invalidateAfterFleetMutation } from '../shared/queries/invalidate.ts';
+import { translate } from '../i18n/index.ts';
 import { toast } from './useUiStore.ts';
 
 interface FleetState {
@@ -71,9 +72,7 @@ export const useFleetStore = create<FleetState>((set, get) => ({
       await fetchFleetRefresh(refresh);
     } catch (error) {
       const message =
-        error instanceof ApiError
-          ? error.message
-          : 'Synchronisation impossible';
+        error instanceof ApiError ? error.message : translate('fleet.syncFail');
       set({ loading: false, error: message });
       if (!(error instanceof ApiError && error.status === 0)) {
         toast.error(message);
@@ -88,12 +87,12 @@ export const useFleetStore = create<FleetState>((set, get) => ({
       const metrics = get().metrics;
       if (refresh && metrics?.refreshErrors && metrics.refreshErrors > 0) {
         toast.error(
-          `Métriques indisponibles pour ${metrics.refreshErrors} projet(s) — proxy ou PAT à vérifier.`
+          translate('fleet.metricsPartial', { count: metrics.refreshErrors })
         );
       }
     } catch {
       set({ metricsLoading: false });
-      if (refresh) toast.error('Collecte des métriques impossible.');
+      if (refresh) toast.error(translate('fleet.metricsFail'));
     }
   },
 
@@ -108,7 +107,7 @@ export const useFleetStore = create<FleetState>((set, get) => ({
 
   async saveSettings(settings) {
     set({ settings: await api.putSettings(settings) });
-    toast.success('Réglages enregistrés');
+    toast.success(translate('fleet.settingsSaved'));
   },
 
   /** Mode hors ligne : recharge le dernier état connu (lecture seule). */
@@ -126,7 +125,7 @@ export const useFleetStore = create<FleetState>((set, get) => ({
 
   async pause(accountId, ref) {
     await api.pauseProject(accountId, ref);
-    toast.success('Mise en pause lancée');
+    toast.success(translate('fleet.pauseStarted'));
     await get().loadFleet(true);
     invalidateAfterFleetMutation();
   },
@@ -136,7 +135,7 @@ export const useFleetStore = create<FleetState>((set, get) => ({
       pauseFirst: options.pauseFirst ?? [],
       force: options.force ?? false,
     });
-    toast.success('Restauration lancée');
+    toast.success(translate('fleet.restoreStarted'));
     await get().loadFleet(true);
     invalidateAfterFleetMutation();
   },

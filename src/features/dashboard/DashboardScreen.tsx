@@ -31,6 +31,7 @@ import { EmptyState } from '../../shared/components/EmptyState.tsx';
 import { StatusBadge } from '../../shared/components/StatusBadge.tsx';
 import { usePolling } from '../../shared/hooks/usePolling.ts';
 import { useOnline } from '../../shared/hooks/useOnline.ts';
+import { useI18n } from '../../i18n/index.ts';
 
 const LEVEL_BADGE: Record<QuotaLevel, string> = {
   ok: 'text-[var(--sb-ok)]',
@@ -40,6 +41,7 @@ const LEVEL_BADGE: Record<QuotaLevel, string> = {
 };
 
 export function DashboardScreen() {
+  const { t } = useI18n();
   const fleet = useFleetStore(s => s.fleet);
   const metrics = useFleetStore(s => s.metrics);
   const settings = useFleetStore(s => s.settings);
@@ -100,8 +102,8 @@ export function DashboardScreen() {
   if (!fleet && loading) return <ListSkeleton count={3} />;
   if (!fleet) {
     return (
-      <EmptyState icon={SatelliteDish} title="Aucune donnée">
-        Vérifiez la connexion au serveur puis rafraîchissez.
+      <EmptyState icon={SatelliteDish} title={t('dashboard.emptyTitle')}>
+        {t('dashboard.emptyBody')}
       </EmptyState>
     );
   }
@@ -111,13 +113,14 @@ export function DashboardScreen() {
       {/* Comptes : slots actifs / limite Free + état de synchro. En-tête
           explicite (+ « Gérer ») pour que la section ne soit plus prise pour des
           projets et que l'accès à la gestion des comptes soit nommé. */}
-      <section aria-label="Comptes" className="space-y-2">
+      <section aria-label={t('dashboard.accounts')} className="space-y-2">
         <div className="flex items-center justify-between px-1">
           <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
-            <UsersRound size={15} aria-hidden="true" /> Comptes
+            <UsersRound size={15} aria-hidden="true" />{' '}
+            {t('dashboard.accounts')}
           </h2>
           <Link to="/accounts" className="text-sm font-medium text-primary">
-            Gérer →
+            {t('common.manage')} →
           </Link>
         </div>
         {fleet.accounts.map(
@@ -139,7 +142,7 @@ export function DashboardScreen() {
                   <p className="truncate font-semibold">{account.alias}</p>
                   {!account.enabled ? (
                     <p className="truncate text-xs text-[var(--sb-text-soft)]">
-                      Compte Supabase · désactivé
+                      {t('dashboard.accountDisabled')}
                     </p>
                   ) : account.lastError ? (
                     <p className="flex items-center gap-1 text-xs text-[var(--sb-critical)]">
@@ -152,7 +155,9 @@ export function DashboardScreen() {
                     </p>
                   ) : (
                     <p className="truncate text-xs text-[var(--sb-text-soft)]">
-                      Compte Supabase · synchro {formatRelative(syncedAt)}
+                      {t('dashboard.accountSynced', {
+                        rel: formatRelative(syncedAt),
+                      })}
                     </p>
                   )}
                 </div>
@@ -163,7 +168,10 @@ export function DashboardScreen() {
                       : 'bg-[var(--sb-ok)]/15 text-[var(--sb-ok)]'
                   }`}
                 >
-                  {actives.length}/{ACTIVE_PROJECT_LIMIT} actifs
+                  {t('dashboard.activeSlots', {
+                    active: actives.length,
+                    limit: ACTIVE_PROJECT_LIMIT,
+                  })}
                 </span>
                 <ChevronRight
                   size={16}
@@ -178,10 +186,10 @@ export function DashboardScreen() {
 
       {/* Ce que je peux démarrer maintenant. */}
       {readyToStart.length > 0 && (
-        <section aria-label="Prêts à présenter" className="card p-4">
+        <section aria-label={t('dashboard.readyAria')} className="card p-4">
           <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
-            <Clapperboard size={15} aria-hidden="true" /> Prêts à démarrer
-            maintenant
+            <Clapperboard size={15} aria-hidden="true" />{' '}
+            {t('dashboard.readyTitle')}
           </h2>
           <ul className="mt-2 space-y-2">
             {readyToStart.map(p => (
@@ -208,9 +216,9 @@ export function DashboardScreen() {
 
       {/* Quotas proches du seuil. */}
       {alerts.length > 0 && (
-        <section aria-label="Alertes quotas" className="card p-4">
+        <section aria-label={t('dashboard.alertsAria')} className="card p-4">
           <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
-            <Siren size={15} aria-hidden="true" /> Quotas proches du seuil
+            <Siren size={15} aria-hidden="true" /> {t('dashboard.alertsTitle')}
           </h2>
           <ul className="mt-2 space-y-1.5 text-sm">
             {alerts.map(a => (
@@ -233,7 +241,7 @@ export function DashboardScreen() {
             to="/quotas"
             className="mt-2 inline-block text-sm font-medium text-primary"
           >
-            Voir tous les quotas →
+            {t('dashboard.seeAllQuotas')} →
           </Link>
         </section>
       )}

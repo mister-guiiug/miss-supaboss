@@ -5,6 +5,7 @@ import {
   initSentry,
 } from '@mister-guiiug/dev-wpa-config/react/observability';
 import { App } from './App.tsx';
+import { I18nProvider } from './i18n/index.ts';
 import './index.css';
 
 installErrorReporter();
@@ -18,6 +19,8 @@ if (!container) throw new Error('#root introuvable');
 
 createRoot(container).render(
   <StrictMode>
-    <App />
+    <I18nProvider>
+      <App />
+    </I18nProvider>
   </StrictMode>
 );
