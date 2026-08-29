@@ -35,7 +35,7 @@ import { ConfirmSheet } from '../../shared/components/ConfirmSheet.tsx';
 import { EmptyState } from '../../shared/components/EmptyState.tsx';
 import { useActionGuard } from '../../shared/hooks/useActionGuard.ts';
 import { usePolling } from '../../shared/hooks/usePolling.ts';
-import { useOnline } from '../../shared/hooks/useOnline.ts';
+import { useOnline } from '@mister-guiiug/dev-wpa-config/react/use-online';
 import { useI18n } from '../../i18n/index.ts';
 
 const SUGGESTED_TAGS = ['poc', 'demo', 'archive', 'critique-demo'];

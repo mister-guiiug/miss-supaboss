@@ -6,7 +6,7 @@ import {
   useSessionStore,
 } from '../../store/useSessionStore.ts';
 import { useI18n } from '../../i18n/index.ts';
-import { useOnline } from './useOnline.ts';
+import { useOnline } from '@mister-guiiug/dev-wpa-config/react/use-online';
 
 export interface ActionGuardOptions {
   online?: boolean;
