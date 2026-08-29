@@ -10,7 +10,7 @@ import {
 } from '../../api/index.ts';
 import { useFleetStore } from '../../store/useFleetStore.ts';
 import { useI18n } from '../../i18n/index.ts';
-import { useOnline } from '../hooks/useOnline.ts';
+import { useOnline } from '@mister-guiiug/dev-wpa-config/react/use-online';
 import { ConfirmSheet } from './ConfirmSheet.tsx';
 
 export function AppHeader({ title }: { title: string }) {
