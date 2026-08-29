@@ -1,9 +1,18 @@
+import { registerSW } from 'virtual:pwa-register';
 import { useUpdatePrompt } from '@mister-guiiug/dev-wpa-config/react/use-update-prompt';
 import { useI18n } from '../i18n/index.ts';
 
 export function UpdatePrompt() {
   const { t } = useI18n();
-  const { visible, update, snooze } = useUpdatePrompt({ snoozeHours: 24 });
+  // `registerSW` est indispensable : sans lui le hook ne reçoit jamais
+  // `onNeedRefresh` et le bandeau ne s'affiche jamais — avec `registerType:
+  // 'prompt'`, le nouveau worker attendrait indéfiniment. Cet import coupe
+  // aussi l'auto-injection de registerSW.js (injectRegister 'auto') :
+  // l'enregistrement du service worker passe par le hook.
+  const { visible, update, snooze } = useUpdatePrompt({
+    registerSW,
+    snoozeHours: 24,
+  });
   if (!visible) return null;
   // Le bandeau flotte AU-DESSUS de la BottomNav (≈ 3,7rem de haut) + la zone
   // sûre iOS — sinon il recouvre les onglets et masque « Recharger / Plus tard ».
