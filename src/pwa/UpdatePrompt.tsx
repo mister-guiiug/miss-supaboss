@@ -1,42 +1,32 @@
 import { registerSW } from 'virtual:pwa-register';
-import { useUpdatePrompt } from '@mister-guiiug/dev-wpa-config/react/use-update-prompt';
+import { UpdatePromptBanner } from '@mister-guiiug/dev-wpa-config/react/update-prompt-banner';
 import { useI18n } from '../i18n/index.ts';
 
+/**
+ * Bandeau « Mise à jour disponible » : le composant du socle, câblé aux
+ * libellés traduits de l'app et posé au-dessus de la BottomNav.
+ *
+ * `registerSW` est indispensable : c'est LUI qui enregistre le service worker
+ * et branche `onNeedRefresh`. Sans injection, le bandeau ne s'afficherait
+ * jamais — avec `registerType: 'prompt'`, le nouveau worker attendrait
+ * indéfiniment. Cet import coupe aussi l'auto-injection de registerSW.js
+ * (`injectRegister: 'auto'`) : l'enregistrement passe par le composant.
+ */
 export function UpdatePrompt() {
   const { t } = useI18n();
-  // `registerSW` est indispensable : sans lui le hook ne reçoit jamais
-  // `onNeedRefresh` et le bandeau ne s'affiche jamais — avec `registerType:
-  // 'prompt'`, le nouveau worker attendrait indéfiniment. Cet import coupe
-  // aussi l'auto-injection de registerSW.js (injectRegister 'auto') :
-  // l'enregistrement du service worker passe par le hook.
-  const { visible, update, snooze } = useUpdatePrompt({
-    registerSW,
-    snoozeHours: 24,
-  });
-  if (!visible) return null;
-  // Le bandeau flotte AU-DESSUS de la BottomNav (≈ 3,7rem de haut) + la zone
-  // sûre iOS — sinon il recouvre les onglets et masque « Recharger / Plus tard ».
   return (
-    <div
-      role="status"
-      style={{ bottom: 'calc(max(env(safe-area-inset-bottom), 0px) + 4.5rem)' }}
-      className="card fixed inset-x-4 z-40 mx-auto flex max-w-sm items-center gap-2 p-3 text-sm shadow-lg"
-    >
-      <span className="flex-1">{t('update.available')}</span>
-      <button
-        type="button"
-        onClick={() => void update()}
-        className="rounded-lg bg-primary px-3 py-1.5 font-semibold text-[#06281a]"
-      >
-        {t('update.reload')}
-      </button>
-      <button
-        type="button"
-        onClick={snooze}
-        className="rounded-lg border border-[var(--sb-border)] px-3 py-1.5 font-medium"
-      >
-        {t('update.later')}
-      </button>
-    </div>
+    <UpdatePromptBanner
+      registerSW={registerSW}
+      snoozeHours={24}
+      title={t('update.available')}
+      updateLabel={t('update.reload')}
+      updatingLabel={t('update.updating')}
+      snoozeLabel={t('update.later')}
+      // `components.css` habille la boîte (fond, filet, rayon, cibles
+      // tactiles) mais pas sa PLACE : le bandeau doit flotter AU-DESSUS de la
+      // BottomNav (≈ 3,7 rem) et de la zone sûre iOS, sinon il recouvre les
+      // onglets et masque ses propres boutons.
+      className="fixed inset-x-4 bottom-[calc(max(env(safe-area-inset-bottom),0px)+4.5rem)] z-40 mx-auto max-w-sm shadow-lg"
+    />
   );
 }
