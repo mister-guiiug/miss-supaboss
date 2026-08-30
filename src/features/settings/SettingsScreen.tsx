@@ -35,8 +35,9 @@ import { useFleetStore } from '../../store/useFleetStore.ts';
 import { canAdmin, useSessionStore } from '../../store/useSessionStore.ts';
 import { toast } from '../../store/useUiStore.ts';
 import { ConfirmDialog } from '@mister-guiiug/dev-wpa-config/react/confirm-dialog';
+import { repoUrl } from '@mister-guiiug/dev-wpa-config/apps-catalog';
 import { clearSnapshot } from '../../offline/lastKnown.ts';
-import { REPO_URL } from '../../links.ts';
+import { APP_ID } from '../../appId.ts';
 import { useI18n } from '../../i18n/index.ts';
 
 export function SettingsScreen() {
@@ -573,7 +574,7 @@ export function SettingsScreen() {
           {t('settings.version', { version: __APP_VERSION__ })}
         </p>
         <div className="mt-3">
-          <FamilyApps currentAppId="miss-supaboss" repoUrl={REPO_URL} />
+          <FamilyApps currentAppId={APP_ID} repoUrl={repoUrl(APP_ID)} />
         </div>
       </section>
 
