@@ -1,8 +1,8 @@
 import { Inbox, ScrollText } from 'lucide-react';
 import type { OperationDto } from '../../../shared/contracts.ts';
 import { formatDateTime } from '../../../shared/format.ts';
+import { EmptyState } from '@mister-guiiug/dev-wpa-config/react/empty-state';
 import { ListSkeleton } from '../../shared/components/Skeleton.tsx';
-import { EmptyState } from '../../shared/components/EmptyState.tsx';
 import { useOnline } from '@mister-guiiug/dev-wpa-config/react/use-online';
 import { useOperations } from '../../shared/hooks/useOperations.ts';
 import { useI18n } from '../../i18n/index.ts';
@@ -39,17 +39,23 @@ export function HistoryScreen() {
 
   if (isError) {
     return (
-      <EmptyState icon={Inbox} title={t('history.unavailableTitle')}>
-        {online ? t('history.noServer') : t('history.needsConnection')}
-      </EmptyState>
+      <EmptyState
+        icon={<Inbox size={40} strokeWidth={1.5} />}
+        title={t('history.unavailableTitle')}
+        description={
+          online ? t('history.noServer') : t('history.needsConnection')
+        }
+      />
     );
   }
   if (isLoading || operations === undefined) return <ListSkeleton count={5} />;
   if (operations.length === 0) {
     return (
-      <EmptyState icon={ScrollText} title={t('history.emptyTitle')}>
-        {t('history.emptyBody')}
-      </EmptyState>
+      <EmptyState
+        icon={<ScrollText size={40} strokeWidth={1.5} />}
+        title={t('history.emptyTitle')}
+        description={t('history.emptyBody')}
+      />
     );
   }
 

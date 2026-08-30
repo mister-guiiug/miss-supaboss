@@ -9,8 +9,8 @@ import {
 } from '../../../shared/quotas.ts';
 import { formatRelative } from '../../../shared/format.ts';
 import { QuotaBar } from '../../shared/components/QuotaBar.tsx';
+import { EmptyState } from '@mister-guiiug/dev-wpa-config/react/empty-state';
 import { ListSkeleton } from '../../shared/components/Skeleton.tsx';
-import { EmptyState } from '../../shared/components/EmptyState.tsx';
 import { useI18n } from '../../i18n/index.ts';
 
 /** Synthèse globale → détail par compte → détail par projet. */
@@ -67,15 +67,19 @@ export function QuotasScreen() {
   if (!metrics && metricsLoading) return <ListSkeleton count={3} />;
   if (!metrics) {
     return (
-      <EmptyState icon={Gauge} title={t('quotas.emptyTitle')}>
-        <button
-          type="button"
-          onClick={() => void loadMetrics(true)}
-          className="font-medium text-primary"
-        >
-          {t('quotas.collectNow')} →
-        </button>
-      </EmptyState>
+      <EmptyState
+        icon={<Gauge size={40} strokeWidth={1.5} />}
+        title={t('quotas.emptyTitle')}
+        action={
+          <button
+            type="button"
+            onClick={() => void loadMetrics(true)}
+            className="font-medium text-primary"
+          >
+            {t('quotas.collectNow')} →
+          </button>
+        }
+      />
     );
   }
 

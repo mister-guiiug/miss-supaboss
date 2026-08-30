@@ -1,5 +1,9 @@
 @import 'tailwindcss';
 @import '@mister-guiiug/dev-wpa-config/tailwind-preset.css';
+/* Habillage partagé des composants [data-dwc] du socle (BottomNav, Toast,
+   ConfirmDialog, EmptyState, Skeleton, Badge…). Tout est en
+   `@layer components` : le CSS non layered de ce fichier l'emporte. */
+@import '@mister-guiiug/dev-wpa-config/components.css';
 
 /*
  * Univers visuel « Miss Supaboss » : vert Supabase (#3ecf8e) sur des bleus
@@ -33,6 +37,44 @@
   color-scheme: light;
 }
 
+/* Contrat des composants partagés : les 15 jetons `--dwc-*` branchés une seule
+   fois sur les tokens Miss Supaboss. Ceux qui pointent un `--sb-*` suivent le
+   thème sombre tout seuls (les variables sont redéfinies plus bas). */
+:root {
+  --dwc-surface: var(--sb-surface);
+  --dwc-surface-2: var(--sb-surface-2);
+  --dwc-text: var(--sb-text);
+  --dwc-text-soft: var(--sb-text-soft);
+  --dwc-border: var(--sb-border);
+  /* Contour d'un CONTRÔLE (WCAG 1.4.11 : 3:1) — `--sb-border` (#d7e0ee) ne les
+     tient pas en clair ; `--sb-text-soft` donne 4,9:1 clair / 5,1:1 sombre. */
+  --dwc-border-strong: var(--sb-text-soft);
+  /* La primaire sert AUSSI de couleur de texte (onglet actif, icône d'état
+     vide) : le vert de marque #3ecf8e ne tient que 1,9:1 sur blanc. `--sb-ring`
+     porte déjà ce rôle « vert interactif par thème » (#0f9d63 clair, 3,5:1 ;
+     #3ecf8e sombre, 8,5:1 sur la surface). */
+  --dwc-primary: var(--sb-ring);
+  /* L'encre des boutons primaires de l'app (`text-[#06281a]` sur bg-primary) :
+     4,5:1 sur #0f9d63, 7,9:1 sur #3ecf8e. */
+  --dwc-primary-contrast: #06281a;
+  /* `--color-primary-soft` (#103526) est un fond SOMBRE (app dark-first) :
+     inutilisable tel quel en clair. On dérive du vert de marque, comme les
+     fonds `bg-primary/15` que l'app pose déjà. */
+  --dwc-primary-soft: color-mix(
+    in srgb,
+    var(--color-primary) 15%,
+    var(--sb-surface)
+  );
+  --dwc-success: var(--sb-ok);
+  --dwc-warning: var(--sb-warn);
+  --dwc-danger: var(--sb-critical);
+  /* Pas de bleu « info » dans la palette : le gris-bleu neutre joue ce rôle
+     (les toasts info étaient déjà à filet neutre). 4,8:1 clair, 5,1:1 sombre. */
+  --dwc-info: var(--sb-paused);
+  --dwc-radius: var(--radius-card);
+  --dwc-shadow: 0 1px 2px rgb(14 26 48 / 0.06);
+}
+
 :root[data-theme='dark'] {
   --sb-bg: #0c1222;
   --sb-surface: #131c33;
@@ -47,6 +89,10 @@
   --sb-critical: #fb7185;
   --sb-paused: #7d8db0;
   color-scheme: dark;
+
+  /* Seul jeton `--dwc-*` posé en dur plus haut qui doive changer ici : les
+     autres suivent les `--sb-*` redéfinis ci-dessus. */
+  --dwc-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
 }
 
 html,
@@ -64,8 +110,12 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Anneau de focus homogène (accessibilité clavier). */
-:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+/* Anneau de focus homogène (accessibilité clavier). Le panneau modal du socle
+   porte `tabindex="-1"` pour le focus programmatique : lui imposer 0,5 rem le
+   carrerait — piège documenté sur miss-uwh. */
+:where(a, button, input, select, textarea, [tabindex]):not(
+    [data-dwc='confirm-panel']
+  ):focus-visible {
   outline: 3px solid var(--sb-ring);
   outline-offset: 2px;
   border-radius: 0.5rem;
@@ -102,30 +152,22 @@ body {
   }
 }
 
-/* Skeletons. */
-@keyframes sb-shimmer {
-  0% {
-    background-position: -200px 0;
-  }
-  100% {
-    background-position: 200px 0;
+/* Identité Miss Supaboss sur les composants du socle. Ne figurent ici que les
+   écarts VOULUS par rapport à `components.css`. */
+
+/* Confirmation en feuille basse sur mobile (ergonomie pouce, comme la copie
+   locale `ConfirmSheet`) ; centrée dès sm, comme la base du socle. */
+@media (max-width: 40rem) {
+  [data-dwc='confirm'] {
+    align-items: flex-end;
   }
 }
-.skeleton {
-  border-radius: 0.5rem;
-  background: linear-gradient(
-    90deg,
-    var(--sb-surface-2) 25%,
-    var(--sb-border) 50%,
-    var(--sb-surface-2) 75%
-  );
-  background-size: 400px 100%;
-  animation: sb-shimmer 1.4s linear infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .skeleton {
-    animation: none;
-  }
+
+/* Bouton destructif : `--dwc-primary-contrast` (#06281a) ne tient que 2,5:1
+   sur `--sb-critical` clair (#be123c). Blanc en clair (6,3:1) ; l'encre sombre
+   reste juste en sombre (5,9:1 sur #fb7185). */
+[data-dwc='confirm'][data-destructive] [data-dwc='confirm-confirm'] {
+  color: light-dark(#ffffff, #06281a);
 }
 
 /*

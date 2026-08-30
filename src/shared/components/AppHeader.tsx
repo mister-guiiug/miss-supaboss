@@ -11,7 +11,7 @@ import {
 import { useFleetStore } from '../../store/useFleetStore.ts';
 import { useI18n } from '../../i18n/index.ts';
 import { useOnline } from '@mister-guiiug/dev-wpa-config/react/use-online';
-import { ConfirmSheet } from './ConfirmSheet.tsx';
+import { ConfirmDialog } from '@mister-guiiug/dev-wpa-config/react/confirm-dialog';
 
 export function AppHeader({ title }: { title: string }) {
   const { t } = useI18n();
@@ -85,7 +85,7 @@ export function AppHeader({ title }: { title: string }) {
       </button>
 
       {IS_MOCK && REAL_AVAILABLE && (
-        <ConfirmSheet
+        <ConfirmDialog
           open={confirmExitDemo}
           title={t('header.exitDemoTitle')}
           confirmLabel={t('header.exitDemoConfirm')}
@@ -93,7 +93,7 @@ export function AppHeader({ title }: { title: string }) {
           onConfirm={() => void switchDemoMode(false)}
         >
           <p>{t('header.exitDemoBody')}</p>
-        </ConfirmSheet>
+        </ConfirmDialog>
       )}
     </header>
   );

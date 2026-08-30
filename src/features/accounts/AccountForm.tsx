@@ -6,7 +6,7 @@ import {
 } from '../../../shared/contracts.ts';
 import { api, ApiError } from '../../api/index.ts';
 import { toast } from '../../store/useUiStore.ts';
-import { ConfirmSheet } from '../../shared/components/ConfirmSheet.tsx';
+import { ConfirmDialog } from '@mister-guiiug/dev-wpa-config/react/confirm-dialog';
 import { useI18n } from '../../i18n/index.ts';
 
 const COLORS = [
@@ -87,11 +87,11 @@ export function AccountForm({
   };
 
   return (
-    <ConfirmSheet
+    <ConfirmDialog
       open={open}
       title={isEdit ? t('accounts.form.editTitle') : t('accounts.add')}
       confirmLabel={isEdit ? t('common.save') : t('accounts.form.testAndAdd')}
-      busy={busy}
+      loading={busy}
       onCancel={onClose}
       onConfirm={() => void submit()}
     >
@@ -148,6 +148,6 @@ export function AccountForm({
         </div>
         {error && <p className="text-sm text-[var(--sb-critical)]">{error}</p>}
       </div>
-    </ConfirmSheet>
+    </ConfirmDialog>
   );
 }
