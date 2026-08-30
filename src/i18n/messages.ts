@@ -372,6 +372,10 @@ export const messages = {
     update: {
       available: 'Mise à jour disponible.',
       reload: 'Recharger',
+      // Le bandeau du socle a un état « en cours » que la copie locale n'avait
+      // pas ; sans cette clé il retomberait sur son français par défaut, même
+      // en anglais.
+      updating: 'Mise à jour…',
       later: 'Plus tard',
     },
     guard: {
@@ -748,6 +752,7 @@ export const messages = {
     update: {
       available: 'Update available.',
       reload: 'Reload',
+      updating: 'Updating…',
       later: 'Later',
     },
     guard: {
