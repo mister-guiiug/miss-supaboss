@@ -88,7 +88,9 @@ export function QuotasScreen() {
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-[var(--sb-text-soft)]">
           {t('quotas.syncMetrics', {
-            rel: formatRelative(metrics.generatedAt),
+            rel: formatRelative(metrics.generatedAt, {
+              never: t('common.never'),
+            }),
           })}
         </p>
         <button

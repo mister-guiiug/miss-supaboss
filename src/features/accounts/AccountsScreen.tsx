@@ -124,7 +124,9 @@ export function AccountsScreen() {
                   <p className="truncate text-xs text-[var(--sb-text-soft)]">
                     {t('accounts.patLine', {
                       hint: account.patHint,
-                      rel: formatRelative(account.lastSyncAt),
+                      rel: formatRelative(account.lastSyncAt, {
+                        never: t('common.never'),
+                      }),
                     })}
                   </p>
                 </div>

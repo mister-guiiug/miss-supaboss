@@ -1,5 +1,9 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import {
+  getDefaultLocale,
+  setDefaultLocale,
+} from '@mister-guiiug/dev-wpa-config/format';
 import {
   DEFAULT_THRESHOLDS,
   FREE_PLAN_QUOTAS,
@@ -8,8 +12,14 @@ import {
 } from '../../../shared/quotas.ts';
 import { QuotaBar } from './QuotaBar.tsx';
 
+// Les unités attendues sont désormais celles de la LANGUE (« Mo » en français,
+// « MB » en anglais) : la copie locale rendait « MB » partout, avec une virgule
+// décimale française — donc « 1,5 kB » au milieu d'une interface anglaise.
+const initial = getDefaultLocale();
+afterEach(() => setDefaultLocale(initial));
+
 describe('QuotaBar', () => {
-  it('affiche « 31 MB / 5 GB » et le pourcentage', () => {
+  it('affiche « 31 Mo / 5 Go » et le pourcentage', () => {
     render(
       <QuotaBar
         metric={{
@@ -23,7 +33,7 @@ describe('QuotaBar', () => {
       />
     );
     expect(screen.getByText('Egress')).toBeInTheDocument();
-    expect(screen.getByText(/31 MB \/ 5 GB/)).toBeInTheDocument();
+    expect(screen.getByText(/^31\s?Mo \/ 5\s?Go$/)).toBeInTheDocument();
     expect(screen.getByRole('progressbar')).toHaveAttribute(
       'aria-valuenow',
       '1'
@@ -43,7 +53,7 @@ describe('QuotaBar', () => {
         thresholds={DEFAULT_THRESHOLDS}
       />
     );
-    expect(screen.getByText(/— \/ 5 GB/)).toBeInTheDocument();
+    expect(screen.getByText(/^— \/ 5\s?Go$/)).toBeInTheDocument();
     expect(screen.getByText('non disponible via API')).toBeInTheDocument();
     expect(screen.getByRole('progressbar')).not.toHaveAttribute(
       'aria-valuenow'
@@ -82,7 +92,24 @@ describe('QuotaBar', () => {
         thresholds={DEFAULT_THRESHOLDS}
       />
     );
-    expect(screen.getByText(/2 \/ 50k/)).toBeInTheDocument();
+    expect(screen.getByText(/^2 \/ 50\s?k$/)).toBeInTheDocument();
     expect(screen.getByText('estimation')).toBeInTheDocument();
+  });
+
+  it('en anglais, la jauge affiche « 31 MB / 5 GB »', () => {
+    setDefaultLocale('en-GB');
+    render(
+      <QuotaBar
+        metric={{
+          kind: 'egress',
+          state: 'measured',
+          value: 31 * MB,
+          quota: 5 * GB,
+          measuredAt: '2026-06-10T08:00:00Z',
+        }}
+        thresholds={DEFAULT_THRESHOLDS}
+      />
+    );
+    expect(screen.getByText(/^31\s?MB \/ 5\s?GB$/)).toBeInTheDocument();
   });
 });

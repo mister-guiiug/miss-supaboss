@@ -27,10 +27,13 @@ export function AppHeader({ title }: { title: string }) {
   // (mock). PWA sans proxy : présent tant que les données d'exemple sont là.
   const demoOn = REAL_AVAILABLE ? IS_MOCK : isDemoSeed();
 
+  const never = t('common.never');
   const syncLabel = fromCache
-    ? t('header.offlineState', { rel: formatRelative(cacheSavedAt) })
+    ? t('header.offlineState', { rel: formatRelative(cacheSavedAt, { never }) })
     : fleet
-      ? t('header.synced', { rel: formatRelative(fleet.generatedAt) })
+      ? t('header.synced', {
+          rel: formatRelative(fleet.generatedAt, { never }),
+        })
       : '';
 
   return (

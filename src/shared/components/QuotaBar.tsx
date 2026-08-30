@@ -6,7 +6,8 @@ import {
   type AlertThresholds,
   type MetricValue,
 } from '../../../shared/quotas.ts';
-import { formatPercent, formatUsage } from '../../../shared/format.ts';
+import { formatUsage } from '@mister-guiiug/dev-wpa-config/format';
+import { formatPercent } from '../../../shared/format.ts';
 
 const LEVEL_COLORS = {
   ok: 'var(--sb-ok)',
@@ -22,7 +23,7 @@ const STATE_HINTS = {
   unavailable: 'non disponible via API',
 } as const;
 
-/** Jauge « Egress : 31 MB / 5 GB » avec code couleur sobre par seuil. */
+/** Jauge « Egress : 31 Mo / 5 Go » avec code couleur sobre par seuil. */
 export function QuotaBar({
   metric,
   thresholds,
@@ -33,11 +34,9 @@ export function QuotaBar({
   const ratio = usageRatio(metric);
   const level = quotaLevel(metric, thresholds);
   const label = METRIC_LABELS[metric.kind];
-  const usage = formatUsage(
-    metric.value,
-    metric.quota,
-    isByteMetric(metric.kind)
-  );
+  const usage = formatUsage(metric.value, metric.quota, {
+    bytes: isByteMetric(metric.kind),
+  });
   const hint = STATE_HINTS[metric.state];
   const pct = ratio === null ? 0 : Math.min(ratio * 100, 100);
 

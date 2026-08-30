@@ -24,7 +24,8 @@ import {
   type MetricValue,
   type QuotaLevel,
 } from '../../../shared/quotas.ts';
-import { formatRelative, formatUsage } from '../../../shared/format.ts';
+import { formatUsage } from '@mister-guiiug/dev-wpa-config/format';
+import { formatRelative } from '../../../shared/format.ts';
 import { isByteMetric, METRIC_LABELS } from '../../../shared/quotas.ts';
 import { EmptyState } from '@mister-guiiug/dev-wpa-config/react/empty-state';
 import { ListSkeleton } from '../../shared/components/Skeleton.tsx';
@@ -158,7 +159,9 @@ export function DashboardScreen() {
                   ) : (
                     <p className="truncate text-xs text-[var(--sb-text-soft)]">
                       {t('dashboard.accountSynced', {
-                        rel: formatRelative(syncedAt),
+                        rel: formatRelative(syncedAt, {
+                          never: t('common.never'),
+                        }),
                       })}
                     </p>
                   )}
@@ -230,11 +233,9 @@ export function DashboardScreen() {
               >
                 <span className="min-w-0 truncate">{a.label}</span>
                 <span className={`tnum font-semibold ${LEVEL_BADGE[a.level]}`}>
-                  {formatUsage(
-                    a.metric.value,
-                    a.metric.quota,
-                    isByteMetric(a.metric.kind)
-                  )}
+                  {formatUsage(a.metric.value, a.metric.quota, {
+                    bytes: isByteMetric(a.metric.kind),
+                  })}
                 </span>
               </li>
             ))}

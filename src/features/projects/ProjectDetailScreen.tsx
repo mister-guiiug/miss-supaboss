@@ -168,7 +168,9 @@ export function ProjectDetailScreen() {
               {t('projectDetail.lastActivity')}
             </dt>
             <dd className="font-medium">
-              {formatRelative(project.meta.lastSeenActiveAt)}
+              {formatRelative(project.meta.lastSeenActiveAt, {
+                never: t('common.never'),
+              })}
             </dd>
           </div>
           <div>
