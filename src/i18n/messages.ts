@@ -367,6 +367,7 @@ export const messages = {
     error: {
       title: 'Quelque chose a cassé',
       reload: "Recharger l'app",
+      reference: 'Référence à communiquer au support',
     },
     update: {
       available: 'Mise à jour disponible.',
@@ -742,6 +743,7 @@ export const messages = {
     error: {
       title: 'Something broke',
       reload: 'Reload the app',
+      reference: 'Reference to share with support',
     },
     update: {
       available: 'Update available.',

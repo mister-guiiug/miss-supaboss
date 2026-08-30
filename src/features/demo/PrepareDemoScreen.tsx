@@ -17,9 +17,9 @@ import {
   useFleetStore,
 } from '../../store/useFleetStore.ts';
 import { toast } from '../../store/useUiStore.ts';
+import { EmptyState } from '@mister-guiiug/dev-wpa-config/react/empty-state';
+import { Skeleton } from '@mister-guiiug/dev-wpa-config/react/skeleton';
 import { StatusBadge } from '../../shared/components/StatusBadge.tsx';
-import { EmptyState } from '../../shared/components/EmptyState.tsx';
-import { Skeleton } from '../../shared/components/Skeleton.tsx';
 import { useActionGuard } from '../../shared/hooks/useActionGuard.ts';
 import { usePolling } from '../../shared/hooks/usePolling.ts';
 import { useAssessRestore } from '../../shared/queries/fleet.ts';
@@ -167,11 +167,15 @@ export function PrepareDemoScreen() {
 
   if (!project) {
     return (
-      <EmptyState icon={FileQuestion} title={t('projectDetail.notFound')}>
-        <Link to="/projects" className="font-medium text-primary">
-          ← {t('projectDetail.backToProjects')}
-        </Link>
-      </EmptyState>
+      <EmptyState
+        icon={<FileQuestion size={40} strokeWidth={1.5} />}
+        title={t('projectDetail.notFound')}
+        action={
+          <Link to="/projects" className="font-medium text-primary">
+            ← {t('projectDetail.backToProjects')}
+          </Link>
+        }
+      />
     );
   }
 
@@ -259,8 +263,8 @@ export function PrepareDemoScreen() {
           role="status"
           aria-label={t('demo.checkAria')}
         >
-          <Skeleton className="h-4 w-2/3" />
-          <Skeleton className="h-4 w-1/2" />
+          <Skeleton width="66%" />
+          <Skeleton width="50%" />
         </div>
       )}
 

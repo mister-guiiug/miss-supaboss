@@ -11,8 +11,8 @@ import { useActionGuard } from '../../shared/hooks/useActionGuard.ts';
 import { invalidateAfterFleetMutation } from '../../shared/queries/invalidate.ts';
 import { projectsOfAccount, useFleetStore } from '../../store/useFleetStore.ts';
 import { toast } from '../../store/useUiStore.ts';
-import { ConfirmSheet } from '../../shared/components/ConfirmSheet.tsx';
-import { EmptyState } from '../../shared/components/EmptyState.tsx';
+import { ConfirmDialog } from '@mister-guiiug/dev-wpa-config/react/confirm-dialog';
+import { EmptyState } from '@mister-guiiug/dev-wpa-config/react/empty-state';
 import { useI18n } from '../../i18n/index.ts';
 import { AccountForm } from './AccountForm.tsx';
 
@@ -102,9 +102,11 @@ export function AccountsScreen() {
       )}
 
       {accounts.length === 0 ? (
-        <EmptyState icon={FolderOpen} title={t('accounts.emptyTitle')}>
-          {t('accounts.emptyBody')}
-        </EmptyState>
+        <EmptyState
+          icon={<FolderOpen size={40} strokeWidth={1.5} />}
+          title={t('accounts.emptyTitle')}
+          description={t('accounts.emptyBody')}
+        />
       ) : (
         accounts.map(account => {
           const projects = projectsOfAccount(fleet, account.id);
@@ -216,17 +218,17 @@ export function AccountsScreen() {
         }}
       />
 
-      <ConfirmSheet
+      <ConfirmDialog
         open={toDelete !== null}
         title={t('accounts.deleteTitle', { alias: toDelete?.alias ?? '' })}
         confirmLabel={t('common.delete')}
-        danger
-        busy={busyId === toDelete?.id}
+        destructive
+        loading={busyId === toDelete?.id}
         onCancel={() => setToDelete(null)}
         onConfirm={() => void remove()}
       >
         <p>{t('accounts.deleteBody')}</p>
-      </ConfirmSheet>
+      </ConfirmDialog>
     </div>
   );
 }

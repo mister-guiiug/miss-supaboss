@@ -26,8 +26,8 @@ import {
 } from '../../../shared/quotas.ts';
 import { formatRelative, formatUsage } from '../../../shared/format.ts';
 import { isByteMetric, METRIC_LABELS } from '../../../shared/quotas.ts';
+import { EmptyState } from '@mister-guiiug/dev-wpa-config/react/empty-state';
 import { ListSkeleton } from '../../shared/components/Skeleton.tsx';
-import { EmptyState } from '../../shared/components/EmptyState.tsx';
 import { StatusBadge } from '../../shared/components/StatusBadge.tsx';
 import { usePolling } from '../../shared/hooks/usePolling.ts';
 import { useOnline } from '@mister-guiiug/dev-wpa-config/react/use-online';
@@ -102,9 +102,11 @@ export function DashboardScreen() {
   if (!fleet && loading) return <ListSkeleton count={3} />;
   if (!fleet) {
     return (
-      <EmptyState icon={SatelliteDish} title={t('dashboard.emptyTitle')}>
-        {t('dashboard.emptyBody')}
-      </EmptyState>
+      <EmptyState
+        icon={<SatelliteDish size={40} strokeWidth={1.5} />}
+        title={t('dashboard.emptyTitle')}
+        description={t('dashboard.emptyBody')}
+      />
     );
   }
 

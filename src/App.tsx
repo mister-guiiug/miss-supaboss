@@ -1,20 +1,40 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentType,
+} from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import {
   HashRouter,
   Navigate,
+  NavLink,
   Outlet,
   Route,
   Routes,
   useLocation,
 } from 'react-router-dom';
+import {
+  Gauge,
+  LayoutDashboard,
+  Server,
+  Settings,
+  UsersRound,
+  X,
+} from 'lucide-react';
+import { BottomNav } from '@mister-guiiug/dev-wpa-config/react/bottom-nav';
+import { ObservabilityBoundary } from '@mister-guiiug/dev-wpa-config/react/error-boundary';
+import {
+  IconsProvider,
+  type IconComponent,
+} from '@mister-guiiug/dev-wpa-config/react/icons-context';
 import { useSessionStore } from './store/useSessionStore.ts';
 import { useFleetStore } from './store/useFleetStore.ts';
 import { api, IS_MOCK } from './api/index.ts';
 import { useFleetBootstrap } from './shared/queries/fleet.ts';
 import { AppHeader } from './shared/components/AppHeader.tsx';
-import { BottomNav } from './shared/components/BottomNav.tsx';
-import { ErrorBoundary } from './shared/components/ErrorBoundary.tsx';
 import { ToastViewport } from './shared/components/ToastViewport.tsx';
 import { ListSkeleton } from './shared/components/Skeleton.tsx';
 import { UpdatePrompt } from './pwa/UpdatePrompt.tsx';
@@ -58,9 +78,24 @@ const SettingsScreen = lazy(() =>
   }))
 );
 
+// « Comptes » est une destination de 1er niveau (objet métier racine : un projet
+// appartient à un compte) → 2e position, sous le pouce. L'Historique (consultatif,
+// non quotidien) est relogé en tête de Réglages pour rester à 5 onglets.
+const NAV_ITEMS = [
+  { to: '/', labelKey: 'nav.home', Icon: LayoutDashboard, end: true },
+  { to: '/accounts', labelKey: 'nav.accounts', Icon: UsersRound, end: false },
+  { to: '/projects', labelKey: 'nav.projects', Icon: Server, end: false },
+  { to: '/quotas', labelKey: 'nav.quotas', Icon: Gauge, end: false },
+  { to: '/settings', labelKey: 'nav.settings', Icon: Settings, end: false },
+] as const;
+
 function Shell() {
   const { pathname } = useLocation();
   const { t } = useI18n();
+  // `referenceLabel` existe à l'exécution (la frontière affiche l'identifiant
+  // de corrélation à citer au support) mais manque encore au .d.ts 3.22.0 :
+  // passé en spread, hors du contrôle des propriétés excédentaires.
+  const referenceProps = { referenceLabel: t('error.reference') };
   const titles: Record<string, string> = {
     '/': t('common.appName'),
     '/projects': t('titles.projects'),
@@ -81,13 +116,42 @@ function Shell() {
           paddingBottom: 'calc(env(safe-area-inset-bottom) + 4.25rem)',
         }}
       >
-        <ErrorBoundary level="route" key={pathname}>
+        <ObservabilityBoundary
+          key={pathname}
+          context={{ level: 'route' }}
+          title={t('error.title')}
+          resetLabel={t('common.retry')}
+          {...referenceProps}
+        >
           <Suspense fallback={<ListSkeleton count={3} />}>
             <Outlet />
           </Suspense>
-        </ErrorBoundary>
+        </ObservabilityBoundary>
       </main>
-      <BottomNav />
+      <BottomNav
+        // La barre reste FIXE au bas de l'écran (la coque compense par son
+        // padding-bottom) ; les utilitaires l'emportent sur `@layer components`.
+        className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-2xl"
+        label={t('nav.aria')}
+        // HashRouter : `location.pathname` du navigateur vaut toujours « / » —
+        // le chemin courant doit venir du routeur.
+        currentPath={pathname}
+        items={NAV_ITEMS.map(({ to, labelKey, Icon, end }) => ({
+          href: to,
+          label: t(labelKey),
+          icon: <Icon size={22} aria-hidden="true" />,
+          end,
+        }))}
+        // `linkComponent` est typé `ComponentType<Record<string, unknown>>`,
+        // qui refuse un composant à prop obligatoire — donc `NavLink` et son
+        // `to`, alors que `hrefProp="to"` le fournit précisément. Même
+        // conversion que miss-genius ; à retirer quand le type du paquet
+        // acceptera ce cas.
+        linkComponent={
+          NavLink as unknown as ComponentType<Record<string, unknown>>
+        }
+        hrefProp="to"
+      />
       <UpdatePrompt />
     </div>
   );
@@ -184,13 +248,31 @@ function Inner() {
   return <LoginScreen />;
 }
 
+// Croix « fermer » des composants du socle (toasts) : la même que partout
+// dans l'app (règle famille lucide). Cast : les icônes lucide ont des props
+// toutes optionnelles, mais pas l'index signature qu'attend `IconComponent`.
+const SOCLE_ICONS = { close: X as unknown as IconComponent };
+
 export function App() {
+  const { t } = useI18n();
+  // Voir `Shell` : `referenceLabel` manque encore au .d.ts 3.22.0.
+  const referenceProps = { referenceLabel: t('error.reference') };
   return (
     <QueryClientProvider client={getQueryClient()}>
-      <ErrorBoundary level="app">
-        <Inner />
-        <ToastViewport />
-      </ErrorBoundary>
+      <IconsProvider icons={SOCLE_ICONS}>
+        <ObservabilityBoundary
+          context={{ level: 'app' }}
+          title={t('error.title')}
+          resetLabel={t('error.reload')}
+          {...referenceProps}
+          // Au niveau app, réessayer sans recharger relancerait le même crash :
+          // on repart de zéro, comme la copie locale le faisait.
+          onReset={() => window.location.reload()}
+        >
+          <Inner />
+          <ToastViewport />
+        </ObservabilityBoundary>
+      </IconsProvider>
     </QueryClientProvider>
   );
 }

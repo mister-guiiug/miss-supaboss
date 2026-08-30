@@ -34,7 +34,7 @@ import {
 import { useFleetStore } from '../../store/useFleetStore.ts';
 import { canAdmin, useSessionStore } from '../../store/useSessionStore.ts';
 import { toast } from '../../store/useUiStore.ts';
-import { ConfirmSheet } from '../../shared/components/ConfirmSheet.tsx';
+import { ConfirmDialog } from '@mister-guiiug/dev-wpa-config/react/confirm-dialog';
 import { clearSnapshot } from '../../offline/lastKnown.ts';
 import { REPO_URL } from '../../links.ts';
 import { useI18n } from '../../i18n/index.ts';
@@ -577,16 +577,16 @@ export function SettingsScreen() {
         </div>
       </section>
 
-      <ConfirmSheet
+      <ConfirmDialog
         open={confirmLogout}
         title={t('settings.logoutTitle')}
         confirmLabel={t('settings.logout')}
-        danger
+        destructive
         onCancel={() => setConfirmLogout(false)}
         onConfirm={() => void logout()}
       >
         <p>{t('settings.logoutBody')}</p>
-      </ConfirmSheet>
+      </ConfirmDialog>
     </div>
   );
 }

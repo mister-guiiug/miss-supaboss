@@ -29,10 +29,10 @@ import {
   isRestoreWindowExpired,
 } from '../../../shared/guards.ts';
 import { formatDateTime, formatRelative } from '../../../shared/format.ts';
+import { ConfirmDialog } from '@mister-guiiug/dev-wpa-config/react/confirm-dialog';
+import { EmptyState } from '@mister-guiiug/dev-wpa-config/react/empty-state';
 import { StatusBadge } from '../../shared/components/StatusBadge.tsx';
 import { QuotaBar } from '../../shared/components/QuotaBar.tsx';
-import { ConfirmSheet } from '../../shared/components/ConfirmSheet.tsx';
-import { EmptyState } from '../../shared/components/EmptyState.tsx';
 import { useActionGuard } from '../../shared/hooks/useActionGuard.ts';
 import { usePolling } from '../../shared/hooks/usePolling.ts';
 import { useOnline } from '@mister-guiiug/dev-wpa-config/react/use-online';
@@ -89,11 +89,15 @@ export function ProjectDetailScreen() {
 
   if (!project || !account) {
     return (
-      <EmptyState icon={FileQuestion} title={t('projectDetail.notFound')}>
-        <Link to="/projects" className="font-medium text-primary">
-          ← {t('projectDetail.backToProjects')}
-        </Link>
-      </EmptyState>
+      <EmptyState
+        icon={<FileQuestion size={40} strokeWidth={1.5} />}
+        title={t('projectDetail.notFound')}
+        action={
+          <Link to="/projects" className="font-medium text-primary">
+            ← {t('projectDetail.backToProjects')}
+          </Link>
+        }
+      />
     );
   }
 
@@ -316,11 +320,11 @@ export function ProjectDetailScreen() {
         )}
       </section>
 
-      <ConfirmSheet
+      <ConfirmDialog
         open={confirmPause}
         title={t('projectDetail.pauseTitle', { name: project.name })}
         confirmLabel={t('projectDetail.pause')}
-        busy={busy}
+        loading={busy}
         onCancel={() => setConfirmPause(false)}
         onConfirm={() => void doPause()}
       >
@@ -331,7 +335,7 @@ export function ProjectDetailScreen() {
             limit: ACTIVE_PROJECT_LIMIT,
           })}
         </p>
-      </ConfirmSheet>
+      </ConfirmDialog>
     </div>
   );
 }

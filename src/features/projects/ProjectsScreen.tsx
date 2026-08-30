@@ -4,8 +4,8 @@ import { useFleetStore } from '../../store/useFleetStore.ts';
 import { statusGroup, type StatusGroup } from '../../../shared/status.ts';
 import type { ProjectDto } from '../../../shared/contracts.ts';
 import { ProjectCard } from '../../shared/components/ProjectCard.tsx';
+import { EmptyState } from '@mister-guiiug/dev-wpa-config/react/empty-state';
 import { ListSkeleton } from '../../shared/components/Skeleton.tsx';
-import { EmptyState } from '../../shared/components/EmptyState.tsx';
 import { useI18n } from '../../i18n/index.ts';
 import type { Messages } from '../../i18n/messages.ts';
 
@@ -131,9 +131,11 @@ export function ProjectsScreen() {
       </div>
 
       {total === 0 ? (
-        <EmptyState icon={SearchX} title={t('projects.emptyTitle')}>
-          {t('projects.emptyBody')}
-        </EmptyState>
+        <EmptyState
+          icon={<SearchX size={40} strokeWidth={1.5} />}
+          title={t('projects.emptyTitle')}
+          description={t('projects.emptyBody')}
+        />
       ) : (
         groups.map(g => (
           <section key={g.account.id} aria-label={g.account.alias}>
