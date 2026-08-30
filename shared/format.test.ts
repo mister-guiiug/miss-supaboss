@@ -1,57 +1,84 @@
-import { describe, expect, it } from 'vitest';
-import { GB, MB } from './quotas.ts';
+/**
+ * Tests d'USAGE des trois adaptateurs restés locaux.
+ *
+ * Les tests de `formatBytes`, `formatCount` et `formatUsage` ont disparu :
+ * ces fonctions sont désormais celles du socle, qui les éprouve chez lui.
+ * Ce qui se teste ici, c'est ce que l'app ajoute — décimales variables, libellé
+ * « jamais », tiret d'absence — ET le fait que tout cela suive la langue.
+ */
+import { afterEach, describe, expect, it } from 'vitest';
 import {
-  formatBytes,
-  formatCount,
-  formatPercent,
-  formatRelative,
-  formatUsage,
-} from './format.ts';
+  getDefaultLocale,
+  setDefaultLocale,
+} from '@mister-guiiug/dev-wpa-config/format';
+import { formatDateTime, formatPercent, formatRelative } from './format.ts';
 
-describe('formatBytes', () => {
-  it('rend les libellés type dashboard Supabase', () => {
-    expect(formatBytes(31 * MB)).toBe('31 MB');
-    expect(formatBytes(5 * GB)).toBe('5 GB');
-    expect(formatBytes(0)).toBe('0 B');
-    expect(formatBytes(1536)).toBe('1,5 kB');
-  });
-  it('— pour une valeur invalide', () => {
-    expect(formatBytes(-1)).toBe('—');
-    expect(formatBytes(Number.NaN)).toBe('—');
-  });
-});
+// La locale par défaut du socle est un état de module : la reposer évite qu'un
+// test en contamine un autre.
+const initial = getDefaultLocale();
+afterEach(() => setDefaultLocale(initial));
 
-describe('formatCount', () => {
-  it('compacte k / M', () => {
-    expect(formatCount(2)).toBe('2');
-    expect(formatCount(50_000)).toBe('50k');
-    expect(formatCount(1_230)).toBe('1,2k');
-    expect(formatCount(2_500_000)).toBe('2,5M');
-  });
-});
-
-describe('formatUsage', () => {
-  it('« consommé / quota » avec — quand inconnu', () => {
-    expect(formatUsage(31 * MB, 5 * GB, true)).toBe('31 MB / 5 GB');
-    expect(formatUsage(2, 50_000, false)).toBe('2 / 50k');
-    expect(formatUsage(null, 5 * GB, true)).toBe('— / 5 GB');
-  });
-});
+/**
+ * `Intl` sépare le nombre de son unité par une espace insécable — ORDINAIRE
+ * (U+00A0) avant « % », ÉTROITE (U+202F) avant « Mo ». Le choix appartient à
+ * l'ICU du moteur et peut bouger d'une version de Node à l'autre : comparer
+ * l'octet exact rendrait ces tests fragiles sans rien éprouver de plus.
+ */
+const norm = (text: string) => text.replace(/\s/gu, ' ');
 
 describe('formatPercent', () => {
-  it('arrondit lisiblement', () => {
-    expect(formatPercent(0.62)).toBe('62 %');
-    expect(formatPercent(0.062)).toBe('6,2 %');
+  it('garde une décimale sous 10 %, aucune au-dessus', () => {
+    expect(norm(formatPercent(0.62))).toBe('62 %');
+    expect(norm(formatPercent(0.062))).toBe('6,2 %');
+  });
+
+  it('rend un tiret quand le ratio n’existe pas', () => {
     expect(formatPercent(null)).toBe('—');
+    expect(formatPercent(Number.NaN)).toBe('—');
+  });
+
+  it('suit la langue de l’app', () => {
+    setDefaultLocale('en-GB');
+    expect(norm(formatPercent(0.062))).toBe('6.2%');
   });
 });
 
 describe('formatRelative', () => {
   const now = new Date('2026-06-10T12:00:00Z');
-  it('échelles min/h/j', () => {
-    expect(formatRelative('2026-06-10T11:58:00Z', now)).toBe('il y a 2 min');
-    expect(formatRelative('2026-06-10T09:00:00Z', now)).toBe('il y a 3 h');
-    expect(formatRelative('2026-06-08T12:00:00Z', now)).toBe('il y a 2 j');
-    expect(formatRelative(null, now)).toBe('jamais');
+  const never = 'jamais';
+
+  it('rend l’ancienneté dans la langue courante', () => {
+    expect(norm(formatRelative('2026-06-10T11:58:00Z', { now, never }))).toBe(
+      'il y a 2 minutes'
+    );
+    expect(norm(formatRelative('2026-06-10T09:00:00Z', { now, never }))).toBe(
+      'il y a 3 heures'
+    );
+    setDefaultLocale('en-GB');
+    expect(norm(formatRelative('2026-06-10T09:00:00Z', { now, never }))).toBe(
+      '3 hours ago'
+    );
+  });
+
+  it('rend le libellé « jamais » de l’appelant, absent ou illisible', () => {
+    expect(formatRelative(null, { now, never })).toBe('jamais');
+    expect(formatRelative('pas une date', { now, never })).toBe('jamais');
+    expect(formatRelative(null, { now, never: 'never' })).toBe('never');
+  });
+});
+
+describe('formatDateTime', () => {
+  // Midi UTC : la date reste le 30 quel que soit le fuseau du runner.
+  const noon = '2026-08-30T12:00:00Z';
+
+  it('rend une date courte NUMÉRIQUE, dans la langue courante', () => {
+    expect(norm(formatDateTime(noon))).toMatch(/^30\/08\/2026 \d{2}:\d{2}$/);
+    setDefaultLocale('en-GB');
+    expect(norm(formatDateTime(noon))).toMatch(/^30\/08\/2026, \d{2}:\d{2}$/);
+  });
+
+  it('rend un tiret quand la date manque ou est illisible', () => {
+    expect(formatDateTime(null)).toBe('—');
+    expect(formatDateTime('pas une date')).toBe('—');
   });
 });

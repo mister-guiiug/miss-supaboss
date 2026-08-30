@@ -23,6 +23,8 @@ export const messages = {
       favorite: 'Favori',
       demoFrequent: 'Démo fréquente',
       dismissToast: 'Fermer la notification',
+      /** Repli de `formatRelative` : la mesure n'a jamais été relevée. */
+      never: 'jamais',
     },
     languages: {
       fr: 'Français',
@@ -168,7 +170,7 @@ export const messages = {
       },
     },
     projectCard: {
-      pausedSince: 'en pause depuis {rel}',
+      pausedSince: 'en pause {rel}',
       pausedUnknown: 'en pause (date inconnue)',
       activity: 'activité {rel}',
     },
@@ -409,6 +411,7 @@ export const messages = {
       favorite: 'Favorite',
       demoFrequent: 'Frequent demo',
       dismissToast: 'Dismiss notification',
+      never: 'never',
     },
     languages: {
       fr: 'Français',
@@ -553,7 +556,7 @@ export const messages = {
       },
     },
     projectCard: {
-      pausedSince: 'paused for {rel}',
+      pausedSince: 'paused {rel}',
       pausedUnknown: 'paused (date unknown)',
       activity: 'activity {rel}',
     },

@@ -1,82 +1,76 @@
-/** Formatage d'affichage (FR) — sans dépendance UI, utilisable côté serveur. */
+/**
+ * Formatage d'affichage propre à miss-supaboss — sans dépendance UI.
+ *
+ * CE QUI N'EST PLUS ICI. `formatBytes`, `formatCount` et `formatUsage` sont
+ * partis au socle (`@mister-guiiug/dev-wpa-config/format`) — c'est d'ici
+ * que `formatCount` et `formatUsage` ont été promus. Les copies assemblaient
+ * leurs chaînes à la main avec une virgule décimale française FIGÉE : l'app se
+ * traduit pourtant en anglais, où « 1,5 kB » et « 1,2k » sont faux.
+ *
+ * CE QUI RESTE ICI, ET POURQUOI. Trois adaptateurs minces. Chacun garde une
+ * règle que le socle n'a pas, et délègue le rendu du nombre ou de la date :
+ *
+ * - `formatPercent` : décimales VARIABLES (une sous 10 %, aucune au-dessus) —
+ *   `formatPercentage` prend un nombre de décimales fixe ;
+ * - `formatRelative` : un libellé pour « jamais mesuré », qui n'est pas
+ *   « il y a 0 seconde » ;
+ * - `formatDateTime` : un tiret pour l'absence de date, et le format court
+ *   NUMÉRIQUE (`30/08/2026 16:05`) d'un tableau dense.
+ *
+ * Aucun ne code plus de locale : le socle suit celle que `createI18n` pose via
+ * `setDefaultLocale` à chaque changement de langue.
+ */
+import {
+  formatDateTime as formatDateTimeIntl,
+  formatPercentage,
+  formatRelativeTime,
+} from '@mister-guiiug/dev-wpa-config/format';
 
 /**
- * Octets → libellé court : 31 MB, 4.2 GB, 512 kB.
- * Unités SI binaires affichées façon dashboard Supabase (MB/GB).
+ * Date courte NUMÉRIQUE. Le socle part de `month: 'short'` (« 30 août 2026 ») ;
+ * ces options-ci écrasent le défaut. Impossible de passer par
+ * `dateStyle: 'short'` : `formatDate` pose déjà `year`/`month`/`day`, et
+ * `Intl.DateTimeFormat` refuse le mélange des deux familles d'options.
  */
-export function formatBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes < 0) return '—';
-  if (bytes < 1024) return `${Math.round(bytes)} B`;
-  const units = ['kB', 'MB', 'GB', 'TB'] as const;
-  let value = bytes;
-  let unit: string = 'B';
-  for (const u of units) {
-    value /= 1024;
-    unit = u;
-    if (value < 1024) break;
-  }
-  const rounded =
-    value >= 100 ? Math.round(value) : Math.round(value * 10) / 10;
-  return `${String(rounded).replace('.', ',')} ${unit}`;
-}
+const SHORT_DATE: Intl.DateTimeFormatOptions = {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+};
 
-/** Compteur → libellé compact : 2, 1,2k, 50k, 1,3M. */
-export function formatCount(n: number): string {
-  if (!Number.isFinite(n) || n < 0) return '—';
-  if (n < 1000) return String(Math.round(n));
-  if (n < 1_000_000) {
-    const k = n / 1000;
-    const r = k >= 100 ? Math.round(k) : Math.round(k * 10) / 10;
-    return `${String(r).replace('.', ',')}k`;
-  }
-  const m = n / 1_000_000;
-  const r = m >= 100 ? Math.round(m) : Math.round(m * 10) / 10;
-  return `${String(r).replace('.', ',')}M`;
-}
-
-/** « 31 MB / 5 GB » ou « 2 / 50k » selon la nature de la métrique. */
-export function formatUsage(
-  value: number | null,
-  quota: number,
-  bytes: boolean
-): string {
-  const fmt = bytes ? formatBytes : formatCount;
-  const left = value === null ? '—' : fmt(value);
-  return `${left} / ${fmt(quota)}`;
-}
-
+/**
+ * Ratio → pourcentage lisible (`62 %`, `6,2 %`, `—`).
+ *
+ * Sous 10 %, une décimale : sur un quota, « 6,2 % » et « 6 % » ne disent pas la
+ * même chose. Au-dessus, la décimale est du bruit.
+ */
 export function formatPercent(ratio: number | null): string {
   if (ratio === null || !Number.isFinite(ratio)) return '—';
-  const pct = ratio * 100;
-  const r = pct < 10 ? Math.round(pct * 10) / 10 : Math.round(pct);
-  return `${String(r).replace('.', ',')} %`;
+  return formatPercentage(ratio, undefined, ratio < 0.1 ? 1 : 0);
 }
 
-/** Date ISO → « il y a 3 min », « il y a 2 j », « à l'instant ». */
+/**
+ * Date ISO → « il y a 3 minutes », « hier », « 3 hours ago »…
+ *
+ * `never` est OBLIGATOIRE : la valeur nulle veut dire « jamais mesuré », et ce
+ * libellé doit être traduit. Le rendre obligatoire est ce qui garantit qu'aucun
+ * appelant ne réintroduise le « jamais » français dans une interface anglaise —
+ * c'est exactement ce que faisait la version précédente.
+ */
 export function formatRelative(
   iso: string | null,
-  now: Date = new Date()
+  options: { never: string; now?: Date }
 ): string {
-  if (!iso) return 'jamais';
+  if (!iso) return options.never;
   const t = Date.parse(iso);
-  if (Number.isNaN(t)) return 'jamais';
-  const sec = Math.round((now.getTime() - t) / 1000);
-  if (sec < 45) return 'à l’instant';
-  const min = Math.round(sec / 60);
-  if (min < 60) return `il y a ${min} min`;
-  const h = Math.round(min / 60);
-  if (h < 24) return `il y a ${h} h`;
-  const d = Math.round(h / 24);
-  if (d < 60) return `il y a ${d} j`;
-  return new Date(t).toLocaleDateString('fr-FR');
+  if (Number.isNaN(t)) return options.never;
+  return formatRelativeTime(t, undefined, options.now ?? new Date());
 }
 
+/** Date ISO → `30/08/2026 16:05`, ou un tiret si la date manque. */
 export function formatDateTime(iso: string | null): string {
   if (!iso) return '—';
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return '—';
-  return new Date(t).toLocaleString('fr-FR', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  });
+  return formatDateTimeIntl(t, undefined, SHORT_DATE);
 }

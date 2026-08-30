@@ -35,15 +35,19 @@ export function ProjectCard({
 }) {
   const { t } = useI18n();
   const { meta } = project;
+  // Le libellé porte le « depuis » : découper « il y a » dans la chaîne rendue
+  // ne marchait qu'en français, et même là plus du tout — `Intl` dit « hier »
+  // ou « avant-hier », sans préfixe à retirer.
+  const never = t('common.never');
   const activity =
     project.status === 'INACTIVE'
       ? meta.pausedAt
         ? t('projectCard.pausedSince', {
-            rel: formatRelative(meta.pausedAt).replace('il y a ', ''),
+            rel: formatRelative(meta.pausedAt, { never }),
           })
         : t('projectCard.pausedUnknown')
       : t('projectCard.activity', {
-          rel: formatRelative(meta.lastSeenActiveAt),
+          rel: formatRelative(meta.lastSeenActiveAt, { never }),
         });
 
   return (
