@@ -1,11 +1,4 @@
-import {
-  lazy,
-  Suspense,
-  useEffect,
-  useMemo,
-  useState,
-  type ComponentType,
-} from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import {
   HashRouter,
@@ -142,14 +135,12 @@ function Shell() {
           icon: <Icon size={22} aria-hidden="true" />,
           end,
         }))}
-        // `linkComponent` est typé `ComponentType<Record<string, unknown>>`,
-        // qui refuse un composant à prop obligatoire — donc `NavLink` et son
-        // `to`, alors que `hrefProp="to"` le fournit précisément. Même
-        // conversion que miss-genius ; à retirer quand le type du paquet
-        // acceptera ce cas.
-        linkComponent={
-          NavLink as unknown as ComponentType<Record<string, unknown>>
-        }
+        // Le socle 3.32.0 a élargi `linkComponent` à `ComponentType<any>` :
+        // le type refusait jusque-là tout composant à prop OBLIGATOIRE, donc
+        // précisément le composant de lien de react-router et son `to` —
+        // l'usage que sa propre documentation donne en exemple. Cinq apps
+        // portaient la même conversion ; elle n'a plus lieu d'être.
+        linkComponent={NavLink}
         hrefProp="to"
       />
       <UpdatePrompt />
