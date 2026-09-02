@@ -91,7 +91,7 @@ export async function setDemoSeed(on: boolean): Promise<void> {
  * Sinon : drapeau explicite '1'/'0', à défaut le défaut du build (démo ON en
  * PWA pour la mise en avant, OFF en auto-hébergé).
  */
-export function isDemoActive(): boolean {
+function isDemoActive(): boolean {
   if (!REAL_AVAILABLE) return true;
   try {
     const flag = localStorage.getItem(DEMO_FLAG_KEY);

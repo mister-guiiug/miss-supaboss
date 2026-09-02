@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 
-export function createAppQueryClient(): QueryClient {
+function createAppQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: {
@@ -17,9 +17,4 @@ let client: QueryClient | undefined;
 export function getQueryClient(): QueryClient {
   client ??= createAppQueryClient();
   return client;
-}
-
-/** Réinitialise le client (tests). */
-export function resetQueryClient(): void {
-  client = undefined;
 }

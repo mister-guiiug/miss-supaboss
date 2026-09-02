@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../api/index.ts';
 import { saveSnapshot } from '../../offline/lastKnown.ts';
@@ -39,7 +39,7 @@ function syncMetricsToStore(
 }
 
 /** Réglages — synchronisés vers le store Zustand. */
-export function useSettingsQuery(enabled = true) {
+function useSettingsQuery(enabled = true) {
   const query = useQuery({
     queryKey: queryKeys.settings(),
     queryFn: () => api.getSettings(),
@@ -57,7 +57,7 @@ export function useSettingsQuery(enabled = true) {
 }
 
 /** Flotte initiale (refresh=false) — source Query + miroir store. */
-export function useFleetQuery(enabled = true) {
+function useFleetQuery(enabled = true) {
   const query = useQuery({
     queryKey: queryKeys.fleet(false),
     queryFn: () => api.getFleet(false),
@@ -77,7 +77,7 @@ export function useFleetQuery(enabled = true) {
 }
 
 /** Métriques — chargées après la flotte. */
-export function useFleetMetricsQuery(enabled = true) {
+function useFleetMetricsQuery(enabled = true) {
   const query = useQuery({
     queryKey: queryKeys.fleetMetrics(false),
     queryFn: () => api.getFleetMetrics(false),
@@ -185,19 +185,4 @@ export function useAssessRestore(
     staleTime: 0,
     retry: false,
   });
-}
-
-export function useInvalidateAssessRestore(): (
-  accountId: string,
-  ref: string
-) => void {
-  const client = useQueryClient();
-  return useCallback(
-    (accountId: string, ref: string) => {
-      void client.invalidateQueries({
-        queryKey: queryKeys.assessRestore(accountId, ref),
-      });
-    },
-    [client]
-  );
 }
