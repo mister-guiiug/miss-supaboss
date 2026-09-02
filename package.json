@@ -27,6 +27,7 @@
     "prepare": "husky || true"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@mister-guiiug/dev-wpa-config": "^3.32.1",
     "@playwright/test": "^1.60.0",
     "@tailwindcss/vite": "^4.3.0",
