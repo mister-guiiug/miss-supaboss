@@ -12,7 +12,7 @@
     "dev": "vite",
     "dev:mock": "cross-env VITE_MOCK=1 vite",
     "dev:server": "node --watch --env-file-if-exists=.env server/src/index.ts",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && pwa-bundle-budget",
     "preview": "vite preview --base /miss-supaboss/",
     "start": "node --env-file-if-exists=.env server/src/index.ts",
     "lint": "eslint .",
@@ -25,6 +25,9 @@
     "type-check": "tsc -b",
     "icons": "pwa-icons --source public/favicon.svg --out public --maskable",
     "prepare": "husky || true"
+  },
+  "bundleBudget": {
+    "totalGzipKb": 180
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
