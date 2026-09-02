@@ -3,6 +3,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { cspPlugin } from '@mister-guiiug/dev-wpa-config/vite-csp';
+import { pwaSeoPlugin } from '@mister-guiiug/dev-wpa-config/vite-pwa-base';
 import { readFileSync } from 'node:fs';
 
 const { version } = JSON.parse(readFileSync('./package.json', 'utf-8')) as {
@@ -81,6 +82,13 @@ export default defineConfig(({ command, mode }) => {
     plugins: [
       react(),
       tailwindcss(),
+      // Sitemap, robots, canonique, Open Graph — et deux <meta theme-color>
+      // par schéma (relevé du 02/09/2026 : supaboss n'avait rien de tout ça).
+      pwaSeoPlugin({
+        basePath,
+        logoPath: '/icon-512.png',
+        themeColor: { light: '#f4f7fb', dark: '#0c1222' },
+      }),
       VitePWA({
         registerType: 'prompt',
         includeAssets: ['icon-192.png', 'icon-512.png', 'icon-maskable.png'],
