@@ -5,13 +5,7 @@ import { formatRelative } from '../../../shared/format.ts';
 import { useI18n } from '../../i18n/index.ts';
 import { StatusBadge } from './StatusBadge.tsx';
 
-export function AccountChip({
-  alias,
-  color,
-}: {
-  alias: string;
-  color: string;
-}) {
+function AccountChip({ alias, color }: { alias: string; color: string }) {
   return (
     <span className="inline-flex max-w-40 items-center gap-1.5 rounded-full bg-[var(--sb-surface-2)] px-2 py-0.5 text-xs font-medium">
       <span

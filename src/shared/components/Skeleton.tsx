@@ -9,7 +9,7 @@ import { useI18n } from '../../i18n/index.ts';
  * conteneur annoncé (`SkeletonGroup`, `role="status"` + libellé lu) viennent
  * du paquet ; la FORME de carte est propre à l'app.
  */
-export function CardSkeleton() {
+function CardSkeleton() {
   return (
     <div className="card space-y-3 p-4">
       <Skeleton width="66%" height="1.25rem" />
