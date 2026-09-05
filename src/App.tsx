@@ -18,6 +18,9 @@ import {
   X,
 } from 'lucide-react';
 import { BottomNav } from '@mister-guiiug/dev-pwa-config/react/bottom-nav';
+import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
+import { repoUrl } from '@mister-guiiug/dev-pwa-config/apps-catalog';
+import { APP_ID } from './appId.ts';
 import { ObservabilityBoundary } from '@mister-guiiug/dev-pwa-config/react/error-boundary';
 import {
   IconsProvider,
@@ -120,6 +123,14 @@ function Shell() {
             <Outlet />
           </Suspense>
         </ObservabilityBoundary>
+
+        {/* HORS des routes : le code source et le soutien sont ainsi sur le
+            premier écran comme sur les Réglages — la règle famille. Écrit dans
+            un `element={…}`, ce pied de page ne vaudrait que pour une route.
+            Il est DANS `<main>` à dessein : la barre basse est `fixed`, et
+            c'est le padding de la coque qui lui réserve sa place. Posé après
+            `</main>`, il passerait sous la barre. */}
+        <AppFooter className="mt-8 justify-center" repoUrl={repoUrl(APP_ID)} />
       </main>
       <BottomNav
         // La barre reste FIXE au bas de l'écran (la coque compense par son
