@@ -9,7 +9,7 @@ import {
 } from '../../../shared/quotas.ts';
 import { formatRelative } from '../../../shared/format.ts';
 import { QuotaBar } from '../../shared/components/QuotaBar.tsx';
-import { EmptyState } from '@mister-guiiug/dev-wpa-config/react/empty-state';
+import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { ListSkeleton } from '../../shared/components/Skeleton.tsx';
 import { useI18n } from '../../i18n/index.ts';
 

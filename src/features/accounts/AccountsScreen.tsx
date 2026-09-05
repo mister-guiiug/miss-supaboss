@@ -11,8 +11,8 @@ import { useActionGuard } from '../../shared/hooks/useActionGuard.ts';
 import { invalidateAfterFleetMutation } from '../../shared/queries/invalidate.ts';
 import { projectsOfAccount, useFleetStore } from '../../store/useFleetStore.ts';
 import { toast } from '../../store/useUiStore.ts';
-import { ConfirmDialog } from '@mister-guiiug/dev-wpa-config/react/confirm-dialog';
-import { EmptyState } from '@mister-guiiug/dev-wpa-config/react/empty-state';
+import { ConfirmDialog } from '@mister-guiiug/dev-pwa-config/react/confirm-dialog';
+import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { useI18n } from '../../i18n/index.ts';
 import { AccountForm } from './AccountForm.tsx';
 

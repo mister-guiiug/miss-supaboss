@@ -29,13 +29,13 @@ import {
   isRestoreWindowExpired,
 } from '../../../shared/guards.ts';
 import { formatDateTime, formatRelative } from '../../../shared/format.ts';
-import { ConfirmDialog } from '@mister-guiiug/dev-wpa-config/react/confirm-dialog';
-import { EmptyState } from '@mister-guiiug/dev-wpa-config/react/empty-state';
+import { ConfirmDialog } from '@mister-guiiug/dev-pwa-config/react/confirm-dialog';
+import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { StatusBadge } from '../../shared/components/StatusBadge.tsx';
 import { QuotaBar } from '../../shared/components/QuotaBar.tsx';
 import { useActionGuard } from '../../shared/hooks/useActionGuard.ts';
 import { usePolling } from '../../shared/hooks/usePolling.ts';
-import { useOnline } from '@mister-guiiug/dev-wpa-config/react/use-online';
+import { useOnline } from '@mister-guiiug/dev-pwa-config/react/use-online';
 import { useI18n } from '../../i18n/index.ts';
 
 const SUGGESTED_TAGS = ['poc', 'demo', 'archive', 'critique-demo'];

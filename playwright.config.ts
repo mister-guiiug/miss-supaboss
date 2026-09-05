@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
-import { definePwaPlaywrightConfig } from '@mister-guiiug/dev-wpa-config/playwright-base';
+import { definePwaPlaywrightConfig } from '@mister-guiiug/dev-pwa-config/playwright-base';
 
 // Les E2E tournent en mode MOCK : parcours complet sans secret ni réseau.
 const config = definePwaPlaywrightConfig({

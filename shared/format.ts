@@ -2,7 +2,7 @@
  * Formatage d'affichage propre à miss-supaboss — sans dépendance UI.
  *
  * CE QUI N'EST PLUS ICI. `formatBytes`, `formatCount` et `formatUsage` sont
- * partis au socle (`@mister-guiiug/dev-wpa-config/format`) — c'est d'ici
+ * partis au socle (`@mister-guiiug/dev-pwa-config/format`) — c'est d'ici
  * que `formatCount` et `formatUsage` ont été promus. Les copies assemblaient
  * leurs chaînes à la main avec une virgule décimale française FIGÉE : l'app se
  * traduit pourtant en anglais, où « 1,5 kB » et « 1,2k » sont faux.
@@ -24,7 +24,7 @@ import {
   formatDateTime as formatDateTimeIntl,
   formatPercentage,
   formatRelativeTime,
-} from '@mister-guiiug/dev-wpa-config/format';
+} from '@mister-guiiug/dev-pwa-config/format';
 
 /**
  * Date courte NUMÉRIQUE. Le socle part de `month: 'short'` (« 30 août 2026 ») ;

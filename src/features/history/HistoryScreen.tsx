@@ -1,9 +1,9 @@
 import { Inbox, ScrollText } from 'lucide-react';
 import type { OperationDto } from '../../../shared/contracts.ts';
 import { formatDateTime } from '../../../shared/format.ts';
-import { EmptyState } from '@mister-guiiug/dev-wpa-config/react/empty-state';
+import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { ListSkeleton } from '../../shared/components/Skeleton.tsx';
-import { useOnline } from '@mister-guiiug/dev-wpa-config/react/use-online';
+import { useOnline } from '@mister-guiiug/dev-pwa-config/react/use-online';
 import { useOperations } from '../../shared/hooks/useOperations.ts';
 import { useI18n } from '../../i18n/index.ts';
 import type { Messages } from '../../i18n/messages.ts';

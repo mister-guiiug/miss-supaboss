@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   installErrorReporter,
   initSentry,
-} from '@mister-guiiug/dev-wpa-config/react/observability';
+} from '@mister-guiiug/dev-pwa-config/react/observability';
 import { App } from './App.tsx';
 import { I18nProvider } from './i18n/index.ts';
 import './index.css';

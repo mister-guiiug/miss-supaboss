@@ -225,7 +225,7 @@ restauration embarquent l'évaluation complète (suggestions incluses).
 ## 9. Lancement local
 
 Prérequis : **Node ≥ 22.18** (`node:sqlite` + type stripping), accès GitHub
-Packages pour `@mister-guiiug/dev-wpa-config` :
+Packages pour `@mister-guiiug/dev-pwa-config` :
 
 ```bash
 export NODE_AUTH_TOKEN="$(gh auth token)"   # PAT read:packages
@@ -296,7 +296,7 @@ Placez un reverse proxy TLS devant (Caddy/Traefik/nginx) —
   `GET /v1/projects/{ref}/restore` (versions de restauration) pour fiabiliser
   la fenêtre.
 - Keep-alive anti-pause opt-in par projet (le reusable
-  `pwa-supabase-keepalive.yml` de dev-wpa-config existe déjà).
+  `pwa-supabase-keepalive.yml` de dev-pwa-config existe déjà).
 - Planification (« mettre en pause vendredi soir »), TOTP sur le login,
   métriques historisées + sparklines, branchement du health par service
   (`GET /v1/projects/{ref}/health`).

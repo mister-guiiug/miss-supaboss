@@ -1,7 +1,7 @@
 import {
   Skeleton,
   SkeletonGroup,
-} from '@mister-guiiug/dev-wpa-config/react/skeleton';
+} from '@mister-guiiug/dev-pwa-config/react/skeleton';
 import { useI18n } from '../../i18n/index.ts';
 
 /**

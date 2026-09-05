@@ -2,8 +2,8 @@ import { defineConfig, loadEnv } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { cspPlugin } from '@mister-guiiug/dev-wpa-config/vite-csp';
-import { pwaSeoPlugin } from '@mister-guiiug/dev-wpa-config/vite-pwa-base';
+import { cspPlugin } from '@mister-guiiug/dev-pwa-config/vite-csp';
+import { pwaSeoPlugin } from '@mister-guiiug/dev-pwa-config/vite-pwa-base';
 import { readFileSync } from 'node:fs';
 
 const { version } = JSON.parse(readFileSync('./package.json', 'utf-8')) as {
@@ -38,7 +38,7 @@ export default defineConfig(({ command, mode }) => {
       // vite:import-analysis échoue ensuite à résoudre en dev — ce qui casse le
       // serveur dev des E2E (dev:mock). Le package est un petit ESM pur : servir
       // la source telle quelle est sans coût.
-      exclude: ['@mister-guiiug/dev-wpa-config'],
+      exclude: ['@mister-guiiug/dev-pwa-config'],
     },
     define: {
       __APP_VERSION__: JSON.stringify(version),

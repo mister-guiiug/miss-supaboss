@@ -17,12 +17,12 @@ import {
   UsersRound,
   X,
 } from 'lucide-react';
-import { BottomNav } from '@mister-guiiug/dev-wpa-config/react/bottom-nav';
-import { ObservabilityBoundary } from '@mister-guiiug/dev-wpa-config/react/error-boundary';
+import { BottomNav } from '@mister-guiiug/dev-pwa-config/react/bottom-nav';
+import { ObservabilityBoundary } from '@mister-guiiug/dev-pwa-config/react/error-boundary';
 import {
   IconsProvider,
   type IconComponent,
-} from '@mister-guiiug/dev-wpa-config/react/icons-context';
+} from '@mister-guiiug/dev-pwa-config/react/icons-context';
 import { useSessionStore } from './store/useSessionStore.ts';
 import { useFleetStore } from './store/useFleetStore.ts';
 import { api, IS_MOCK } from './api/index.ts';

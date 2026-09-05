@@ -19,7 +19,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { Languages } from 'lucide-react';
-import { useTheme, FamilyApps } from '@mister-guiiug/dev-wpa-config/react';
+import { useTheme, FamilyApps } from '@mister-guiiug/dev-pwa-config/react';
 import { settingsSchema } from '../../../shared/contracts.ts';
 import {
   api,
@@ -34,8 +34,8 @@ import {
 import { useFleetStore } from '../../store/useFleetStore.ts';
 import { canAdmin, useSessionStore } from '../../store/useSessionStore.ts';
 import { toast } from '../../store/useUiStore.ts';
-import { ConfirmDialog } from '@mister-guiiug/dev-wpa-config/react/confirm-dialog';
-import { repoUrl } from '@mister-guiiug/dev-wpa-config/apps-catalog';
+import { ConfirmDialog } from '@mister-guiiug/dev-pwa-config/react/confirm-dialog';
+import { repoUrl } from '@mister-guiiug/dev-pwa-config/apps-catalog';
 import { clearSnapshot } from '../../offline/lastKnown.ts';
 import { APP_ID } from '../../appId.ts';
 import { useI18n } from '../../i18n/index.ts';
