@@ -1,7 +1,7 @@
 import {
   Badge,
   type BadgeTone,
-} from '@mister-guiiug/dev-wpa-config/react/badge';
+} from '@mister-guiiug/dev-pwa-config/react/badge';
 import {
   STATUS_LABELS,
   statusGroup,

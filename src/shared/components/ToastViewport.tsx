@@ -1,4 +1,4 @@
-import { ToastViewport as DwcToastViewport } from '@mister-guiiug/dev-wpa-config/react/toast';
+import { ToastViewport as DwcToastViewport } from '@mister-guiiug/dev-pwa-config/react/toast';
 import { useUiStore } from '../../store/useUiStore.ts';
 
 /**

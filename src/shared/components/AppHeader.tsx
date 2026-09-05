@@ -10,8 +10,8 @@ import {
 } from '../../api/index.ts';
 import { useFleetStore } from '../../store/useFleetStore.ts';
 import { useI18n } from '../../i18n/index.ts';
-import { useOnline } from '@mister-guiiug/dev-wpa-config/react/use-online';
-import { ConfirmDialog } from '@mister-guiiug/dev-wpa-config/react/confirm-dialog';
+import { useOnline } from '@mister-guiiug/dev-pwa-config/react/use-online';
+import { ConfirmDialog } from '@mister-guiiug/dev-pwa-config/react/confirm-dialog';
 
 export function AppHeader({ title }: { title: string }) {
   const { t } = useI18n();

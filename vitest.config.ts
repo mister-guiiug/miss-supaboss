@@ -4,7 +4,7 @@ import {
   baseTestOptions,
   coveragePreset,
   pwaRegisterAlias,
-} from '@mister-guiiug/dev-wpa-config/vitest-base';
+} from '@mister-guiiug/dev-pwa-config/vitest-base';
 
 // `passWithNoTests` n'est valable qu'au niveau racine en Vitest 4.
 const { passWithNoTests, ...uiTestBase } = baseTestOptions;

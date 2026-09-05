@@ -17,8 +17,8 @@ import {
   useFleetStore,
 } from '../../store/useFleetStore.ts';
 import { toast } from '../../store/useUiStore.ts';
-import { EmptyState } from '@mister-guiiug/dev-wpa-config/react/empty-state';
-import { Skeleton } from '@mister-guiiug/dev-wpa-config/react/skeleton';
+import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
+import { Skeleton } from '@mister-guiiug/dev-pwa-config/react/skeleton';
 import { StatusBadge } from '../../shared/components/StatusBadge.tsx';
 import { useActionGuard } from '../../shared/hooks/useActionGuard.ts';
 import { usePolling } from '../../shared/hooks/usePolling.ts';

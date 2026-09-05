@@ -4,7 +4,7 @@ import { useFleetStore } from '../../store/useFleetStore.ts';
 import { statusGroup, type StatusGroup } from '../../../shared/status.ts';
 import type { ProjectDto } from '../../../shared/contracts.ts';
 import { ProjectCard } from '../../shared/components/ProjectCard.tsx';
-import { EmptyState } from '@mister-guiiug/dev-wpa-config/react/empty-state';
+import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { ListSkeleton } from '../../shared/components/Skeleton.tsx';
 import { useI18n } from '../../i18n/index.ts';
 import type { Messages } from '../../i18n/messages.ts';

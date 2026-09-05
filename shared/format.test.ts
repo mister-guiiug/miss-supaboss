@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   getDefaultLocale,
   setDefaultLocale,
-} from '@mister-guiiug/dev-wpa-config/format';
+} from '@mister-guiiug/dev-pwa-config/format';
 import { formatDateTime, formatPercent, formatRelative } from './format.ts';
 
 // La locale par défaut du socle est un état de module : la reposer évite qu'un

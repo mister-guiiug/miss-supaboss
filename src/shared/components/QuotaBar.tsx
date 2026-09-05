@@ -6,7 +6,7 @@ import {
   type AlertThresholds,
   type MetricValue,
 } from '../../../shared/quotas.ts';
-import { formatUsage } from '@mister-guiiug/dev-wpa-config/format';
+import { formatUsage } from '@mister-guiiug/dev-pwa-config/format';
 import { formatPercent } from '../../../shared/format.ts';
 
 const LEVEL_COLORS = {

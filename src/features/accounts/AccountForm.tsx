@@ -6,7 +6,7 @@ import {
 } from '../../../shared/contracts.ts';
 import { api, ApiError } from '../../api/index.ts';
 import { toast } from '../../store/useUiStore.ts';
-import { ConfirmDialog } from '@mister-guiiug/dev-wpa-config/react/confirm-dialog';
+import { ConfirmDialog } from '@mister-guiiug/dev-pwa-config/react/confirm-dialog';
 import { useI18n } from '../../i18n/index.ts';
 
 const COLORS = [

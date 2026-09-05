@@ -1,1 +1,1 @@
-export { default } from '@mister-guiiug/dev-wpa-config/commitlint';
+export { default } from '@mister-guiiug/dev-pwa-config/commitlint';

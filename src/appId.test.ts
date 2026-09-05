@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { appById, repoUrl } from '@mister-guiiug/dev-wpa-config/apps-catalog';
+import { appById, repoUrl } from '@mister-guiiug/dev-pwa-config/apps-catalog';
 import { APP_ID } from './appId.ts';
 
 /**

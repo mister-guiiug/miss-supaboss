@@ -2,7 +2,7 @@ import {
   createI18n,
   createTranslator,
   type I18nPaths,
-} from '@mister-guiiug/dev-wpa-config/react/i18n';
+} from '@mister-guiiug/dev-pwa-config/react/i18n';
 import { messages, type Locale, type Messages } from './messages.ts';
 
 const LOCALES = ['fr', 'en'] as const;

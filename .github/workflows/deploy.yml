@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   deploy:
-    uses: mister-guiiug/dev-wpa-config/.github/workflows/pwa-deploy.yml@v3
+    uses: mister-guiiug/dev-pwa-config/.github/workflows/pwa-deploy.yml@v4
     secrets: inherit
     with:
       use-base-path: true

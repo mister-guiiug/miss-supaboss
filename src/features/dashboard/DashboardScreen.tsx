@@ -24,14 +24,14 @@ import {
   type MetricValue,
   type QuotaLevel,
 } from '../../../shared/quotas.ts';
-import { formatUsage } from '@mister-guiiug/dev-wpa-config/format';
+import { formatUsage } from '@mister-guiiug/dev-pwa-config/format';
 import { formatRelative } from '../../../shared/format.ts';
 import { isByteMetric, METRIC_LABELS } from '../../../shared/quotas.ts';
-import { EmptyState } from '@mister-guiiug/dev-wpa-config/react/empty-state';
+import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { ListSkeleton } from '../../shared/components/Skeleton.tsx';
 import { StatusBadge } from '../../shared/components/StatusBadge.tsx';
 import { usePolling } from '../../shared/hooks/usePolling.ts';
-import { useOnline } from '@mister-guiiug/dev-wpa-config/react/use-online';
+import { useOnline } from '@mister-guiiug/dev-pwa-config/react/use-online';
 import { useI18n } from '../../i18n/index.ts';
 
 const LEVEL_BADGE: Record<QuotaLevel, string> = {

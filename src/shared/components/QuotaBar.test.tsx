@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   getDefaultLocale,
   setDefaultLocale,
-} from '@mister-guiiug/dev-wpa-config/format';
+} from '@mister-guiiug/dev-pwa-config/format';
 import {
   DEFAULT_THRESHOLDS,
   FREE_PLAN_QUOTAS,
