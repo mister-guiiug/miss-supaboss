@@ -130,7 +130,12 @@ function Shell() {
             Il est DANS `<main>` à dessein : la barre basse est `fixed`, et
             c'est le padding de la coque qui lui réserve sa place. Posé après
             `</main>`, il passerait sous la barre. */}
-        <AppFooter className="mt-8 justify-center" repoUrl={repoUrl(APP_ID)} />
+        <AppFooter
+          version
+          issues
+          className="mt-8 justify-center"
+          repoUrl={repoUrl(APP_ID)}
+        />
       </main>
       <BottomNav
         // La barre reste FIXE au bas de l'écran (la coque compense par son
