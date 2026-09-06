@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { cspPlugin } from '@mister-guiiug/dev-pwa-config/vite-csp';
 import { pwaSeoPlugin } from '@mister-guiiug/dev-pwa-config/vite-pwa-base';
 import { readFileSync } from 'node:fs';
+import { versionPlugin } from '@mister-guiiug/dev-pwa-config/vite-version';
 
 const { version } = JSON.parse(readFileSync('./package.json', 'utf-8')) as {
   version: string;
@@ -80,6 +81,9 @@ export default defineConfig(({ command, mode }) => {
       },
     },
     plugins: [
+      // AVANT cspPlugin : il pose un script inline dans le <head>, que la
+      // CSP doit hacher après coup ; et il écrit version.json au build.
+      versionPlugin({ manifest: true, define: false }),
       react(),
       tailwindcss(),
       // Sitemap, robots, canonique, Open Graph — et deux <meta theme-color>
