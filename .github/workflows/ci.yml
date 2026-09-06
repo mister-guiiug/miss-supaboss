@@ -16,6 +16,7 @@ jobs:
     uses: mister-guiiug/dev-pwa-config/.github/workflows/pwa-ci.yml@v4
     secrets: inherit
     with:
+      run-doctor: true # la checklist du parc, lue sur le dépôt et sur dist/ (AMELIORATIONS.md, T2)
       # Le build CI valide le bundle mock (même build que GitHub Pages).
       build-env: |
         VITE_MOCK=1
