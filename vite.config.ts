@@ -109,7 +109,7 @@ export default defineConfig(({ command, mode }) => {
         manifest: {
           id: '/miss-supaboss/',
           name: 'Miss Supaboss — Pilotage Supabase Free',
-          short_name: 'Supaboss',
+          short_name: 'Miss Supaboss',
           description:
             'Pilote tes comptes Supabase Free : inventaire des projets, pause/restore à la demande, quotas Free Plan et préparation de démo.',
           theme_color: '#0c1222',
