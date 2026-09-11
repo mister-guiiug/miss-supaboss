@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!--
+    LE MASKABLE, ET POURQUOI CE N'EST PAS `favicon.svg` EN PLUS PETIT.
+
+    Le PNG livré jusqu'ici sortait du générateur d'icônes du socle en mode
+    maskable, SANS lui donner de couleur de fond : la tuile arrondie était
+    réduite sur le fond par défaut,
+    rgb(12,18,34). Ce bleu n'est pas celui de la tuile — mesuré, le coin rendait
+    rgb(12,18,34) quand l'intérieur rendait rgb(125,141,176) — et le raccord se
+    voyait : un liseré tout autour, que le masque d'Android révèle au lieu de le
+    cacher.
+
+    DEUX DIFFÉRENCES AVEC LA SOURCE, ET DEUX SEULEMENT :
+
+      1. LE FOND N'A PLUS DE COINS. `rx="112"` disparaît : le dégradé occupe la
+         toile entière, donc il n'y a plus de bord à raccorder. C'est le MÊME
+         dégradé, aux mêmes arrêts.
+
+      2. LE DESSIN EST RAMENÉ DANS LA ZONE DE SÉCURITÉ, le disque de 80 % de la
+         toile. Mesuré sur le rendu : recentré, il atteignait déjà 203,3 px pour
+         une limite à 204,8 — l'illustration était donc à la bonne taille, elle
+         n'était simplement pas à fond perdu. À 95 % elle garde vingt pixels de
+         marge sans rien perdre de sa présence.
+  -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#101a33"/>
+      <stop offset="1" stop-color="#0c1222"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5ce7ab"/>
+      <stop offset="1" stop-color="#3ecf8e"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <g transform="translate(256 256) scale(0.95) translate(-256 -256) translate(-0.5 2)">
+    <!-- Éclair Supabase-ish : énergie / restore -->
+    <path
+      d="M291 64 134 282c-6 8 0 20 10 20h92l-23 134c-2 12 13 19 21 9l157-218c6-8 0-20-10-20h-92l23-134c2-12-13-19-21-9z"
+      fill="url(#bolt)"
+    />
+    <!-- Pause : les deux barres, signature de l'app -->
+    <rect x="120" y="96" width="34" height="96" rx="14" fill="#7d8db0"/>
+    <rect x="172" y="96" width="34" height="96" rx="14" fill="#7d8db0"/>
+  </g>
+</svg>
