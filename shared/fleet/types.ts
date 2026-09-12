@@ -27,8 +27,7 @@ export interface FleetFailure {
 }
 
 export type FleetResult<T> =
-  | { ok: true; value: T }
-  | { ok: false; failure: FleetFailure };
+  { ok: true; value: T } | { ok: false; failure: FleetFailure };
 
 export function fleetOk<T>(value: T): FleetResult<T> {
   return { ok: true, value };

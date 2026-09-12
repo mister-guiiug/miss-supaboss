@@ -25,11 +25,7 @@ async function injectRequest<T>(
 ): Promise<T> {
   const res = await app.inject({
     method: (init.method ?? 'GET') as
-      | 'GET'
-      | 'POST'
-      | 'PUT'
-      | 'PATCH'
-      | 'DELETE',
+      'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
     url: path,
     headers: {
       cookie: init.cookie,

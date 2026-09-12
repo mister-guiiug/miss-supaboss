@@ -25,11 +25,7 @@ export type SupabaseProjectStatus = (typeof SUPABASE_PROJECT_STATUSES)[number];
 
 /** Regroupement UI : 5 familles visuelles au lieu de 15 statuts bruts. */
 export type StatusGroup =
-  | 'active'
-  | 'paused'
-  | 'transition'
-  | 'error'
-  | 'unknown';
+  'active' | 'paused' | 'transition' | 'error' | 'unknown';
 
 const GROUPS: Record<SupabaseProjectStatus, StatusGroup> = {
   ACTIVE_HEALTHY: 'active',

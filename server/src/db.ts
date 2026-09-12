@@ -156,8 +156,7 @@ export class Store {
 
   countUsers(): number {
     const row = this.db.prepare('SELECT COUNT(*) AS n FROM users').get() as
-      | { n: number }
-      | undefined;
+      { n: number } | undefined;
     return row?.n ?? 0;
   }
 
@@ -219,8 +218,7 @@ export class Store {
          WHERE s.token_hash = ? AND s.expires_at > ?`
       )
       .get(tokenHash, new Date().toISOString()) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     return r ? mapUser(r) : null;
   }
 
@@ -282,8 +280,7 @@ export class Store {
 
   getAccount(id: string): AccountRow | null {
     const r = this.db.prepare('SELECT * FROM accounts WHERE id = ?').get(id) as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     return r ? mapAccount(r) : null;
   }
 
