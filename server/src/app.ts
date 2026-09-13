@@ -27,6 +27,29 @@ export interface BuildOptions {
   logger?: boolean;
 }
 
+/**
+ * Statut client → couple (code, message) rendu à l'appelant.
+ *
+ * Les messages sont GÉNÉRIQUES à dessein : celui de l'erreur d'origine peut
+ * porter un chemin du disque ou un détail d'implémentation, et ce serveur
+ * garde des PAT chiffrés — rien d'interne ne doit fuir dans une réponse.
+ */
+const CLIENT_ERRORS: Record<number, { error: string; message: string }> = {
+  400: { error: 'bad-request', message: 'Requête invalide' },
+  401: { error: 'unauthorized', message: 'Authentification requise' },
+  403: { error: 'forbidden', message: 'Accès refusé' },
+  404: { error: 'not-found', message: 'Route inconnue' },
+  405: { error: 'method-not-allowed', message: 'Méthode non autorisée' },
+  413: {
+    error: 'payload-too-large',
+    message: 'Corps de requête trop volumineux',
+  },
+  415: {
+    error: 'unsupported-media-type',
+    message: 'Type de contenu non supporté',
+  },
+};
+
 export async function buildApp(
   ctx: AppContext,
   options: BuildOptions = {}
@@ -121,7 +144,9 @@ export async function buildApp(
             : `Supabase a répondu HTTP ${error.status}`;
       return reply.code(502).send({ error: 'upstream', message });
     }
-    // @fastify/rate-limit pose statusCode 429 sur son erreur.
+    // Erreurs porteuses d'un statut : @fastify/rate-limit pose 429,
+    // @fastify/static pose 403 sur une traversée de chemin, et Fastify
+    // lui-même pose 400 ou 415 sur un corps illisible.
     const statusCode =
       typeof (error as { statusCode?: unknown }).statusCode === 'number'
         ? (error as { statusCode: number }).statusCode
@@ -130,6 +155,18 @@ export async function buildApp(
       return reply
         .code(429)
         .send({ error: 'rate-limited', message: 'Trop de requêtes' });
+    }
+    // Une requête refusée n'est PAS une panne du serveur : rendre le vrai
+    // statut, et journaliser en `warn`. La rabattre en 500 masquait le refus
+    // (une traversée de chemin passait pour une erreur interne) et remplissait
+    // le journal d'alertes pour des requêtes malformées.
+    if (statusCode >= 400 && statusCode < 500) {
+      req.log.warn({ err: error, statusCode }, 'requête refusée');
+      const connu = CLIENT_ERRORS[statusCode];
+      return reply.code(statusCode).send({
+        error: connu?.error ?? 'client-error',
+        message: connu?.message ?? 'Requête refusée',
+      });
     }
     req.log.error(error);
     return reply
