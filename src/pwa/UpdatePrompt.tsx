@@ -16,6 +16,7 @@ export function UpdatePrompt() {
   const { t } = useI18n();
   return (
     <UpdatePromptBanner
+      checkEvery="1h"
       registerSW={registerSW}
       snoozeHours={24}
       title={t('update.available')}
