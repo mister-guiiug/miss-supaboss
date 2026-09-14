@@ -23,7 +23,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "type-check": "tsc -b",
-    "icons": "pwa-icons --source public/favicon.svg --out public",
+    "icons": "pwa-icons --source public/favicon.svg --out public --no-apple",
     "icons:maskable": "node scripts/generate-maskable.mjs",
     "prepare": "husky || true"
   },
