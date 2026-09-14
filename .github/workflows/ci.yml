@@ -26,6 +26,11 @@ jobs:
     # secrets du dépôt à un workflow qui n'en demande pas un seul.
     with:
       run-doctor: true # la checklist du parc, lue sur le dépôt et sur dist/ (AMELIORATIONS.md, T2)
+      # Les seuils de `vitest.config.ts` ne sont VÉRIFIÉS que si la CI
+      # joue `--coverage` : sans cette entrée Vitest ne mesure rien,
+      # donc ne compare rien, et le job sort vert. Relevé du 13/09/2026 :
+      # six dépôts déclaraient des seuils, UN SEUL les jouait.
+      run-coverage: true
       # Le build CI valide le bundle mock (même build que GitHub Pages).
       build-env: |
         VITE_MOCK=1
