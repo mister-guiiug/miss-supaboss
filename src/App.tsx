@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { BottomNav } from '@mister-guiiug/dev-pwa-config/react/bottom-nav';
 import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
+import { ConsentBanner } from '@mister-guiiug/dev-pwa-config/react/consent-banner';
+import { usePageViews } from '@mister-guiiug/dev-pwa-config/react/use-page-views';
 import { repoUrl } from '@mister-guiiug/dev-pwa-config/apps-catalog';
 import { APP_ID } from './appId.ts';
 import { ObservabilityBoundary } from '@mister-guiiug/dev-pwa-config/react/error-boundary';
@@ -88,6 +90,17 @@ const NAV_ITEMS = [
 function Shell() {
   const { pathname } = useLocation();
   const { t } = useI18n();
+
+  /*
+   * UNE VUE DE PAGE PAR NAVIGATION. GA4 n'en envoie qu'une par chargement de
+   * document, et `initAnalytics` le configure en plus avec
+   * `send_page_view: false` pour que la première passe par ici comme les
+   * autres — sinon l'écran d'entrée serait compté deux fois. Le hook ne fait
+   * rien tant que le consentement n'est pas accordé : il se monte sans
+   * condition.
+   */
+  usePageViews(pathname);
+
   // `referenceLabel` existe à l'exécution (la frontière affiche l'identifiant
   // de corrélation à citer au support) mais manque encore au .d.ts 3.22.0 :
   // passé en spread, hors du contrôle des propriétés excédentaires.
@@ -130,6 +143,19 @@ function Shell() {
             Il est DANS `<main>` à dessein : la barre basse est `fixed`, et
             c'est le padding de la coque qui lui réserve sa place. Posé après
             `</main>`, il passerait sous la barre. */}
+        {/*
+          DANS `<main>` comme le pied de page, et pour la même raison : la barre
+          basse est `fixed`, et c'est le padding de la coque qui réserve la
+          place. Posé après `</main>`, le bandeau passerait dessous.
+
+          Une `region`, pas une boîte modale : il ne recouvre rien et ne piège
+          pas le focus. Et il ne rend RIEN tant que `VITE_GA_MEASUREMENT_ID`
+          n'est pas posée — sans identifiant, il n'y a rien à demander.
+        */}
+        <ConsentBanner
+          gaMeasurementId={import.meta.env.VITE_GA_MEASUREMENT_ID}
+          className="mt-8"
+        />
         <AppFooter
           version
           issues

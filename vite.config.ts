@@ -183,6 +183,11 @@ export default defineConfig(({ command, mode }) => {
       // (démo/mock). frame-ancestors omis (header-only ; frame-buster JS).
       cspPlugin({
         dev: command === 'serve',
+        // Ouvre les hôtes de Google Tag Manager et de GA4. Sans cette
+        // option, le script que `ConsentBanner` injecte APRÈS l'accord serait
+        // refusé par la politique — et l'échec ne se verrait qu'en console,
+        // sur le site déployé, une fois le consentement donné.
+        analytics: true,
         connectSrc: proxyOrigin ? ["'self'", proxyOrigin] : ["'self'"],
       }),
     ],
