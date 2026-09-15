@@ -27,3 +27,4 @@ jobs:
       build-env: |
         VITE_MOCK=1
         VITE_SUPABASE_PROXY=${{ vars.SUPABASE_PROXY_URL }}
+        VITE_GA_MEASUREMENT_ID=${{ vars.VITE_GA_MEASUREMENT_ID }}
