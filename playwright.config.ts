@@ -5,7 +5,11 @@ import { definePwaPlaywrightConfig } from '@mister-guiiug/dev-pwa-config/playwri
 const config = definePwaPlaywrightConfig({
   devices,
   port: 5204,
-  command: 'npm run dev:mock -- --port 5204 --strictPort',
+  // Identifiant de mesure FACTICE : sans lui, `ConsentBanner` ne rend rien
+  // et la garde de `entree.spec.ts` n'a rien à vérifier. Il ne touche que le
+  // serveur de test ; la production garde sa variable de dépôt.
+  command:
+    'cross-env VITE_GA_MEASUREMENT_ID=G-E2E0000000 npm run dev:mock -- --port 5204 --strictPort',
 });
 // Les specs assertent du texte français : depuis l'i18n (détection
 // navigator.language), un navigateur en-US ferait rendre l'app en anglais.
