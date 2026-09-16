@@ -28,12 +28,14 @@
     "prepare": "husky || true"
   },
   "bundleBudget": {
-    "totalGzipKb": 200
+    "totalGzipKb": 371,
+    "preloadGzipKb": 203,
+    "_pourquoiPreload": "Posé le 16/09/2026 avec Sentry, socle 4.18.0. Le total compte les morceaux ASYNCHRONES : il monte de 200 à 371 kB par la seule installation du SDK, alors que le chemin critique ne bouge pas. Sans cette seconde borne, ~151 kB de mou couvriraient toute régression. Mesuré 183.8 kB, budget à +10 %."
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^10.0.1",
-    "@mister-guiiug/dev-pwa-config": "^4.17.1",
+    "@mister-guiiug/dev-pwa-config": "^4.18.0",
     "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",
@@ -60,6 +62,7 @@
     "@fastify/cookie": "^11.1.2",
     "@fastify/rate-limit": "^10.2.2",
     "@fastify/static": "^10.1.3",
+    "@sentry/react": "^10.75.0",
     "@tanstack/react-query": "^5.102.8",
     "fastify": "^5.12.4",
     "lucide-react": "^1.45.0",
