@@ -570,12 +570,7 @@ export function SettingsScreen() {
       )}
 
       <section className="card p-4" aria-label={t('settings.aboutAria')}>
-        <p className="text-xs text-[var(--sb-text-soft)]">
-          {t('settings.version', { version: __APP_VERSION__ })}
-        </p>
-        <div className="mt-3">
-          <FamilyApps currentAppId={APP_ID} repoUrl={repoUrl(APP_ID)} />
-        </div>
+        <FamilyApps currentAppId={APP_ID} repoUrl={repoUrl(APP_ID)} />
       </section>
 
       <ConfirmDialog
