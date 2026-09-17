@@ -341,7 +341,6 @@ export const messages = {
       logoutBody:
         'Vous devrez ressaisir vos identifiants pour vous reconnecter.',
       aboutAria: 'À propos',
-      version: 'Miss Supaboss v{version}',
       invalidValues: 'Valeurs invalides',
       thresholdsOrder:
         'Les seuils doivent être croissants (warn < high < critical)',
@@ -723,7 +722,6 @@ export const messages = {
       logoutBody:
         'You will need to re-enter your credentials to sign in again.',
       aboutAria: 'About',
-      version: 'Miss Supaboss v{version}',
       invalidValues: 'Invalid values',
       thresholdsOrder: 'Thresholds must be increasing (warn < high < critical)',
       passphraseMin: 'Passphrase: 8 characters minimum',
