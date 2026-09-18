@@ -45,15 +45,15 @@ describe('UpdatePrompt', () => {
     act(() => sw.onNeedRefresh?.());
 
     const banner = await screen.findByRole('status');
-    expect(banner).toHaveTextContent('Mise à jour disponible.');
+    expect(banner).toHaveTextContent('Mise à jour disponible');
     // Crochet de style du socle : sans lui, `components.css` (importé par
     // `src/index.css`) n'habillerait rien et le bandeau serait nu.
     expect(banner).toHaveAttribute('data-dwc', 'update-banner');
     expect(
-      screen.getByRole('button', { name: 'Recharger' })
+      screen.getByRole('button', { name: 'Mettre à jour' })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: 'Plus tard' })
+      screen.getByRole('button', { name: 'Plus tard (24 h)' })
     ).toBeInTheDocument();
   });
 
@@ -62,7 +62,9 @@ describe('UpdatePrompt', () => {
     renderPrompt();
     act(() => sw.onNeedRefresh?.());
 
-    await user.click(await screen.findByRole('button', { name: 'Plus tard' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Plus tard (24 h)' })
+    );
 
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     const until = Number(localStorage.getItem('dwc_sw_update_snoozed_until'));
@@ -76,9 +78,11 @@ describe('UpdatePrompt', () => {
     act(() => sw.onNeedRefresh?.());
 
     expect(await screen.findByRole('status')).toHaveTextContent(
-      'Update available.'
+      'Update available'
     );
-    expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Later' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Update' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Later (24 h)' })
+    ).toBeInTheDocument();
   });
 });

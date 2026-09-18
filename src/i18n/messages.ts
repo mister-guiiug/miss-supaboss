@@ -370,15 +370,6 @@ export const messages = {
       reload: "Recharger l'app",
       reference: 'Référence à communiquer au support',
     },
-    update: {
-      available: 'Mise à jour disponible.',
-      reload: 'Recharger',
-      // Le bandeau du socle a un état « en cours » que la copie locale n'avait
-      // pas ; sans cette clé il retomberait sur son français par défaut, même
-      // en anglais.
-      updating: 'Mise à jour…',
-      later: 'Plus tard',
-    },
     guard: {
       offline: 'Connexion requise',
       readonly: 'Lecture seule (hors ligne)',
@@ -749,12 +740,6 @@ export const messages = {
       title: 'Something broke',
       reload: 'Reload the app',
       reference: 'Reference to share with support',
-    },
-    update: {
-      available: 'Update available.',
-      reload: 'Reload',
-      updating: 'Updating…',
-      later: 'Later',
     },
     guard: {
       offline: 'Connection required',

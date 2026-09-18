@@ -1,10 +1,14 @@
 import { registerSW } from 'virtual:pwa-register';
 import { UpdatePromptBanner } from '@mister-guiiug/dev-pwa-config/react/update-prompt-banner';
-import { useI18n } from '../i18n/index.ts';
 
 /**
- * Bandeau « Mise à jour disponible » : le composant du socle, câblé aux
- * libellés traduits de l'app et posé au-dessus de la BottomNav.
+ * Bandeau « Mise à jour disponible » : le composant du socle, avec SES
+ * libellés, posé au-dessus de la BottomNav.
+ *
+ * LE REPORT Y GAGNE SA DURÉE. L'app passait `snoozeLabel={t('update.later')}`,
+ * c'est-à-dire « Plus tard » tout court, alors qu'elle reporte de 24 heures.
+ * Le libellé du socle est `Plus tard ({hours} h)` et remplit `{hours}` avec
+ * `snoozeHours` : le bouton annonce désormais ce qu'il fait.
  *
  * `registerSW` est indispensable : c'est LUI qui enregistre le service worker
  * et branche `onNeedRefresh`. Sans injection, le bandeau ne s'afficherait
@@ -13,16 +17,11 @@ import { useI18n } from '../i18n/index.ts';
  * (`injectRegister: 'auto'`) : l'enregistrement passe par le composant.
  */
 export function UpdatePrompt() {
-  const { t } = useI18n();
   return (
     <UpdatePromptBanner
       checkEvery="1h"
       registerSW={registerSW}
       snoozeHours={24}
-      title={t('update.available')}
-      updateLabel={t('update.reload')}
-      updatingLabel={t('update.updating')}
-      snoozeLabel={t('update.later')}
       // `components.css` habille la boîte (fond, filet, rayon, cibles
       // tactiles) mais pas sa PLACE : le bandeau doit flotter AU-DESSUS de la
       // BottomNav (≈ 3,7 rem) et de la zone sûre iOS, sinon il recouvre les
