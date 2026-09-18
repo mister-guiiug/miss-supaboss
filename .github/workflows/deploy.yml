@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   deploy:
-    uses: mister-guiiug/dev-pwa-config/.github/workflows/pwa-deploy.yml@v4
+    uses: mister-guiiug/dev-pwa-config/.github/workflows/pwa-deploy.yml@v6
     # PAS de `secrets: inherit` : le seul secret déclaré par
     # `pwa-deploy.yml` est `FIREBASE_SERVICE_ACCOUNT_KEY`, et ce dépôt ne
     # déploie pas sur Firebase. Hériter enverrait TOUS les secrets du dépôt
@@ -27,5 +27,5 @@ jobs:
       build-env: |
         VITE_MOCK=1
         VITE_SUPABASE_PROXY=${{ vars.SUPABASE_PROXY_URL }}
-        VITE_GA_MEASUREMENT_ID=${{ vars.VITE_GA_MEASUREMENT_ID }}
+        VITE_POSTHOG_KEY=${{ vars.VITE_POSTHOG_KEY }}
         VITE_SENTRY_DSN=${{ vars.VITE_SENTRY_DSN }}

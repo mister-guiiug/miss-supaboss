@@ -92,10 +92,12 @@ function Shell() {
   const { t } = useI18n();
 
   /*
-   * UNE VUE DE PAGE PAR NAVIGATION. GA4 n'en envoie qu'une par chargement de
-   * document, et `initAnalytics` le configure en plus avec
-   * `send_page_view: false` pour que la première passe par ici comme les
-   * autres — sinon l'écran d'entrée serait compté deux fois. Le hook ne fait
+   * UNE VUE DE PAGE PAR NAVIGATION — ni zéro, ni deux. `initAnalytics`
+   * configure PostHog avec `capture_pageview: false` pour que toutes passent
+   * par ici, la première comprise : laissé à lui-même, il en envoie une au
+   * chargement ET à chaque changement d'historique, et l'écran d'entrée serait
+   * compté deux fois. Sans le hook, à l'inverse, la navigation de l'app serait
+   * invisible. Le hook ne fait
    * rien tant que le consentement n'est pas accordé : il se monte sans
    * condition.
    */
@@ -149,11 +151,12 @@ function Shell() {
           place. Posé après `</main>`, le bandeau passerait dessous.
 
           Une `region`, pas une boîte modale : il ne recouvre rien et ne piège
-          pas le focus. Et il ne rend RIEN tant que `VITE_GA_MEASUREMENT_ID`
+          pas le focus. Et il ne rend RIEN tant que `VITE_POSTHOG_KEY`
           n'est pas posée — sans identifiant, il n'y a rien à demander.
         */}
         <ConsentBanner
-          gaMeasurementId={import.meta.env.VITE_GA_MEASUREMENT_ID}
+          posthogKey={import.meta.env.VITE_POSTHOG_KEY}
+          loader={() => import('posthog-js/dist/module.slim.js')}
           className="mt-8"
         />
         <AppFooter
