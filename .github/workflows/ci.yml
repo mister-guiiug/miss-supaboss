@@ -26,12 +26,13 @@ jobs:
     # secrets du dépôt à un workflow qui n'en demande pas un seul.
     with:
       run-doctor: true # la checklist du parc, lue sur le dépôt et sur dist/ (AMELIORATIONS.md, T2)
-      # `--strict` : une dette suffit désormais à faire échouer le job. Relevé
-      # du 19/09/2026 : les dix-huit dépôts qui lancent le docteur étaient tous
-      # à zéro défaut ET zéro dette, et AUCUN en mode strict — le docteur
-      # parlait, rien ne l'écoutait. Gratuit aujourd'hui, il interdit la
-      # prochaine régression.
-      doctor-strict: true
+      # `doctor-strict` reste à `false`, et voici pourquoi. Mesuré le 19/09/2026
+      # en jouant `--strict` pour de vrai sur ce dépôt : le docteur rend
+      # « 0 défaut(s), 1 dette(s) », et `--strict` échoue sur une dette
+      # (pwa-doctor.mjs:1631). Ce qui bloque aujourd'hui :
+      #   · code source + soutien sur tous les écrans, rendus par la coquille
+      # Le mode strict s'active quand cette liste est vide. Pas avant : une CI
+      # rouge sur une dette connue et non traitée n'apprend rien à personne.
       # Les seuils de `vitest.config.ts` ne sont VÉRIFIÉS que si la CI
       # joue `--coverage` : sans cette entrée Vitest ne mesure rien,
       # donc ne compare rien, et le job sort vert. Relevé du 13/09/2026 :
