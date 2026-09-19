@@ -6,7 +6,7 @@
   "type": "module",
   "description": "Miss Supaboss — PWA mobile-first de pilotage multi-comptes Supabase Free : inventaire des projets, pause/restore à la demande, suivi des quotas Free Plan, préparation de démo guidée. Backend Node sécurisé (les PAT ne quittent jamais le serveur).",
   "engines": {
-    "node": ">=22.23.2"
+    "node": ">=24.21.0"
   },
   "scripts": {
     "dev": "vite",
