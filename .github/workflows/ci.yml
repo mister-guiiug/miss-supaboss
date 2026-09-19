@@ -26,6 +26,12 @@ jobs:
     # secrets du dépôt à un workflow qui n'en demande pas un seul.
     with:
       run-doctor: true # la checklist du parc, lue sur le dépôt et sur dist/ (AMELIORATIONS.md, T2)
+      # `--strict` : une dette suffit désormais à faire échouer le job. Relevé
+      # du 19/09/2026 : les dix-huit dépôts qui lancent le docteur étaient tous
+      # à zéro défaut ET zéro dette, et AUCUN en mode strict — le docteur
+      # parlait, rien ne l'écoutait. Gratuit aujourd'hui, il interdit la
+      # prochaine régression.
+      doctor-strict: true
       # Les seuils de `vitest.config.ts` ne sont VÉRIFIÉS que si la CI
       # joue `--coverage` : sans cette entrée Vitest ne mesure rien,
       # donc ne compare rien, et le job sort vert. Relevé du 13/09/2026 :
@@ -35,5 +41,8 @@ jobs:
       build-env: |
         VITE_MOCK=1
       run-e2e: true
-      e2e-grep: '@critical|@a11y'
-      e2e-project: chromium
+      # Ni `e2e-grep` ni `e2e-project` : les deux ne faisaient que recopier le
+      # défaut du socle (`@critical|@a11y` et `chromium`). Recopié, un défaut
+      # est FIGÉ — le jour où le socle élargit le filtre, la ligne locale l'en
+      # empêche sans rien dire. Une valeur ici signifie « ce dépôt diverge »,
+      # et rien d'autre : cf. miss-badminton, qui joue `.*` avec sa raison.
