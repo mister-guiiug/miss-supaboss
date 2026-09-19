@@ -1,5 +1,5 @@
 # ── Étape 1 : build du front (mode réel : VITE_MOCK absent) ──────────
-FROM node:24-alpine AS build
+FROM node:24.21.0-alpine AS build
 WORKDIR /app
 
 # GitHub Packages (scope @mister-guiiug) : token read:packages requis.
@@ -11,7 +11,7 @@ COPY . .
 RUN npm run build
 
 # ── Étape 2 : runtime Node (API + front statique, même origine) ──────
-FROM node:24-alpine AS runtime
+FROM node:24.21.0-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 
