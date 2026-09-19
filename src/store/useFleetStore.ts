@@ -13,6 +13,7 @@ import type {
 } from '../../shared/contracts.ts';
 import { DEFAULT_SETTINGS } from '../../shared/contracts.ts';
 import { api, ApiError } from '../api/index.ts';
+import { GESTES, trackEvent } from '@mister-guiiug/dev-pwa-config/analytics';
 import { loadSnapshot } from '../offline/lastKnown.ts';
 import {
   fetchFleetRefresh,
@@ -123,8 +124,24 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     return true;
   },
 
+  /*
+   * PAUSER ET RESTAURER SONT LES DEUX GESTES QUI JUSTIFIENT CETTE APP : le
+   * plan Free de Supabase ne tolère que deux projets actifs, et tout l'outil
+   * existe pour arbitrer entre eux. Savoir combien d'arbitrages sont rendus
+   * dit si l'app sert, là où une vue de page ne dit que « l'écran a été vu ».
+   *
+   * APRÈS L'APPEL, ET NON AVANT : `api.pauseProject` lève sur un refus de
+   * Supabase, et la ligne suivante ne s'exécute pas. Compter avant
+   * enregistrerait des pauses qui n'ont jamais eu lieu.
+   *
+   * NI L'IDENTIFIANT DU COMPTE, NI LA RÉFÉRENCE DU PROJET. Ce sont les
+   * identifiants d'une infrastructure : ils désignent des ressources réelles,
+   * et n'ont rien à faire chez un sous-traitant de mesure. Le NOMBRE de gestes
+   * suffit.
+   */
   async pause(accountId, ref) {
     await api.pauseProject(accountId, ref);
+    trackEvent(GESTES.OPERATION, { nom: 'pause', etape: 'reussie' });
     toast.success(translate('fleet.pauseStarted'));
     await get().loadFleet(true);
     invalidateAfterFleetMutation();
@@ -134,6 +151,14 @@ export const useFleetStore = create<FleetState>((set, get) => ({
     await api.restoreProject(accountId, ref, {
       pauseFirst: options.pauseFirst ?? [],
       force: options.force ?? false,
+    });
+    // `enChaine` dit si la restauration a dû mettre d'autres projets en pause
+    // pour faire de la place : c'est le cas intéressant, celui où les deux
+    // emplacements du plan Free étaient déjà pris.
+    trackEvent(GESTES.OPERATION, {
+      nom: 'restauration',
+      etape: 'reussie',
+      enChaine: (options.pauseFirst ?? []).length > 0,
     });
     toast.success(translate('fleet.restoreStarted'));
     await get().loadFleet(true);
