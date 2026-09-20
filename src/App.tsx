@@ -21,6 +21,7 @@ import { BottomNav } from '@mister-guiiug/dev-pwa-config/react/bottom-nav';
 import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
 import { ConsentBanner } from '@mister-guiiug/dev-pwa-config/react/consent-banner';
 import { usePageViews } from '@mister-guiiug/dev-pwa-config/react/use-page-views';
+import { useIdlePrefetch } from '@mister-guiiug/dev-pwa-config/react/use-prefetch';
 import { repoUrl } from '@mister-guiiug/dev-pwa-config/apps-catalog';
 import { APP_ID } from './appId.ts';
 import { ObservabilityBoundary } from '@mister-guiiug/dev-pwa-config/react/error-boundary';
@@ -56,11 +57,12 @@ const PrepareDemoScreen = lazy(() =>
   }))
 );
 // CHAQUE IMPORT D'UN ÉCRAN DU MENU EST NOMMÉ, parce qu'il sert DEUX FOIS : à
-// `lazy` ci-dessous, et au préchargement à l'inactivité de
-// `usePrechargeLesEcransDuMenu`. Deux `import()` du même spécificateur ne
-// téléchargent qu'une fois — le registre de modules dédoublonne — mais encore
-// faut-il que ce soit LITTÉRALEMENT le même spécificateur, sinon le bundler
-// émet deux morceaux et le préchargement ne sert plus à rien.
+// `lazy` ci-dessous, et au chargeur composé (`chargeLesEcransDuMenu`) que
+// `Shell` confie au socle pour l'inactivité. Deux `import()` du même
+// spécificateur ne téléchargent qu'une fois — le registre de modules
+// dédoublonne — mais encore faut-il que ce soit LITTÉRALEMENT le même
+// spécificateur, sinon le bundler émet deux morceaux et le préchargement ne
+// sert plus à rien.
 const chargeAccounts = () => import('./features/accounts/AccountsScreen.tsx');
 const chargeQuotas = () => import('./features/quotas/QuotasScreen.tsx');
 const chargeSettings = () => import('./features/settings/SettingsScreen.tsx');
@@ -74,6 +76,15 @@ const chargeSettings = () => import('./features/settings/SettingsScreen.tsx');
  * n'ouvre.
  */
 const CHARGEURS_DU_MENU = [chargeAccounts, chargeQuotas, chargeSettings];
+
+/**
+ * UN SEUL chargeur pour les trois, CONSTANTE DE MODULE : le socle ne lance un
+ * chargeur qu'une fois et le reconnaît à son IDENTITÉ — écrit en ligne dans
+ * `Shell`, il serait neuf à chaque montage, et rien ne dédoublonnerait plus.
+ * `allSettled`, pas `all` : un morceau qui manque n'empêche pas les autres.
+ */
+const chargeLesEcransDuMenu = () =>
+  Promise.allSettled(CHARGEURS_DU_MENU.map(charge => charge()));
 
 const AccountsScreen = lazy(() =>
   chargeAccounts().then(m => ({ default: m.AccountsScreen }))
@@ -89,63 +100,6 @@ const HistoryScreen = lazy(() =>
 const SettingsScreen = lazy(() =>
   chargeSettings().then(m => ({ default: m.SettingsScreen }))
 );
-
-/** `navigator.connection` n'est pas dans les types du DOM : il reste un brouillon. */
-type NavigateurEconome = Navigator & { connection?: { saveData?: boolean } };
-
-/**
- * PRÉCHARGE LES ÉCRANS DU MENU DÈS QUE LE FIL PRINCIPAL SOUFFLE.
- *
- * Sans préchargement, le morceau d'un écran n'est demandé qu'AU CLIC : un
- * aller-retour réseau complet, payé au pire moment. Mesuré à froid le
- * 20/09/2026 sur deux sites publiés du parc, première visite, service worker
- * pas encore installé : 133 ms sur mister-settle, 161 ms sur mister-molkky.
- *
- * CE QUE CETTE APP N'A PAS BESOIN DE CORRIGER, ET POURQUOI. Sur les six autres
- * dépôts touchés, ces millisecondes étaient MUETTES : react-router 7 enveloppe
- * tout changement d'URL dans `startTransition`, et React 19 garde alors l'écran
- * déjà affiché plutôt que de montrer le repli de `Suspense`. Ici, non — et
- * c'est un effet de bord heureux du `key={pathname}` posé sur
- * `ObservabilityBoundary` pour isoler les erreurs par route : la frontière
- * `Suspense` qu'elle contient est RE-MONTÉE à chaque navigation, et le repli
- * d'une frontière neuve paraît même au sein d'une transition. Le squelette
- * répond donc au clic. Un test le verrouille (`App.nav.test.tsx`) : retirer ce
- * `key` rendrait le clic muet, sans qu'aucun autre test ne s'en aperçoive.
- *
- * Reste l'attente elle-même, que le préchargement supprime. Il n'entre PAS dans
- * `bundleBudget.preloadGzipKb` : ce budget ne compte que ce qui est
- * `modulepreload` dans le document, et un `import()` tardif n'y entre pas.
- */
-function usePrechargeLesEcransDuMenu() {
-  useEffect(() => {
-    // `saveData` : le visiteur a demandé qu'on épargne son forfait. On ne
-    // télécharge alors que ce qu'il demande vraiment.
-    if ((navigator as NavigateurEconome).connection?.saveData) return;
-
-    let annule = false;
-    const precharge = () => {
-      if (annule) return;
-      // Un échec ici est sans conséquence : au clic, `lazy` redemandera le
-      // morceau et c'est LUI qui portera l'erreur, dans son propre `Suspense`.
-      for (const charge of CHARGEURS_DU_MENU) void charge().catch(() => {});
-    };
-
-    // `requestIdleCallback` manque encore à Safari avant la 17 ; le repli
-    // minuté vaut mieux que rien.
-    if (typeof window.requestIdleCallback === 'function') {
-      const id = window.requestIdleCallback(precharge, { timeout: 3000 });
-      return () => {
-        annule = true;
-        window.cancelIdleCallback?.(id);
-      };
-    }
-    const id = window.setTimeout(precharge, 1200);
-    return () => {
-      annule = true;
-      window.clearTimeout(id);
-    };
-  }, []);
-}
 
 // « Comptes » est une destination de 1er niveau (objet métier racine : un projet
 // appartient à un compte) → 2e position, sous le pouce. L'Historique (consultatif,
@@ -164,7 +118,29 @@ const NAV_ITEMS = [
  * `App` sans mettre la main dans le registre de modules.
  */
 export function Shell() {
-  usePrechargeLesEcransDuMenu();
+  /*
+   * PRÉCHARGE LES ÉCRANS DU MENU DÈS QUE LE FIL PRINCIPAL SOUFFLE — par le
+   * socle. Sans préchargement, le morceau d'un écran n'est demandé qu'AU CLIC :
+   * un aller-retour réseau complet, payé au pire moment. Mesuré à froid le
+   * 20/09/2026 sur deux sites publiés du parc, première visite, service worker
+   * pas encore installé : 133 ms sur mister-settle, 161 ms sur mister-molkky.
+   *
+   * Toute la décision vit dans `prefetch.js` du socle : une exécution par
+   * chargeur, rejets avalés — au clic, `lazy` redemandera le morceau et c'est
+   * LUI qui portera l'erreur, dans son propre `Suspense` —, rien chez qui a
+   * posé `saveData` ni sur une connexion 2g, et un délai minuté là où
+   * `requestIdleCallback` manque (Safari), plutôt qu'un appel immédiat qui
+   * chargerait tout au démarrage.
+   *
+   * Que le clic RÉPONDE pendant ce temps est une autre affaire, réglée plus
+   * bas : le `key={pathname}` de `ObservabilityBoundary` re-monte la frontière
+   * `Suspense` à chaque navigation, donc le squelette paraît même au sein de
+   * la transition de react-router (`App.nav.test.tsx` le verrouille). Et ce
+   * préchargement n'entre PAS dans `bundleBudget.preloadGzipKb` : ce budget ne
+   * compte que ce qui est `modulepreload` dans le document, et un `import()`
+   * tardif n'y entre pas.
+   */
+  useIdlePrefetch(chargeLesEcransDuMenu);
   const { pathname } = useLocation();
   const { t } = useI18n();
 
