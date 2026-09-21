@@ -570,7 +570,14 @@ export function SettingsScreen() {
       )}
 
       <section className="card p-4" aria-label={t('settings.aboutAria')}>
-        <FamilyApps currentAppId={APP_ID} repoUrl={repoUrl(APP_ID)} />
+        <FamilyApps
+          currentAppId={APP_ID}
+          repoUrl={repoUrl(APP_ID)}
+          // Une colonne, sur demande : l'app refaisait la grille en flex.
+          layout="list"
+          // Dix-neuf cartes d'affilée : repliées par catégorie, sept lignes.
+          groupBy="category"
+        />
       </section>
 
       <ConfirmDialog

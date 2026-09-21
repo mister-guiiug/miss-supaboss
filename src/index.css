@@ -171,10 +171,17 @@ body {
 }
 
 /*
- * « Nos autres applications » — le composant FamilyApps du paquet est livré
- * SANS styles (cf. son docstring) ; il expose des crochets `[data-dwc="…"]`
- * que le projet habille. Sans ces règles, nom + badge + description se
- * collent. On s'aligne sur le design system (variables --sb-*, --color-*).
+ * « Nos autres applications » — CE COMMENTAIRE DISAIT VRAI, ET NE LE DIT PLUS.
+ * Le composant était livré sans styles ; `components.css`, importé plus haut,
+ * l'habille désormais par le contrat `--dwc-*`. Les douze blocs qui vivaient
+ * ici redisaient donc la base avec les noms de jetons de l'app.
+ *
+ * La colonne unique est devenue `layout="list"`, une prop. Les couleurs de
+ * maturité viennent du paquet : mélangées vers la couleur de texte de l'app,
+ * elles sont mesurées sur trente-six palettes.
+ *
+ * Ne restent que les écarts voulus : la disposition de la section et de ses
+ * deux liens, la taille des icônes à 40 px, et la description.
  */
 [data-dwc='family-apps'] {
   display: flex;
@@ -207,37 +214,6 @@ body {
   height: 16px;
 }
 
-[data-dwc='family-apps-title'] {
-  margin: 0;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--sb-text-soft);
-}
-
-[data-dwc='family-app-list'] {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-[data-dwc='family-app'] {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.625rem;
-  border: 1px solid var(--sb-border);
-  border-radius: 0.75rem;
-  color: var(--sb-text);
-  text-decoration: none;
-  transition: background-color 0.15s ease;
-}
-[data-dwc='family-app']:hover {
-  background: var(--sb-surface-2);
-}
-
 [data-dwc='family-app-icon'] {
   flex: none;
   width: 40px;
@@ -256,50 +232,8 @@ span[data-dwc='family-app-icon'] {
   font-weight: 700;
 }
 
-[data-dwc='family-app-body'] {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  flex-direction: column;
-  gap: 0.125rem;
-}
-[data-dwc='family-app-head'] {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-[data-dwc='family-app-name'] {
-  overflow: hidden;
-  font-weight: 600;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
 [data-dwc='family-app-desc'] {
   font-size: 0.75rem;
   line-height: 1.3;
-  color: var(--sb-text-soft);
-}
-
-[data-dwc='maturity'] {
-  flex: none;
-  padding: 0.0625rem 0.4375rem;
-  border-radius: 999px;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  background: var(--sb-surface-2);
-  color: var(--sb-text-soft);
-}
-[data-dwc='maturity'][data-maturity='stable'] {
-  background: color-mix(in srgb, var(--color-primary) 18%, transparent);
-  color: var(--sb-ok);
-}
-[data-dwc='maturity'][data-maturity='beta'] {
-  background: color-mix(in srgb, var(--sb-warn) 20%, transparent);
-  color: var(--sb-warn);
-}
-
-[data-dwc='family-app-arrow'] {
-  flex: none;
-  display: inline-flex;
   color: var(--sb-text-soft);
 }
