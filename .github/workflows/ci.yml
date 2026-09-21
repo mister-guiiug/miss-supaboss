@@ -47,3 +47,8 @@ jobs:
       # est FIGÉ — le jour où le socle élargit le filtre, la ligne locale l'en
       # empêche sans rien dire. Une valeur ici signifie « ce dépôt diverge »,
       # et rien d'autre : cf. miss-badminton, qui joue `.*` avec sa raison.
+      # Second avis TypeScript 7, NON BLOQUANT. La 6 reste la référence : c'est
+      # elle que typescript-eslint résout, et il refuse la 7.0 par une assertion
+      # à l'import. Le jour où typescript-eslint#10940 se ferme, cette entrée
+      # et l'alias `typescript-7` disparaissent ensemble.
+      run-type-check-7: true
