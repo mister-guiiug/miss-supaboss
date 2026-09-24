@@ -1,6 +1,9 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { PwaInstallPrompt } from '@mister-guiiug/dev-pwa-config/react/pwa-install-prompt';
+import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
+import { repoUrl } from '@mister-guiiug/dev-pwa-config/apps-catalog';
+import { APP_ID } from '../../appId.ts';
 import {
   ChevronRight,
   Clapperboard,
@@ -258,6 +261,15 @@ export function DashboardScreen() {
           suivre. Cadence du socle : au premier lancement, puis une fois par
           mois, trois fois. */}
       <PwaInstallPrompt />
+
+      {/* Le code source, le soutien et le signalement : ici et dans les
+          Réglages, nulle part ailleurs (règle famille du 06/09/2026). */}
+      <AppFooter
+        version
+        issues
+        className="mt-8 justify-center"
+        repoUrl={repoUrl(APP_ID)}
+      />
     </div>
   );
 }
