@@ -18,12 +18,9 @@ import {
   X,
 } from 'lucide-react';
 import { BottomNav } from '@mister-guiiug/dev-pwa-config/react/bottom-nav';
-import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
 import { ConsentBanner } from '@mister-guiiug/dev-pwa-config/react/consent-banner';
 import { usePageViews } from '@mister-guiiug/dev-pwa-config/react/use-page-views';
 import { useIdlePrefetch } from '@mister-guiiug/dev-pwa-config/react/use-prefetch';
-import { repoUrl } from '@mister-guiiug/dev-pwa-config/apps-catalog';
-import { APP_ID } from './appId.ts';
 import { ObservabilityBoundary } from '@mister-guiiug/dev-pwa-config/react/error-boundary';
 import {
   IconsProvider,
@@ -212,12 +209,9 @@ export function Shell() {
           loader={() => import('posthog-js/dist/module.slim.js')}
           className="mt-8"
         />
-        <AppFooter
-          version
-          issues
-          className="mt-8 justify-center"
-          repoUrl={repoUrl(APP_ID)}
-        />
+        {/* PAS DE PIED DE PAGE ICI : la règle famille (06/09/2026) le veut
+            sur l'accueil et les Réglages seulement — voir DashboardScreen et
+            SettingsScreen. */}
       </main>
       <BottomNav
         // La barre reste FIXE au bas de l'écran (la coque compense par son

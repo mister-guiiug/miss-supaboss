@@ -36,6 +36,7 @@ import { canAdmin, useSessionStore } from '../../store/useSessionStore.ts';
 import { toast } from '../../store/useUiStore.ts';
 import { ConfirmDialog } from '@mister-guiiug/dev-pwa-config/react/confirm-dialog';
 import { repoUrl } from '@mister-guiiug/dev-pwa-config/apps-catalog';
+import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
 import { clearSnapshot } from '../../offline/lastKnown.ts';
 import { APP_ID } from '../../appId.ts';
 import { useI18n } from '../../i18n/index.ts';
@@ -572,13 +573,25 @@ export function SettingsScreen() {
       <section className="card p-4" aria-label={t('settings.aboutAria')}>
         <FamilyApps
           currentAppId={APP_ID}
-          repoUrl={repoUrl(APP_ID)}
+          // Le code source et le soutien viennent du pied de page ci-dessous,
+          // avec la version et le signalement : pas deux fois les mêmes liens.
+          showSource={false}
+          showSponsor={false}
           // Une colonne, sur demande : l'app refaisait la grille en flex.
           layout="list"
           // Dix-neuf cartes d'affilée : repliées par catégorie, sept lignes.
           groupBy="category"
         />
       </section>
+
+      {/* Le code source, le soutien et le signalement : ici et sur l'accueil,
+          nulle part ailleurs (règle famille du 06/09/2026). */}
+      <AppFooter
+        version
+        issues
+        className="mt-8 justify-center"
+        repoUrl={repoUrl(APP_ID)}
+      />
 
       <ConfirmDialog
         open={confirmLogout}
