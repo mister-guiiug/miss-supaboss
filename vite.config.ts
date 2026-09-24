@@ -6,6 +6,7 @@ import { cspPlugin } from '@mister-guiiug/dev-pwa-config/vite-csp';
 import { pwaSeoPlugin } from '@mister-guiiug/dev-pwa-config/vite-pwa-base';
 import { readFileSync } from 'node:fs';
 import { versionPlugin } from '@mister-guiiug/dev-pwa-config/vite-version';
+import { NAVIGATE_FALLBACK_DENY_FILES } from '@mister-guiiug/dev-pwa-config/vite-pwa';
 
 const { version } = JSON.parse(readFileSync('./package.json', 'utf-8')) as {
   version: string;
@@ -155,7 +156,8 @@ export default defineConfig(({ command, mode }) => {
           // Les réponses /api ne sont JAMAIS mises en cache par le SW :
           // le « dernier état connu » est géré applicativement (IndexedDB),
           // jamais d'action destructive rejouée hors ligne.
-          navigateFallbackDenylist: [/^\/api\//],
+          // Un fichier (sitemap.xml, llms.txt…) va au réseau, pas à index.html.
+          navigateFallbackDenylist: [NAVIGATE_FALLBACK_DENY_FILES, /^\/api\//],
         },
         manifest: {
           id: '/miss-supaboss/',
