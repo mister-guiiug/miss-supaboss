@@ -7,4 +7,6 @@ export const queryKeys = {
   accounts: () => ['accounts'] as const,
   assessRestore: (accountId: string, ref: string) =>
     ['assessRestore', accountId, ref] as const,
+  schedules: (accountId: string, ref: string) =>
+    ['schedules', accountId, ref] as const,
 } as const;

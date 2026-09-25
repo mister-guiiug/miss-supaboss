@@ -1,12 +1,20 @@
 import type {
   AccountDto,
+  DeliveryReportDto,
   FleetDto,
   FleetMetricsDto,
+  LoginResponseDto,
+  LoginTotpBody,
+  NotificationSettingsDto,
   OperationDto,
   ProjectDto,
   ProjectMetaDto,
   RestoreAssessmentDto,
+  ScheduleCreateBody,
+  ScheduleDto,
   SettingsDto,
+  TotpEnrollmentDto,
+  TotpStatusDto,
   UserDto,
 } from '../../shared/contracts.ts';
 
@@ -31,7 +39,13 @@ export class ApiError extends Error {
 }
 
 export interface Api {
-  login(email: string, password: string): Promise<UserDto>;
+  /**
+   * Avec la double authentification active, un mot de passe juste rend
+   * `{ totpRequired: true }` et AUCUNE session : il faut `loginSecondFactor`.
+   */
+  login(email: string, password: string): Promise<LoginResponseDto>;
+  /** Seconde étape : un code de l'application ou un code de secours. */
+  loginSecondFactor(factor: LoginTotpBody): Promise<UserDto>;
   logout(): Promise<void>;
   me(): Promise<UserDto>;
 
@@ -92,6 +106,61 @@ export interface Api {
    * chiffre déjà les PAT côté base).
    */
   vault?: VaultController;
+
+  /**
+   * Double authentification — le SERVEUR seulement : la démo et le mode
+   * local-first n'ont pas de connexion à protéger.
+   */
+  totp?: TotpController;
+
+  /**
+   * Plannings de pause / restauration. Le serveur les exécute ; la démo les
+   * conserve sur l'appareil sans jamais les exécuter ; le mode local-first
+   * n'en a pas (rien ne tourne quand l'onglet est fermé).
+   */
+  schedules?: SchedulesController;
+
+  /**
+   * Notifications (Web Push, webhook). Le serveur envoie ; la démo ne montre
+   * que les réglages. Absent en local-first.
+   */
+  notifications?: NotificationsController;
+}
+
+export interface TotpController {
+  status(): Promise<TotpStatusDto>;
+  /** Engendre un secret EN ATTENTE ; rien n'est actif avant `activate`. */
+  enroll(): Promise<TotpEnrollmentDto>;
+  /** Confirme par un premier code ; rend les codes de secours (une fois). */
+  activate(code: string): Promise<string[]>;
+  /** Exige le mot de passe et un code (application ou secours). */
+  disable(password: string, code: string): Promise<void>;
+}
+
+export interface SchedulesController {
+  /** Faux dans la démo : les plannings y sont gardés, jamais exécutés. */
+  readonly runsInBackground: boolean;
+  list(accountId: string, ref: string): Promise<ScheduleDto[]>;
+  create(
+    accountId: string,
+    ref: string,
+    body: ScheduleCreateBody
+  ): Promise<ScheduleDto>;
+  remove(accountId: string, ref: string, id: string): Promise<void>;
+}
+
+export interface NotificationsController {
+  /** Faux dans la démo : réglages visibles, aucun envoi possible. */
+  readonly canSend: boolean;
+  /**
+   * Route que le transport HTTP du socle appelle pour (dés)abonner CE
+   * navigateur au Web Push ; null sans serveur.
+   */
+  readonly pushSubscriptionsUrl: string | null;
+  settings(): Promise<NotificationSettingsDto>;
+  /** URL https du webhook, ou null pour le retirer. */
+  setWebhook(url: string | null): Promise<NotificationSettingsDto>;
+  sendTest(): Promise<DeliveryReportDto>;
 }
 
 /** Contrôle du chiffrement au repos des PAT (mode local-first). */

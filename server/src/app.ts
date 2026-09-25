@@ -17,8 +17,11 @@ import {
 } from './supabase/http.ts';
 import { registerAuthRoutes } from './routes/auth.ts';
 import { registerAccountRoutes } from './routes/accounts.ts';
+import { registerNotificationRoutes } from './routes/notifications.ts';
 import { registerProjectRoutes } from './routes/projects.ts';
+import { registerScheduleRoutes } from './routes/schedules.ts';
 import { registerSystemRoutes } from './routes/system.ts';
+import { registerTotpRoutes } from './routes/totp.ts';
 import type { AppContext } from './context.ts';
 
 export interface BuildOptions {
@@ -69,6 +72,11 @@ export async function buildApp(
                 '*.pat',
                 '*.password',
                 '*.passphrase',
+                // Double authentification : secret, URI et codes de secours.
+                '*.secret',
+                '*.otpauthUri',
+                '*.recoveryCode',
+                '*.recoveryCodes',
               ],
               censor: '[masqué]',
             },
@@ -176,8 +184,11 @@ export async function buildApp(
 
   registerSystemRoutes(app, ctx);
   registerAuthRoutes(app, ctx);
+  registerTotpRoutes(app, ctx);
   registerAccountRoutes(app, ctx);
   registerProjectRoutes(app, ctx);
+  registerScheduleRoutes(app, ctx);
+  registerNotificationRoutes(app, ctx);
 
   // Production : sert le build PWA (même origine que l'API → cookies Strict).
   if (options.staticDir && existsSync(options.staticDir)) {

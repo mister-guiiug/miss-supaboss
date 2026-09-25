@@ -6,12 +6,15 @@ import { afterEach, beforeEach } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.ts';
 import { Store } from '../src/db.ts';
-import { FleetService } from '../src/fleet.ts';
 import { MockProvider } from '../src/supabase/mock.ts';
 import { generateMasterKey, hashPassword } from '../src/crypto.ts';
-import type { AppContext } from '../src/context.ts';
+import { createAppContext } from '../src/context.ts';
 import type { Env } from '../src/env.ts';
-import { apiContractTests } from '../../shared/test/apiContract.ts';
+import {
+  apiContractTests,
+  scheduleContractTests,
+  type ApiContractOptions,
+} from '../../shared/test/apiContract.ts';
 import { createInjectApi } from './injectApi.ts';
 
 const TEST_ENV: Env = {
@@ -24,6 +27,11 @@ const TEST_ENV: Env = {
   mock: true,
   secureCookies: false,
   apiBudgetPerMin: 50,
+  syncIntervalMin: 0,
+  syncMetrics: false,
+  vapidSubject: 'mailto:admin@test',
+  totpReset: undefined,
+  webhookAllowPrivate: false,
   production: false,
 };
 
@@ -36,6 +44,7 @@ async function login(): Promise<string> {
   const res = await app.inject({
     method: 'POST',
     url: '/api/auth/login',
+    headers: { 'x-supaboss-csrf': '1' },
     payload: { email: 'admin@test', password: 'le-mot-de-passe-admin' },
   });
   const c = res.cookies.find(x => x.name === 'supaboss_session');
@@ -51,13 +60,13 @@ beforeEach(async () => {
   );
   provider = new MockProvider();
   const masterKey = generateMasterKey();
-  const ctx: AppContext = {
+  const ctx = createAppContext({
     env: TEST_ENV,
     store,
-    fleet: new FleetService(store, provider, masterKey),
+    provider,
     masterKey,
     version: 'test',
-  };
+  });
   app = await buildApp(ctx, { logger: false });
   cookie = await login();
 });
@@ -68,7 +77,8 @@ afterEach(async () => {
   store.close();
 });
 
-apiContractTests({
+/** Mêmes scénarios pour l'API et pour les plannings. */
+const serveur: ApiContractOptions = {
   name: 'serveur (inject)',
   createApi: () => createInjectApi(app, cookie),
   prepare: async api => {
@@ -85,4 +95,7 @@ apiContractTests({
       activeMetricsRef: 'demo-crm-poc',
     };
   },
-});
+};
+
+apiContractTests(serveur);
+scheduleContractTests(serveur);

@@ -2,7 +2,9 @@
  * Primitives crypto du serveur — node:crypto uniquement (zéro dépendance).
  *
  * - PAT Supabase au repos : AES-256-GCM (clé maître), format `v1:iv:tag:data`.
- * - Mots de passe : scrypt + sel aléatoire, comparaison à temps constant.
+ *   Même scellé pour les secrets TOTP, les clés VAPID et les URL de webhook.
+ * - Mots de passe : scrypt + sel aléatoire, comparaison à temps constant ;
+ *   même format pour les codes de secours TOTP (variante asynchrone).
  * - Sessions : token opaque aléatoire, stocké HASHÉ (SHA-256) en base.
  * - Export de configuration : AES-256-GCM avec clé dérivée d'une passphrase.
  */
@@ -11,6 +13,7 @@ import {
   createDecipheriv,
   createHash,
   randomBytes,
+  scrypt,
   scryptSync,
   timingSafeEqual,
 } from 'node:crypto';
@@ -76,6 +79,45 @@ export function verifyPassword(password: string, stored: string): boolean {
   const expected = Buffer.from(hashB64, 'base64');
   const actual = scryptSync(
     password,
+    Buffer.from(saltB64, 'base64'),
+    expected.length
+  );
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
+
+/**
+ * Variantes ASYNCHRONES, au même format `scrypt:sel:hash` — pour les codes de
+ * secours TOTP. Dix hachages à l'enrôlement et jusqu'à dix comparaisons à la
+ * connexion : en synchrone, ce serait près d'une seconde de boucle
+ * d'événements bloquée ; ici le travail part dans le pool de libuv.
+ */
+function scryptAsync(
+  secret: string,
+  salt: Buffer,
+  length: number
+): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    scrypt(secret, salt, length, (error, key) =>
+      error ? reject(error) : resolve(key)
+    );
+  });
+}
+
+export async function hashSecretAsync(secret: string): Promise<string> {
+  const salt = randomBytes(16);
+  const hash = await scryptAsync(secret, salt, 64);
+  return `scrypt:${salt.toString('base64')}:${hash.toString('base64')}`;
+}
+
+export async function verifySecretAsync(
+  secret: string,
+  stored: string
+): Promise<boolean> {
+  const [scheme, saltB64, hashB64] = stored.split(':');
+  if (scheme !== 'scrypt' || !saltB64 || !hashB64) return false;
+  const expected = Buffer.from(hashB64, 'base64');
+  const actual = await scryptAsync(
+    secret,
     Buffer.from(saltB64, 'base64'),
     expected.length
   );

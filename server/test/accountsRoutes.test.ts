@@ -15,10 +15,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.ts';
 import { Store } from '../src/db.ts';
-import { FleetService } from '../src/fleet.ts';
 import { MockProvider } from '../src/supabase/mock.ts';
 import { generateMasterKey, hashPassword } from '../src/crypto.ts';
-import type { AppContext } from '../src/context.ts';
+import { createAppContext } from '../src/context.ts';
 import type { Env } from '../src/env.ts';
 import type { RawOrganization, RawProject } from '../src/supabase/provider.ts';
 
@@ -32,6 +31,11 @@ const TEST_ENV: Env = {
   mock: true,
   secureCookies: false,
   apiBudgetPerMin: 50,
+  syncIntervalMin: 0,
+  syncMetrics: false,
+  vapidSubject: 'mailto:admin@test',
+  totpReset: undefined,
+  webhookAllowPrivate: false,
   production: false,
 };
 
@@ -82,6 +86,7 @@ async function connexion(
   const res = await app.inject({
     method: 'POST',
     url: '/api/auth/login',
+    headers: CSRF,
     payload: { email, password },
   });
   expect(res.statusCode).toBe(200);
@@ -117,13 +122,13 @@ beforeEach(async () => {
   );
   provider = new ProviderRefusant();
   const masterKey = generateMasterKey();
-  const ctx: AppContext = {
+  const ctx = createAppContext({
     env: TEST_ENV,
     store,
-    fleet: new FleetService(store, provider, masterKey),
+    provider,
     masterKey,
     version: 'test',
-  };
+  });
   app = await buildApp(ctx, { logger: false });
 });
 

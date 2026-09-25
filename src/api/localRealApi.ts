@@ -387,7 +387,15 @@ export function createLocalRealApi(proxyBase: string): Api {
 
   return {
     async login() {
-      return LOCAL_USER;
+      return { user: LOCAL_USER };
+    },
+    async loginSecondFactor() {
+      // Pas de connexion en local-first, donc pas de seconde étape.
+      throw new ApiError(
+        501,
+        'local-unsupported',
+        'Double authentification : réservée au serveur Miss Supaboss'
+      );
     },
     async logout() {
       /* local : rien à invalider côté serveur */

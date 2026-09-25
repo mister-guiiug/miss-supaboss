@@ -7,10 +7,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.ts';
 import { Store } from '../src/db.ts';
-import { FleetService } from '../src/fleet.ts';
 import { MockProvider } from '../src/supabase/mock.ts';
 import { generateMasterKey, hashPassword } from '../src/crypto.ts';
-import type { AppContext } from '../src/context.ts';
+import { createAppContext } from '../src/context.ts';
 import type { Env } from '../src/env.ts';
 
 const TEST_ENV: Env = {
@@ -23,6 +22,11 @@ const TEST_ENV: Env = {
   mock: true,
   secureCookies: false,
   apiBudgetPerMin: 50,
+  syncIntervalMin: 0,
+  syncMetrics: false,
+  vapidSubject: 'mailto:admin@test',
+  totpReset: undefined,
+  webhookAllowPrivate: false,
   production: false,
 };
 
@@ -37,6 +41,7 @@ async function login(
   const res = await app.inject({
     method: 'POST',
     url: '/api/auth/login',
+    headers: CSRF,
     payload: { email, password },
   });
   expect(res.statusCode).toBe(200);
@@ -61,13 +66,13 @@ beforeEach(async () => {
   );
   provider = new MockProvider();
   const masterKey = generateMasterKey();
-  const ctx: AppContext = {
+  const ctx = createAppContext({
     env: TEST_ENV,
     store,
-    fleet: new FleetService(store, provider, masterKey),
+    provider,
     masterKey,
     version: 'test',
-  };
+  });
   app = await buildApp(ctx, { logger: false });
 });
 
@@ -92,7 +97,7 @@ describe('auth', () => {
     const out = await app.inject({
       method: 'POST',
       url: '/api/auth/logout',
-      headers: { cookie },
+      headers: { cookie, ...CSRF },
     });
     expect(out.statusCode).toBe(200);
     const after = await app.inject({
@@ -107,6 +112,7 @@ describe('auth', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/auth/login',
+      headers: CSRF,
       payload: { email: 'admin@test', password: 'nope' },
     });
     expect(res.statusCode).toBe(401);
@@ -283,7 +289,7 @@ describe('divers', () => {
     const put = await app.inject({
       method: 'PUT',
       url: '/api/me/settings',
-      headers: { cookie },
+      headers: { cookie, ...CSRF },
       payload: {
         thresholds: { warn: 60, high: 80, critical: 90 },
         pollingSeconds: 30,

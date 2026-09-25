@@ -103,6 +103,20 @@ export default defineConfig(({ command, mode }) => {
             // téléchargée chez un visiteur qui refuse. C'est `preloadGzipKb`
             // qui le voit, jamais le total.
             if (norm.includes('/posthog-js/')) return 'posthog';
+            // LE GÉNÉRATEUR DE QR CODE, chargé par un `import()` du module
+            // `qr` du socle au seul moment d'activer la double
+            // authentification. Rangé dans `vendor` (préchargé), il serait
+            // téléchargé par tout le monde pour servir une fois.
+            if (norm.includes('/uqr/')) return 'qr';
+            // ET LES MODULES DU SOCLE QUE SEULS LES RÉGLAGES EMPLOIENT (client
+            // push, QR) : sans découpe imposée, le bundler les range avec leur
+            // unique importeur, l'écran paresseux — plutôt que dans `vendor`.
+            if (
+              norm.includes('/dev-pwa-config/push/') ||
+              norm.endsWith('/dev-pwa-config/qr.js')
+            ) {
+              return undefined;
+            }
             if (norm.includes('/lucide-react/')) return 'icons';
             if (
               norm.includes('/react-dom/') ||
@@ -158,6 +172,10 @@ export default defineConfig(({ command, mode }) => {
           // jamais d'action destructive rejouée hors ligne.
           // Un fichier (sitemap.xml, llms.txt…) va au réseau, pas à index.html.
           navigateFallbackDenylist: [NAVIGATE_FALLBACK_DENY_FILES, /^\/api\//],
+          // Gestionnaires Web Push (`public/push-sw.js`) ajoutés au worker
+          // engendré sans toucher à sa stratégie de cache — le motif de
+          // mister-doc. Les alertes de seuil et de fin de fenêtre y arrivent.
+          importScripts: ['push-sw.js'],
         },
         manifest: {
           id: '/miss-supaboss/',

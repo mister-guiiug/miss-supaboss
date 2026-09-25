@@ -13,13 +13,16 @@ import {
 } from '../crypto.ts';
 import {
   SESSION_COOKIE,
-  SESSION_TTL_HOURS,
-  cookieOptions,
+  TOTP_CHALLENGE_COOKIE,
+  TOTP_CHALLENGE_TTL_SECONDS,
+  challengeCookieOptions,
+  requireCsrfHeader,
   requireRole,
+  startSession,
 } from '../auth.ts';
 import type { AppContext } from '../context.ts';
 
-function toUserDto(u: {
+export function toUserDto(u: {
   id: string;
   email: string;
   role: UserDto['role'];
@@ -34,6 +37,10 @@ export function registerAuthRoutes(
   app.post(
     '/api/auth/login',
     {
+      // L'en-tête anti-CSRF aussi sur la connexion : un formulaire d'un autre
+      // site ne peut pas le poser, donc ne peut pas connecter la victime à un
+      // compte choisi par l'attaquant (login CSRF).
+      preHandler: requireCsrfHeader,
       config: {
         // Anti force brute : 10 tentatives / minute / IP.
         rateLimit: { max: 10, timeWindow: '1 minute' },
@@ -54,23 +61,37 @@ export function registerAuthRoutes(
           message: 'Identifiants invalides',
         });
       }
-      const token = newSessionToken();
-      ctx.store.createSession(hashToken(token), user.id, SESSION_TTL_HOURS);
-      ctx.store.purgeExpiredSessions();
+      // Double authentification active : le mot de passe ne suffit pas. Pas
+      // de session — une ÉTAPE, que seul un code valide échange contre elle
+      // (`POST /api/auth/login/totp`).
+      if (ctx.store.getTotp(user.id)?.enabled) {
+        const challenge = newSessionToken();
+        ctx.store.createLoginChallenge(
+          hashToken(challenge),
+          user.id,
+          TOTP_CHALLENGE_TTL_SECONDS
+        );
+        ctx.store.purgeExpiredChallenges();
+        return reply
+          .setCookie(
+            TOTP_CHALLENGE_COOKIE,
+            challenge,
+            challengeCookieOptions(ctx)
+          )
+          .send({ totpRequired: true });
+      }
       ctx.store.recordOperation({
         userEmail: user.email,
         action: 'login',
         status: 'ok',
       });
-      return reply
-        .setCookie(SESSION_COOKIE, token, cookieOptions(ctx))
-        .send({ user: toUserDto(user) });
+      return startSession(ctx, reply, user).send({ user: toUserDto(user) });
     }
   );
 
   app.post(
     '/api/auth/logout',
-    { preHandler: requireRole(ctx, 'viewer') },
+    { preHandler: [requireRole(ctx, 'viewer'), requireCsrfHeader] },
     async (req, reply) => {
       const token = req.cookies[SESSION_COOKIE];
       if (token) ctx.store.deleteSession(hashToken(token));
@@ -96,7 +117,7 @@ export function registerAuthRoutes(
 
   app.post(
     '/api/auth/users',
-    { preHandler: requireRole(ctx, 'admin') },
+    { preHandler: [requireRole(ctx, 'admin'), requireCsrfHeader] },
     async (req, reply) => {
       const body = userCreateBodySchema.parse(req.body);
       if (ctx.store.findUserByEmail(body.email)) {
@@ -115,7 +136,7 @@ export function registerAuthRoutes(
 
   app.delete(
     '/api/auth/users/:id',
-    { preHandler: requireRole(ctx, 'admin') },
+    { preHandler: [requireRole(ctx, 'admin'), requireCsrfHeader] },
     async (req, reply) => {
       const { id } = z.object({ id: z.string() }).parse(req.params);
       const me = req.user as NonNullable<typeof req.user>;
