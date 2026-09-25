@@ -285,10 +285,17 @@ describe('de bout en bout, à chaque synchro', () => {
     });
     expect(res.statusCode).toBe(200);
     await t.ctx.alerts.idle();
-    const titles = titlesFor(browser).sort();
+    const titles = titlesFor(browser);
     expect(titles).toHaveLength(2);
-    expect(titles[0]).toMatch(/^Database size à \d+ % — CRM POC$/);
-    expect(titles[1]).toMatch(/^Database size à \d+ % — RAG Démo IA$/);
+    // L'ENSEMBLE, pas une position : les titres commencent par le pourcentage
+    // du fournisseur mock, et un tri alphabétique range « 10 % » avant « 6 % ».
+    // L'ordre suivait donc les valeurs du moment (rouge le 25/09/2026).
+    expect(titles).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^Database size à \d+ % — CRM POC$/),
+        expect.stringMatching(/^Database size à \d+ % — RAG Démo IA$/),
+      ])
+    );
 
     // Synchro suivante : même niveau, aucune redite.
     await t.app.inject({

@@ -4,6 +4,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '../../i18n/index.ts';
 import { NotificationsSection } from './NotificationsSection.tsx';
 
+// LA CI DE LA FAMILLE INJECTE `VITE_MOCK=1` AVANT LES TESTS (c'est le build
+// de la démo Pages). `IS_MOCK` se calcule au chargement du module : sans ce
+// mock, l'app parle au mock intégral et jamais au `fetch` que ce fichier
+// intercepte. Vert en local, rouge en CI : c'est arrivé le 25/09/2026.
+vi.mock('../../api/demoMode.ts', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../api/demoMode.ts')>()),
+  FORCED_MOCK: false,
+  REAL_AVAILABLE: true,
+  IS_MOCK: false,
+}));
+
 /**
  * Mode serveur : client HTTP réel et VRAI client push du socle
  * (`createPushClient` + `httpPushTransport`), sur un navigateur simulé —
