@@ -5,6 +5,12 @@
  */
 import { z } from 'zod';
 import { SUPABASE_PROJECT_STATUSES } from './status.ts';
+import {
+  DEFAULT_SCHEDULE_TIMEZONE,
+  isValidTimeZone,
+  parseLocalDateTime,
+  TIME_OF_DAY_PATTERN,
+} from './schedule.ts';
 
 export const roleSchema = z.enum(['admin', 'operator', 'viewer']);
 export type Role = z.infer<typeof roleSchema>;
@@ -124,6 +130,12 @@ export const operationActionSchema = z.enum([
   'project.meta',
   'config.export',
   'config.import',
+  /** Activation / désactivation de la double authentification. */
+  'auth.totp',
+  'schedule.create',
+  'schedule.delete',
+  /** Une alerte (ou un test) remise aux canaux : le statut de livraison. */
+  'alert.send',
 ]);
 export type OperationAction = z.infer<typeof operationActionSchema>;
 
@@ -232,6 +244,217 @@ export const userCreateBodySchema = z.object({
   password: z.string().min(10, 'Mot de passe : 10 caractères minimum').max(500),
   role: roleSchema,
 });
+
+/* ── Double authentification (TOTP, RFC 6238) ─────────────────────────── */
+
+/** Code d'application d'authentification : six chiffres, rien d'autre. */
+export const totpCodeSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/, 'Code à 6 chiffres');
+
+/** Code de secours tel que saisi (tirets et espaces tolérés). */
+export const recoveryCodeSchema = z.string().trim().min(8).max(40);
+
+/**
+ * Réponse du login. Avec la double authentification active, un mot de passe
+ * juste NE DONNE PAS de session : il donne une étape à franchir, dont le
+ * jeton voyage en cookie httpOnly (jamais lisible par le script de la page).
+ */
+export const loginResponseSchema = z.union([
+  z.object({ user: userSchema }),
+  z.object({ totpRequired: z.literal(true) }),
+]);
+export type LoginResponseDto = z.infer<typeof loginResponseSchema>;
+
+/** Seconde étape : un code de l'application OU un code de secours. */
+export const loginTotpBodySchema = z.union([
+  z.object({ code: totpCodeSchema }),
+  z.object({ recoveryCode: recoveryCodeSchema }),
+]);
+export type LoginTotpBody = z.infer<typeof loginTotpBodySchema>;
+
+export const totpStatusSchema = z.object({
+  enabled: z.boolean(),
+  /** Un secret a été engendré mais aucun code ne l'a encore confirmé. */
+  pending: z.boolean(),
+  recoveryCodesLeft: z.number().int().nonnegative(),
+});
+export type TotpStatusDto = z.infer<typeof totpStatusSchema>;
+
+/** Rendu UNE fois, à l'enrôlement : le secret en clair et son URI. */
+export const totpEnrollmentSchema = z.object({
+  secret: z.string(),
+  otpauthUri: z.string(),
+});
+export type TotpEnrollmentDto = z.infer<typeof totpEnrollmentSchema>;
+
+export const totpActivateBodySchema = z.object({ code: totpCodeSchema });
+
+/** Les dix codes de secours, donnés une seule fois (stockés hachés). */
+export const totpRecoveryCodesSchema = z.object({
+  recoveryCodes: z.array(z.string()),
+});
+
+/** Désactiver exige le mot de passe ET un code (TOTP ou de secours). */
+export const totpDisableBodySchema = z.object({
+  password: z.string().min(1).max(500),
+  code: z.string().trim().min(6).max(40),
+});
+
+/* ── Plannings (pause / restauration à heure fixe) ───────────────────── */
+
+export const scheduleActionSchema = z.enum(['pause', 'restore']);
+
+/**
+ * Issue de la dernière exécution. `refused` : un garde-fou a dit non (limite
+ * des 2 actifs, projet déjà en pause…) ; `missed` : l'échéance est passée
+ * serveur arrêté ; `running` : exécution en cours (ou interrompue).
+ */
+export const scheduleRunStatusSchema = z.enum([
+  'ok',
+  'refused',
+  'error',
+  'missed',
+  'running',
+]);
+
+const timeZoneSchema = z
+  .string()
+  .trim()
+  .max(64)
+  .refine(isValidTimeZone, 'Fuseau horaire inconnu');
+
+export const scheduleCreateBodySchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('once'),
+    action: scheduleActionSchema,
+    /** Heure murale `YYYY-MM-DDTHH:mm` dans `timezone`. */
+    at: z
+      .string()
+      .refine(v => parseLocalDateTime(v) !== null, 'Date-heure invalide'),
+    timezone: timeZoneSchema.default(DEFAULT_SCHEDULE_TIMEZONE),
+  }),
+  z.object({
+    kind: z.literal('weekly'),
+    action: scheduleActionSchema,
+    /** Jour ISO : lundi = 1 … dimanche = 7. */
+    weekday: z.number().int().min(1).max(7),
+    time: z.string().regex(TIME_OF_DAY_PATTERN, 'Heure invalide (HH:mm)'),
+    timezone: timeZoneSchema.default(DEFAULT_SCHEDULE_TIMEZONE),
+  }),
+]);
+/** Ce qu'envoie le client (fuseau facultatif). */
+export type ScheduleCreateBody = z.input<typeof scheduleCreateBodySchema>;
+/** Ce que reçoit le service une fois validé (fuseau posé). */
+export type ScheduleCreateInput = z.infer<typeof scheduleCreateBodySchema>;
+
+export const scheduleSchema = z.object({
+  id: z.string(),
+  accountId: z.string(),
+  ref: z.string(),
+  action: scheduleActionSchema,
+  kind: z.enum(['once', 'weekly']),
+  at: z.string().nullable(),
+  weekday: z.number().int().min(1).max(7).nullable(),
+  time: z.string().nullable(),
+  timezone: z.string(),
+  /** Prochaine exécution (ISO UTC) ; null : ponctuel déjà joué. */
+  nextRunAt: z.string().nullable(),
+  lastRunAt: z.string().nullable(),
+  lastStatus: scheduleRunStatusSchema.nullable(),
+  lastDetail: z.string().nullable(),
+  createdBy: z.string(),
+  createdAt: z.string(),
+});
+export type ScheduleDto = z.infer<typeof scheduleSchema>;
+
+/* ── Notifications (Web Push + webhook) ──────────────────────────────── */
+
+/**
+ * URL appelée PAR LE SERVEUR : https seulement, et sans identifiants dans
+ * l'URL (le `fetch` de Node les refuse, et ils finiraient dans les journaux
+ * d'un proxy).
+ */
+export const httpsUrlSchema = z
+  .string()
+  .trim()
+  .max(2048)
+  .refine(value => {
+    try {
+      const url = new URL(value);
+      return (
+        url.protocol === 'https:' && url.username === '' && url.password === ''
+      );
+    } catch {
+      return false;
+    }
+  }, 'URL https:// attendue (sans identifiants)');
+
+const base64UrlSchema = z.string().regex(/^[A-Za-z0-9_-]+={0,2}$/);
+
+/** Abonnement tel que le sérialise `serializeSubscription` du socle. */
+export const pushSubscriptionSchema = z.object({
+  endpoint: httpsUrlSchema,
+  expirationTime: z.number().nullable().optional(),
+  keys: z.object({
+    p256dh: base64UrlSchema.min(80).max(100),
+    auth: base64UrlSchema.min(16).max(32),
+  }),
+});
+
+export const pushSubscribeBodySchema = z.object({
+  subscription: pushSubscriptionSchema,
+});
+
+export const pushUnsubscribeBodySchema = z.object({
+  subscription: z.object({ endpoint: z.string().max(2048) }),
+});
+
+/** Remplace (URL) ou retire (null) le webhook de l'utilisateur. */
+export const webhookBodySchema = z.object({
+  url: httpsUrlSchema.nullable(),
+});
+
+export const notificationSettingsSchema = z.object({
+  push: z.object({
+    /** Clés VAPID lisibles côté serveur (sinon aucun envoi possible). */
+    available: z.boolean(),
+    /** Clé VAPID publique (base64url) — l'`applicationServerKey`. */
+    publicKey: z.string().nullable(),
+    /** Appareils abonnés pour cet utilisateur. */
+    subscriptions: z.number().int().nonnegative(),
+  }),
+  webhook: z.object({
+    configured: z.boolean(),
+    /** Indice non sensible (`https://hooks.slack.com/…a1b2`) : l'URL porte souvent un secret. */
+    hint: z.string().nullable(),
+  }),
+  /** Dernière remise (alerte ou test), telle que consignée dans l'historique. */
+  lastDelivery: z
+    .object({
+      at: z.string(),
+      status: z.enum(['ok', 'error']),
+      detail: z.string().nullable(),
+    })
+    .nullable(),
+});
+export type NotificationSettingsDto = z.infer<
+  typeof notificationSettingsSchema
+>;
+
+export const deliveryReportSchema = z.object({
+  push: z.object({
+    sent: z.number().int().nonnegative(),
+    failed: z.number().int().nonnegative(),
+    /** Abonnements expirés (404/410) retirés au passage. */
+    removed: z.number().int().nonnegative(),
+  }),
+  webhook: z.enum(['sent', 'failed', 'skipped']),
+  /** Résumé lisible, le même que dans l'historique. */
+  detail: z.string(),
+});
+export type DeliveryReportDto = z.infer<typeof deliveryReportSchema>;
 
 /** Erreur API normalisée. */
 export const apiErrorSchema = z.object({

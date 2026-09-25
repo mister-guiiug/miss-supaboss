@@ -37,6 +37,7 @@ import { useActionGuard } from '../../shared/hooks/useActionGuard.ts';
 import { usePolling } from '../../shared/hooks/usePolling.ts';
 import { useOnline } from '@mister-guiiug/dev-pwa-config/react/use-online';
 import { useI18n } from '../../i18n/index.ts';
+import { SchedulesSection } from './SchedulesSection.tsx';
 
 const SUGGESTED_TAGS = ['poc', 'demo', 'archive', 'critique-demo'];
 
@@ -302,6 +303,9 @@ export function ProjectDetailScreen() {
           })}
         </div>
       </section>
+
+      {/* « Mettre en pause vendredi soir » : une pause, différée. */}
+      <SchedulesSection accountId={accountId} projectRef={ref} />
 
       <section className="card space-y-3 p-4" aria-label={t('titles.quotas')}>
         <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">

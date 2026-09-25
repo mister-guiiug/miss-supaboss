@@ -7,12 +7,19 @@ import { z } from 'zod';
 import {
   accountSchema,
   apiErrorSchema,
+  deliveryReportSchema,
   fleetMetricsSchema,
   fleetSchema,
+  loginResponseSchema,
+  notificationSettingsSchema,
   operationSchema,
   projectSchema,
   restoreAssessmentSchema,
+  scheduleSchema,
   settingsSchema,
+  totpEnrollmentSchema,
+  totpRecoveryCodesSchema,
+  totpStatusSchema,
   userSchema,
   type SettingsDto,
 } from '../../shared/contracts.ts';
@@ -57,13 +64,27 @@ async function request<T>(
 const okSchema = z.object({}).loose();
 const userEnvelope = z.object({ user: userSchema });
 const accountEnvelope = z.object({ account: accountSchema });
+const notificationSettingsEnvelope = z.object({
+  settings: notificationSettingsSchema,
+});
+
+/** `/api/projects/:acc/:ref` — les deux segments encodés. */
+const projectPath = (accountId: string, ref: string): string =>
+  `/api/projects/${encodeURIComponent(accountId)}/${encodeURIComponent(ref)}`;
 
 export function createHttpApi(): Api {
   return {
     async login(email, password) {
-      const { user } = await request('/api/auth/login', userEnvelope, {
+      return request('/api/auth/login', loginResponseSchema, {
         method: 'POST',
         body: JSON.stringify({ email, password }),
+      });
+    },
+    async loginSecondFactor(factor) {
+      // Le jeton d'étape voyage en cookie httpOnly : rien d'autre à joindre.
+      const { user } = await request('/api/auth/login/totp', userEnvelope, {
+        method: 'POST',
+        body: JSON.stringify(factor),
       });
       return user;
     },
@@ -194,6 +215,90 @@ export function createHttpApi(): Api {
         { method: 'PUT', body: JSON.stringify(settings) }
       );
       return res.settings;
+    },
+
+    totp: {
+      async status() {
+        const { totp } = await request(
+          '/api/auth/totp',
+          z.object({ totp: totpStatusSchema })
+        );
+        return totp;
+      },
+      async enroll() {
+        return request('/api/auth/totp/enroll', totpEnrollmentSchema, {
+          method: 'POST',
+          body: JSON.stringify({}),
+        });
+      },
+      async activate(code) {
+        const { recoveryCodes } = await request(
+          '/api/auth/totp/activate',
+          totpRecoveryCodesSchema,
+          { method: 'POST', body: JSON.stringify({ code }) }
+        );
+        return recoveryCodes;
+      },
+      async disable(password, code) {
+        await request('/api/auth/totp/disable', okSchema, {
+          method: 'POST',
+          body: JSON.stringify({ password, code }),
+        });
+      },
+    },
+
+    schedules: {
+      runsInBackground: true,
+      async list(accountId, ref) {
+        const { schedules } = await request(
+          `${projectPath(accountId, ref)}/schedules`,
+          z.object({ schedules: z.array(scheduleSchema) })
+        );
+        return schedules;
+      },
+      async create(accountId, ref, body) {
+        const { schedule } = await request(
+          `${projectPath(accountId, ref)}/schedules`,
+          z.object({ schedule: scheduleSchema }),
+          { method: 'POST', body: JSON.stringify(body) }
+        );
+        return schedule;
+      },
+      async remove(accountId, ref, id) {
+        await request(
+          `${projectPath(accountId, ref)}/schedules/${encodeURIComponent(id)}`,
+          okSchema,
+          { method: 'DELETE' }
+        );
+      },
+    },
+
+    notifications: {
+      canSend: true,
+      pushSubscriptionsUrl: '/api/notifications/push-subscriptions',
+      async settings() {
+        const { settings } = await request(
+          '/api/notifications/settings',
+          notificationSettingsEnvelope
+        );
+        return settings;
+      },
+      async setWebhook(url) {
+        const { settings } = await request(
+          '/api/notifications/webhook',
+          notificationSettingsEnvelope,
+          { method: 'PUT', body: JSON.stringify({ url }) }
+        );
+        return settings;
+      },
+      async sendTest() {
+        const { report } = await request(
+          '/api/notifications/test',
+          z.object({ report: deliveryReportSchema }),
+          { method: 'POST', body: JSON.stringify({}) }
+        );
+        return report;
+      },
     },
   };
 }

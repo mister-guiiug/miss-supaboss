@@ -7,14 +7,20 @@
  */
 import {
   DEFAULT_SETTINGS,
+  httpsUrlSchema,
+  scheduleCreateBodySchema,
   type AccountDto,
   type FleetDto,
+  type NotificationSettingsDto,
   type OperationDto,
   type ProjectDto,
+  type ScheduleDto,
   type SettingsDto,
   type UserDto,
 } from '../../shared/contracts.ts';
 import { estimateRestoreDeadline } from '../../shared/guards.ts';
+import { MAX_SCHEDULES_PER_PROJECT, nextRunAt } from '../../shared/schedule.ts';
+import { webhookHint } from '../../shared/webhook.ts';
 import {
   assessRestore,
   pausesBeforeRestore,
@@ -66,6 +72,10 @@ interface MockState {
   operations: OperationDto[];
   settings: SettingsDto;
   opSeq: number;
+  /** Plannings de la démo : gardés ici, JAMAIS exécutés (pas de serveur). */
+  schedules: ScheduleDto[];
+  /** Indice du webhook saisi — l'URL elle-même n'est pas gardée : rien ne part. */
+  webhookHint: string | null;
 }
 
 const DAY = 24 * 3600 * 1000;
@@ -247,6 +257,8 @@ function seedState(): MockState {
     ],
     settings: DEFAULT_SETTINGS,
     opSeq: 1,
+    schedules: [],
+    webhookHint: null,
   };
 }
 
@@ -258,13 +270,23 @@ function emptyState(): MockState {
     operations: [],
     settings: DEFAULT_SETTINGS,
     opSeq: 0,
+    schedules: [],
+    webhookHint: null,
   };
 }
 
 function loadState(): MockState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as MockState;
+    if (raw) {
+      // Une démo enregistrée avant les plannings n'a pas ces deux champs.
+      const saved = JSON.parse(raw) as MockState;
+      return {
+        ...saved,
+        schedules: saved.schedules ?? [],
+        webhookHint: saved.webhookHint ?? null,
+      };
+    }
   } catch {
     // état corrompu → on repart du défaut
   }
@@ -419,10 +441,45 @@ export function createMockApi(): Api {
     ];
   };
 
+  /** Échéance affichée : recalculée pour un hebdomadaire (la démo ne joue rien). */
+  const withNextRun = (s: ScheduleDto): ScheduleDto => {
+    if (s.kind !== 'weekly' || s.weekday === null || !s.time) return s;
+    const next = nextRunAt(
+      {
+        kind: 'weekly',
+        weekday: s.weekday,
+        time: s.time,
+        timezone: s.timezone,
+      },
+      Date.now()
+    );
+    return {
+      ...s,
+      nextRunAt: next === null ? null : new Date(next).toISOString(),
+    };
+  };
+
+  const notificationSettings = (): NotificationSettingsDto => ({
+    push: { available: false, publicKey: null, subscriptions: 0 },
+    webhook: {
+      configured: state.webhookHint !== null,
+      hint: state.webhookHint,
+    },
+    lastDelivery: null,
+  });
+
   return {
     async login() {
       await sleep(250);
-      return DEMO_USER;
+      return { user: DEMO_USER };
+    },
+    async loginSecondFactor() {
+      await sleep(80);
+      throw new ApiError(
+        501,
+        'mock',
+        'Double authentification indisponible en démo (aucune connexion)'
+      );
     },
     async logout() {
       await sleep(80);
@@ -490,6 +547,8 @@ export function createMockApi(): Api {
       const acc = account(id);
       state.accounts = state.accounts.filter(a => a.id !== id);
       state.projects = state.projects.filter(p => p.accountId !== id);
+      // Comme la cascade SQL du serveur : les plannings du compte partent avec.
+      state.schedules = state.schedules.filter(s => s.accountId !== id);
       recordOp({
         action: 'account.delete',
         accountId: id,
@@ -663,6 +722,137 @@ export function createMockApi(): Api {
       state.settings = settings;
       save();
       return settings;
+    },
+
+    schedules: {
+      runsInBackground: false,
+      async list(accountId, ref) {
+        await sleep(120);
+        return state.schedules
+          .filter(s => s.accountId === accountId && s.ref === ref)
+          .map(withNextRun);
+      },
+      async create(accountId, ref, body) {
+        await sleep(200);
+        // Mêmes validations que le serveur : même schéma, mêmes refus.
+        const parsed = scheduleCreateBodySchema.safeParse(body);
+        if (!parsed.success) {
+          throw new ApiError(
+            400,
+            'validation',
+            parsed.error.issues.map(i => i.message).join(' ; ')
+          );
+        }
+        const input = parsed.data;
+        const p = project(accountId, ref);
+        const count = state.schedules.filter(
+          s => s.accountId === accountId && s.ref === ref
+        ).length;
+        if (count >= MAX_SCHEDULES_PER_PROJECT) {
+          throw new ApiError(
+            409,
+            'too-many-schedules',
+            `${MAX_SCHEDULES_PER_PROJECT} plannings au plus par projet`
+          );
+        }
+        const next = nextRunAt(
+          input.kind === 'once'
+            ? { kind: 'once', at: input.at, timezone: input.timezone }
+            : {
+                kind: 'weekly',
+                weekday: input.weekday,
+                time: input.time,
+                timezone: input.timezone,
+              },
+          Date.now()
+        );
+        if (next === null) {
+          throw new ApiError(
+            400,
+            'schedule-in-past',
+            'Cette échéance est déjà passée'
+          );
+        }
+        const schedule: ScheduleDto = {
+          id: `sch-${Math.random().toString(36).slice(2, 10)}`,
+          accountId,
+          ref,
+          action: input.action,
+          kind: input.kind,
+          at: input.kind === 'once' ? input.at : null,
+          weekday: input.kind === 'weekly' ? input.weekday : null,
+          time: input.kind === 'weekly' ? input.time : null,
+          timezone: input.timezone,
+          nextRunAt: new Date(next).toISOString(),
+          lastRunAt: null,
+          lastStatus: null,
+          lastDetail: null,
+          createdBy: DEMO_USER.email,
+          createdAt: new Date().toISOString(),
+        };
+        state.schedules.push(schedule);
+        recordOp({
+          action: 'schedule.create',
+          accountId,
+          accountAlias: account(accountId).alias,
+          projectRef: ref,
+          projectName: p.name,
+          status: 'ok',
+          detail: 'Démo : planning enregistré, jamais exécuté',
+        });
+        save();
+        return schedule;
+      },
+      async remove(accountId, ref, id) {
+        await sleep(150);
+        const schedule = state.schedules.find(
+          s => s.id === id && s.accountId === accountId && s.ref === ref
+        );
+        if (!schedule) {
+          throw new ApiError(404, 'schedule-not-found', 'Planning introuvable');
+        }
+        state.schedules = state.schedules.filter(s => s.id !== id);
+        recordOp({
+          action: 'schedule.delete',
+          accountId,
+          accountAlias: account(accountId).alias,
+          projectRef: ref,
+          projectName: project(accountId, ref).name,
+          status: 'ok',
+          detail: null,
+        });
+        save();
+      },
+    },
+
+    notifications: {
+      canSend: false,
+      pushSubscriptionsUrl: null,
+      async settings() {
+        await sleep(100);
+        return notificationSettings();
+      },
+      async setWebhook(url) {
+        await sleep(150);
+        if (url !== null && !httpsUrlSchema.safeParse(url).success) {
+          throw new ApiError(
+            400,
+            'validation',
+            'URL https:// attendue (sans identifiants)'
+          );
+        }
+        state.webhookHint = url === null ? null : webhookHint(url);
+        save();
+        return notificationSettings();
+      },
+      async sendTest() {
+        await sleep(100);
+        throw new ApiError(
+          501,
+          'mock',
+          'Démo : aucun envoi — les notifications demandent le serveur Miss Supaboss'
+        );
+      },
     },
   };
 }

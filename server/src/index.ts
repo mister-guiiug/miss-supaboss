@@ -4,13 +4,14 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadEnv } from './env.ts';
 import { Store } from './db.ts';
-import { FleetService } from './fleet.ts';
 import { buildApp } from './app.ts';
+import { prepareServer } from './boot.ts';
+import { createAppContext } from './context.ts';
 import { generateMasterKey, hashPassword, newSessionToken } from './crypto.ts';
+import { BackgroundJobs } from './jobs.ts';
 import { ResilientClient } from './supabase/http.ts';
 import { ManagementApiProvider } from './supabase/management.ts';
 import { MockProvider } from './supabase/mock.ts';
-import type { AppContext } from './context.ts';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 
@@ -64,19 +65,62 @@ async function main(): Promise<void> {
         new ResilientClient({ budgetPerMin: env.apiBudgetPerMin })
       );
 
-  const ctx: AppContext = {
+  // Les erreurs de fond (alertes, plannings) vont au journal de Fastify, qui
+  // n'existe qu'une fois l'app construite : on y renvoie par une référence.
+  let report: (error: unknown, what: string) => void = (error, what) =>
+    console.error(`Tâche de fond « ${what} » en échec :`, error);
+
+  const ctx = createAppContext({
     env,
     store,
-    fleet: new FleetService(store, provider, masterKey),
+    provider,
     masterKey,
     version: readVersion(),
-  };
+    onError: error => report(error, 'alertes'),
+  });
+
+  const boot = prepareServer(ctx);
+  if (boot.totpReset) {
+    console.warn(
+      `⚠ Double authentification retirée pour ${boot.totpReset} (SUPABOSS_TOTP_RESET) — retirez la variable.`
+    );
+  }
+  if (!boot.pushReady) {
+    console.warn(
+      '⚠ Clés VAPID illisibles (clé maître changée ?) : Web Push indisponible.'
+    );
+  }
+  if (env.webhookAllowPrivate) {
+    console.warn(
+      '⚠ SUPABOSS_WEBHOOK_ALLOW_PRIVATE=1 : les webhooks peuvent viser le réseau interne du serveur — tout compte peut alors s’en servir pour le sonder.'
+    );
+  }
 
   const app = await buildApp(ctx, {
     staticDir: resolve(here, '../../dist'),
   });
+  report = (error, what) =>
+    app.log.error({ err: error }, `tâche de fond « ${what} » en échec`);
+  if (boot.interruptedRuns > 0) {
+    app.log.warn(
+      `${boot.interruptedRuns} exécution(s) de planning interrompue(s) par l'arrêt précédent — consignée(s) dans l'historique`
+    );
+  }
+
+  const jobs = new BackgroundJobs({
+    env,
+    fleet: ctx.fleet,
+    schedules: ctx.schedules,
+    onError: (error, what) => report(error, what),
+  });
 
   const close = async (): Promise<void> => {
+    jobs.stop();
+    // Laisse partir les alertes déjà décidées (au plus 10 s).
+    await Promise.race([
+      ctx.alerts.idle(),
+      new Promise(resolve => setTimeout(resolve, 10_000).unref()),
+    ]);
     if (provider instanceof MockProvider) provider.dispose();
     await app.close();
     store.close();
@@ -86,6 +130,7 @@ async function main(): Promise<void> {
   process.on('SIGTERM', () => void close());
 
   await app.listen({ port: env.port, host: env.host });
+  jobs.start();
   app.log.info(
     `Miss Supaboss ${ctx.version} — mode ${env.mock ? 'MOCK' : 'réel'} — http://${env.host}:${env.port}`
   );

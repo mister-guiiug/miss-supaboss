@@ -149,4 +149,110 @@ export function apiContractTests(options: ApiContractOptions): void {
   });
 }
 
+/**
+ * Plannings — mêmes règles pour le mock de la démo et le serveur : même
+ * schéma de validation, mêmes refus. (Le local-first n'en a pas.)
+ */
+export function scheduleContractTests(options: ApiContractOptions): void {
+  const { name, createApi, ctx, prepare, beforeEachHook, afterEachHook } =
+    options;
+
+  describe(`contrat plannings — ${name}`, () => {
+    let api: Api;
+    let context: ApiContractContext;
+
+    if (beforeEachHook) beforeEach(() => beforeEachHook());
+    if (afterEachHook) afterEach(() => afterEachHook());
+
+    beforeEach(async () => {
+      api = await createApi();
+      if (prepare) context = await prepare(api);
+      else if (ctx) context = ctx;
+      else {
+        throw new Error(`contrat plannings — ${name} : ctx ou prepare requis`);
+      }
+      // Un planning ne vise qu'un projet qu'une synchro a déjà vu.
+      await api.getFleet(true);
+    });
+
+    const controller = () => {
+      if (!api.schedules) throw new Error('plannings absents');
+      return api.schedules;
+    };
+
+    it('création hebdomadaire, relue avec sa prochaine exécution, puis supprimée', async () => {
+      const created = await controller().create(
+        context.accountId,
+        context.pauseFirstRef,
+        { kind: 'weekly', action: 'pause', weekday: 5, time: '19:00' }
+      );
+      expect(created).toMatchObject({
+        kind: 'weekly',
+        action: 'pause',
+        weekday: 5,
+        time: '19:00',
+        timezone: 'Europe/Paris',
+      });
+      expect(Date.parse(created.nextRunAt ?? '')).toBeGreaterThan(Date.now());
+
+      const listed = await controller().list(
+        context.accountId,
+        context.pauseFirstRef
+      );
+      expect(listed.map(s => s.id)).toEqual([created.id]);
+
+      await controller().remove(
+        context.accountId,
+        context.pauseFirstRef,
+        created.id
+      );
+      expect(
+        await controller().list(context.accountId, context.pauseFirstRef)
+      ).toEqual([]);
+      const ops = await api.listOperations(20);
+      expect(ops.some(o => o.action === 'schedule.create')).toBe(true);
+      expect(ops.some(o => o.action === 'schedule.delete')).toBe(true);
+    });
+
+    it('échéance passée : 400 schedule-in-past', async () => {
+      await expect(
+        controller().create(context.accountId, context.restoreTargetRef, {
+          kind: 'once',
+          action: 'restore',
+          at: '2020-01-01T10:00',
+        })
+      ).rejects.toMatchObject({ status: 400, code: 'schedule-in-past' });
+    });
+
+    it('corps invalide : 400 validation', async () => {
+      await expect(
+        controller().create(context.accountId, context.pauseFirstRef, {
+          kind: 'weekly',
+          action: 'pause',
+          weekday: 9,
+          time: '19:00',
+        })
+      ).rejects.toMatchObject({ status: 400, code: 'validation' });
+    });
+
+    it('projet inconnu : 404 ; planning inconnu : 404', async () => {
+      await expect(
+        controller().create(context.accountId, 'projet-fantome', {
+          kind: 'weekly',
+          action: 'pause',
+          weekday: 1,
+          time: '08:00',
+        })
+      ).rejects.toMatchObject({ status: 404 });
+      await expect(
+        controller().remove(
+          context.accountId,
+          context.pauseFirstRef,
+          'planning-fantome'
+        )
+      ).rejects.toMatchObject({ status: 404, code: 'schedule-not-found' });
+    });
+  });
+}
+
 export { ApiError };

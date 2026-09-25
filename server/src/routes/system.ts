@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { settingsSchema } from '../../../shared/contracts.ts';
-import { requireRole } from '../auth.ts';
+import { requireCsrfHeader, requireRole } from '../auth.ts';
 import type { AppContext } from '../context.ts';
 
 const operationsQuerySchema = z.object({
@@ -44,7 +44,7 @@ export function registerSystemRoutes(
 
   app.put(
     '/api/me/settings',
-    { preHandler: requireRole(ctx, 'viewer') },
+    { preHandler: [requireRole(ctx, 'viewer'), requireCsrfHeader] },
     async req => {
       const user = req.user as NonNullable<typeof req.user>;
       const settings = settingsSchema.parse(req.body);

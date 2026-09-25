@@ -18,10 +18,9 @@ import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.ts';
 import { Store } from '../src/db.ts';
-import { FleetService } from '../src/fleet.ts';
 import { MockProvider } from '../src/supabase/mock.ts';
 import { generateMasterKey } from '../src/crypto.ts';
-import type { AppContext } from '../src/context.ts';
+import { createAppContext } from '../src/context.ts';
 import type { Env } from '../src/env.ts';
 
 const TEST_ENV: Env = {
@@ -34,6 +33,11 @@ const TEST_ENV: Env = {
   mock: true,
   secureCookies: false,
   apiBudgetPerMin: 50,
+  syncIntervalMin: 0,
+  syncMetrics: false,
+  vapidSubject: 'mailto:admin@test',
+  totpReset: undefined,
+  webhookAllowPrivate: false,
   production: false,
 };
 
@@ -54,13 +58,13 @@ beforeEach(async () => {
   store = new Store(':memory:');
   provider = new MockProvider();
   const masterKey = generateMasterKey();
-  const ctx: AppContext = {
+  const ctx = createAppContext({
     env: TEST_ENV,
     store,
-    fleet: new FleetService(store, provider, masterKey),
+    provider,
     masterKey,
     version: 'test',
-  };
+  });
   staticDir = dossierStatiqueJetable();
   app = await buildApp(ctx, { logger: false, staticDir });
 
@@ -134,7 +138,10 @@ describe('gestionnaire d’erreurs : statut rendu', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/auth/login',
-      headers: { 'content-type': 'application/json' },
+      headers: {
+        'content-type': 'application/json',
+        'x-supaboss-csrf': '1',
+      },
       payload: '{ ceci nest pas du json',
     });
 

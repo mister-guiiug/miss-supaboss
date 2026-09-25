@@ -40,6 +40,8 @@ import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
 import { clearSnapshot } from '../../offline/lastKnown.ts';
 import { APP_ID } from '../../appId.ts';
 import { useI18n } from '../../i18n/index.ts';
+import { NotificationsSection } from './NotificationsSection.tsx';
+import { TotpSection } from './TotpSection.tsx';
 
 export function SettingsScreen() {
   const { t, locale, setLocale, locales } = useI18n();
@@ -399,6 +401,9 @@ export function SettingsScreen() {
         </button>
       </section>
 
+      {/* Juste sous les seuils : ce sont eux qui déclenchent les alertes. */}
+      <NotificationsSection />
+
       {api.vault && canAdmin(user) && (
         <section
           className="card space-y-3 p-4"
@@ -472,6 +477,8 @@ export function SettingsScreen() {
           )}
         </section>
       )}
+
+      <TotpSection />
 
       {canAdmin(user) && (
         <section

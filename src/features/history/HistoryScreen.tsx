@@ -23,6 +23,10 @@ const ACTION_KEYS: Record<
   'project.meta': 'projectMeta',
   'config.export': 'configExport',
   'config.import': 'configImport',
+  'auth.totp': 'authTotp',
+  'schedule.create': 'scheduleCreate',
+  'schedule.delete': 'scheduleDelete',
+  'alert.send': 'alertSend',
 };
 
 const STATUS_STYLE: Record<OperationDto['status'], string> = {

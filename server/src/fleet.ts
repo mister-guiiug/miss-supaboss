@@ -61,8 +61,32 @@ interface CacheEntry {
   at: number;
 }
 
+/** Mesures d'un projet, avec de quoi les nommer dans une alerte. */
+export interface SyncedProjectMetrics {
+  accountId: string;
+  accountAlias: string;
+  ref: string;
+  name: string;
+  metrics: MetricValue[];
+}
+
+/**
+ * Ce qu'une synchro vient d'apprendre. Les alertes s'évaluent là-dessus, à
+ * CHAQUE synchro — celle qu'un écran déclenche comme celle de fond.
+ */
+export type FleetSyncEvent =
+  | {
+      type: 'fleet';
+      account: { id: string; alias: string };
+      projects: ProjectDto[];
+    }
+  | { type: 'metrics'; items: SyncedProjectMetrics[] };
+
+export type FleetSyncListener = (event: FleetSyncEvent) => void;
+
 export class FleetService {
   private readonly cache = new Map<string, CacheEntry>();
+  private readonly listeners = new Set<FleetSyncListener>();
   private readonly store: Store;
   private readonly provider: SupabaseProvider;
   private readonly masterKey: string;
@@ -71,6 +95,30 @@ export class FleetService {
     this.store = store;
     this.provider = provider;
     this.masterKey = masterKey;
+  }
+
+  /** S'abonne aux synchros ; rend la fonction de désabonnement. */
+  onSync(listener: FleetSyncListener): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private emit(event: FleetSyncEvent): void {
+    for (const listener of this.listeners) {
+      try {
+        listener(event);
+      } catch {
+        // Un auditeur fautif ne fait pas échouer la synchro qui l'informe.
+      }
+    }
+  }
+
+  /** Nom d'un projet d'après la dernière synchro, sans appel réseau. */
+  cachedProjectName(accountId: string, ref: string): string | null {
+    return (
+      this.cache.get(accountId)?.fleet.projects.find(p => p.ref === ref)
+        ?.name ?? null
+    );
   }
 
   /* ── Lecture flotte ─────────────────────────────────────────────────── */
@@ -156,6 +204,11 @@ export class FleetService {
         syncedAt: new Date().toISOString(),
       };
       this.cache.set(account.id, { fleet, at: Date.now() });
+      this.emit({
+        type: 'fleet',
+        account: { id: account.id, alias: account.alias },
+        projects,
+      });
       return fleet;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -176,10 +229,15 @@ export class FleetService {
 
   /* ── Actions pause / restore ────────────────────────────────────────── */
 
+  /**
+   * `origin` : d'où vient l'action quand ce n'est pas un clic (un planning),
+   * consigné en détail de l'opération d'audit.
+   */
   async pause(
     userEmail: string,
     accountId: string,
-    ref: string
+    ref: string,
+    origin?: string
   ): Promise<{ operationId: number }> {
     const { account, project, pat } = await this.loadActionContext(
       accountId,
@@ -201,6 +259,7 @@ export class FleetService {
       projectRef: ref,
       projectName: project.name,
       status: 'pending',
+      detail: origin ?? null,
     });
     try {
       await this.provider.pauseProject(account.id, pat, ref);
@@ -211,7 +270,11 @@ export class FleetService {
       return { operationId };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.store.updateOperation(operationId, 'error', message);
+      this.store.updateOperation(
+        operationId,
+        'error',
+        origin ? `${origin} — ${message}` : message
+      );
       throw new FleetError(502, 'pause-failed', message);
     }
   }
@@ -231,7 +294,8 @@ export class FleetService {
     userEmail: string,
     accountId: string,
     ref: string,
-    options: { pauseFirst: string[]; force: boolean }
+    options: { pauseFirst: string[]; force: boolean },
+    origin?: string
   ): Promise<{ operationId: number }> {
     const { account, pat } = await this.loadActionContext(accountId, ref);
     const fleet = await this.accountFleet(accountId, true);
@@ -260,6 +324,7 @@ export class FleetService {
       projectRef: ref,
       projectName: target?.name ?? ref,
       status: 'pending',
+      detail: origin ?? null,
     });
     try {
       for (const toPause of refsToPause) {
@@ -272,7 +337,11 @@ export class FleetService {
       return { operationId };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.store.updateOperation(operationId, 'error', message);
+      this.store.updateOperation(
+        operationId,
+        'error',
+        origin ? `${origin} — ${message}` : message
+      );
       if (error instanceof FleetError) throw error;
       throw new FleetError(502, 'restore-failed', message);
     }
@@ -296,21 +365,29 @@ export class FleetService {
   async getFleetMetrics(refresh: boolean): Promise<FleetMetricsDto> {
     const fleet = await this.getFleet(false);
     const projects: ProjectMetricsDto[] = [];
+    const items: SyncedProjectMetrics[] = [];
     for (const af of fleet.accounts) {
       if (!af.account.enabled) continue;
       const account = this.store.getAccount(af.account.id);
       if (!account) continue;
       for (const project of af.projects) {
-        projects.push(
-          await this.projectMetrics(
-            account.id,
-            account.patCipher,
-            project,
-            refresh
-          )
+        const row = await this.projectMetrics(
+          account.id,
+          account.patCipher,
+          project,
+          refresh
         );
+        projects.push(row);
+        items.push({
+          accountId: account.id,
+          accountAlias: account.alias,
+          ref: project.ref,
+          name: project.name,
+          metrics: row.metrics,
+        });
       }
     }
+    if (items.length > 0) this.emit({ type: 'metrics', items });
     return { projects, generatedAt: new Date().toISOString() };
   }
 

@@ -6,12 +6,19 @@ import type { FastifyInstance } from 'fastify';
 import {
   accountSchema,
   apiErrorSchema,
+  deliveryReportSchema,
   fleetMetricsSchema,
   fleetSchema,
+  loginResponseSchema,
+  notificationSettingsSchema,
   operationSchema,
   projectSchema,
   restoreAssessmentSchema,
+  scheduleSchema,
   settingsSchema,
+  totpEnrollmentSchema,
+  totpRecoveryCodesSchema,
+  totpStatusSchema,
   userSchema,
   type SettingsDto,
 } from '../../shared/contracts.ts';
@@ -59,19 +66,27 @@ const accountEnvelope = z.object({ account: accountSchema });
 
 export function createInjectApi(app: FastifyInstance, cookie: string): Api {
   const base = { cookie };
+  const projectPath = (accountId: string, ref: string): string =>
+    `/api/projects/${encodeURIComponent(accountId)}/${encodeURIComponent(ref)}`;
+  const notificationEnvelope = z.object({
+    settings: notificationSettingsSchema,
+  });
 
   return {
     async login(email, password) {
+      return injectRequest(app, '/api/auth/login', loginResponseSchema, {
+        ...base,
+        method: 'POST',
+        body: { email, password },
+        mutation: true,
+      });
+    },
+    async loginSecondFactor(factor) {
       const { user } = await injectRequest(
         app,
-        '/api/auth/login',
+        '/api/auth/login/totp',
         userEnvelope,
-        {
-          ...base,
-          method: 'POST',
-          body: { email, password },
-          mutation: true,
-        }
+        { ...base, method: 'POST', body: factor, mutation: true }
       );
       return user;
     },
@@ -238,9 +253,113 @@ export function createInjectApi(app: FastifyInstance, cookie: string): Api {
         app,
         '/api/me/settings',
         z.object({ settings: settingsSchema }),
-        { ...base, method: 'PUT', body: settings }
+        { ...base, method: 'PUT', body: settings, mutation: true }
       );
       return res.settings;
+    },
+
+    totp: {
+      async status() {
+        const { totp } = await injectRequest(
+          app,
+          '/api/auth/totp',
+          z.object({ totp: totpStatusSchema }),
+          base
+        );
+        return totp;
+      },
+      async enroll() {
+        return injectRequest(
+          app,
+          '/api/auth/totp/enroll',
+          totpEnrollmentSchema,
+          {
+            ...base,
+            method: 'POST',
+            body: {},
+            mutation: true,
+          }
+        );
+      },
+      async activate(code) {
+        const { recoveryCodes } = await injectRequest(
+          app,
+          '/api/auth/totp/activate',
+          totpRecoveryCodesSchema,
+          { ...base, method: 'POST', body: { code }, mutation: true }
+        );
+        return recoveryCodes;
+      },
+      async disable(password, code) {
+        await injectRequest(app, '/api/auth/totp/disable', okSchema, {
+          ...base,
+          method: 'POST',
+          body: { password, code },
+          mutation: true,
+        });
+      },
+    },
+
+    schedules: {
+      runsInBackground: true,
+      async list(accountId, ref) {
+        const { schedules } = await injectRequest(
+          app,
+          `${projectPath(accountId, ref)}/schedules`,
+          z.object({ schedules: z.array(scheduleSchema) }),
+          base
+        );
+        return schedules;
+      },
+      async create(accountId, ref, body) {
+        const { schedule } = await injectRequest(
+          app,
+          `${projectPath(accountId, ref)}/schedules`,
+          z.object({ schedule: scheduleSchema }),
+          { ...base, method: 'POST', body, mutation: true }
+        );
+        return schedule;
+      },
+      async remove(accountId, ref, id) {
+        await injectRequest(
+          app,
+          `${projectPath(accountId, ref)}/schedules/${encodeURIComponent(id)}`,
+          okSchema,
+          { ...base, method: 'DELETE', mutation: true }
+        );
+      },
+    },
+
+    notifications: {
+      canSend: true,
+      pushSubscriptionsUrl: '/api/notifications/push-subscriptions',
+      async settings() {
+        const { settings } = await injectRequest(
+          app,
+          '/api/notifications/settings',
+          notificationEnvelope,
+          base
+        );
+        return settings;
+      },
+      async setWebhook(url) {
+        const { settings } = await injectRequest(
+          app,
+          '/api/notifications/webhook',
+          notificationEnvelope,
+          { ...base, method: 'PUT', body: { url }, mutation: true }
+        );
+        return settings;
+      },
+      async sendTest() {
+        const { report } = await injectRequest(
+          app,
+          '/api/notifications/test',
+          z.object({ report: deliveryReportSchema }),
+          { ...base, method: 'POST', body: {}, mutation: true }
+        );
+        return report;
+      },
     },
   };
 }

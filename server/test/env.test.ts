@@ -25,6 +25,11 @@ describe('loadEnv — les valeurs par défaut', () => {
       mock: false,
       secureCookies: false,
       apiBudgetPerMin: 50,
+      syncIntervalMin: 15,
+      syncMetrics: false,
+      vapidSubject: 'mailto:admin@local',
+      totpReset: undefined,
+      webhookAllowPrivate: false,
       production: false,
     });
   });
@@ -100,6 +105,55 @@ describe('loadEnv — ce qui est normalisé et ce qui est refusé', () => {
       // Au-delà de 60, Supabase répondrait 429 à tout le compte ; en dessous
       // de 1, plus aucune requête ne partirait.
       expect(() => loadEnv({ SUPABOSS_API_BUDGET_PER_MIN: valeur })).toThrow();
+    }
+  );
+
+  it('synchro de fond : 0 la coupe, au-delà d’un jour c’est refusé', () => {
+    expect(loadEnv({ SUPABOSS_SYNC_INTERVAL_MIN: '0' }).syncIntervalMin).toBe(
+      0
+    );
+    expect(() => loadEnv({ SUPABOSS_SYNC_INTERVAL_MIN: '1441' })).toThrow();
+    expect(() => loadEnv({ SUPABOSS_SYNC_INTERVAL_MIN: '-1' })).toThrow();
+  });
+
+  it('la collecte de fond des quotas est un choix explicite', () => {
+    // Elle interroge la base de chaque projet actif : jamais par défaut.
+    expect(loadEnv({ SUPABOSS_SYNC_METRICS: '1' }).syncMetrics).toBe(true);
+    expect(loadEnv({ SUPABOSS_SYNC_METRICS: 'false' }).syncMetrics).toBe(false);
+  });
+
+  it('le contact VAPID vient de l’admin, ou d’un mailto:/https: explicite', () => {
+    expect(
+      loadEnv({ SUPABOSS_ADMIN_EMAIL: 'Ops@Exemple.fr' }).vapidSubject
+    ).toBe('mailto:ops@exemple.fr');
+    expect(
+      loadEnv({ SUPABOSS_VAPID_SUBJECT: 'https://exemple.fr/contact' })
+        .vapidSubject
+    ).toBe('https://exemple.fr/contact');
+    expect(() =>
+      loadEnv({ SUPABOSS_VAPID_SUBJECT: 'ops@exemple.fr' })
+    ).toThrow();
+  });
+
+  it('le secours TOTP est normalisé, et vide vaut absent', () => {
+    expect(loadEnv({ SUPABOSS_TOTP_RESET: ' Admin@Local ' }).totpReset).toBe(
+      'admin@local'
+    );
+    expect(loadEnv({ SUPABOSS_TOTP_RESET: '' }).totpReset).toBeUndefined();
+  });
+
+  it.each([
+    ['1', true],
+    ['true', true],
+    ['0', false],
+    ['false', false], // la chaîne non vide qui lèverait la garde par erreur
+    ['', false],
+  ])(
+    'SUPABOSS_WEBHOOK_ALLOW_PRIVATE=%o → garde anti-SSRF levée : %s',
+    (valeur, attendu) => {
+      expect(
+        loadEnv({ SUPABOSS_WEBHOOK_ALLOW_PRIVATE: valeur }).webhookAllowPrivate
+      ).toBe(attendu);
     }
   );
 
