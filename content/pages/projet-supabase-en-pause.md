@@ -38,7 +38,7 @@ Entre prototypes et démonstrations, on gère souvent plusieurs comptes Supabase
 
 ## Comment Miss Supaboss vous aide
 
-Miss Supaboss est une application web installable qui rassemble vos comptes Supabase gratuits sur un seul écran. Elle passe par l'API de gestion de Supabase (Management API), avec un jeton d'accès personnel par compte.
+[Miss Supaboss](https://mister-guiiug.github.io/miss-supaboss/) est une application web installable qui rassemble vos comptes Supabase gratuits sur un seul écran. Elle passe par l'API de gestion de Supabase (Management API), avec un jeton d'accès personnel par compte.
 
 - **Une vue consolidée** : tous les projets de tous vos comptes, avec leur statut (actif, en pause, en cours, en erreur), une recherche, des filtres et des tris.
 - **Un compteur de projets actifs** par compte (par exemple 2/2), et un parcours « Préparer la démo » en cinq étapes qui propose les projets à mettre en pause d'abord : vos favoris et vos « démos fréquentes » passent en dernier, les moins récemment actifs en premier.
