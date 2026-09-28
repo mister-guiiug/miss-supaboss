@@ -8,27 +8,34 @@ Web Push / webhook**, **double authentification (TOTP)** et **workflow guidé
 de préparation de démo**. Pensée pour les POC et démonstrateurs — pas pour des
 environnements critiques.
 
-> 🟢 **Démo publique (mode mock, aucun secret)** :
-> <https://mister-guiiug.github.io/miss-supaboss/>
-> 🔐 **Mode réel** : auto-hébergé via Docker (les PAT ne quittent jamais le
-> serveur).
+> 🟢 **Version publique** : <https://mister-guiiug.github.io/miss-supaboss/>. Elle
+> s'ouvre sur des données fictives (mode démo, aucun secret). Si l'on coupe
+> « Mode démo » dans les Réglages, elle passe en mode réel local-first : ton PAT
+> reste dans ce navigateur (en clair, sauf si tu actives son chiffrement) et
+> passe par un relais Cloudflare Worker (§3, point 8).
+> 🔐 **Mode réel auto-hébergé** : serveur Docker, les PAT chiffrés restent sur le
+> serveur et n'atteignent jamais le navigateur.
+> 📊 **Mesure (version publique)** : Sentry (région européenne) démarre à
+> l'ouverture, sans demande de consentement : il signale la session et reçoit un
+> rapport à chaque erreur. PostHog (nuage européen) ne se charge qu'après accord
+> dans le bandeau de consentement ; rien n'est mesuré sur refus.
 
 ---
 
 ## 1. Cadrage fonctionnel
 
-| Besoin                              | Réponse                                                                                                                                             |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Plusieurs comptes Supabase gratuits | Comptes ajoutés avec un alias + PAT (chiffré serveur), activables/désactivables, testables, import/export chiffré                                   |
-| Voir actifs / en pause              | Vue consolidée multi-comptes, statuts temps réel (15 statuts Management API regroupés en 5 familles UI), recherche / tri / filtres / groupes        |
-| Pause / restore à la demande        | Actions confirmées, états transitoires suivis (polling resserré à 5 s), erreurs exploitables, historique d'audit                                    |
-| Limite « 2 projets actifs »         | Garde-fou : compteur x/2 par compte, restauration bloquée à la limite (409 + suggestions), proposition automatique des projets à suspendre          |
-| Quotas Free Plan                    | Egress · Database size · MAU · File storage en « consommé / quota » (`31 MB / 5 GB`), jauges + seuils configurables (70/85/95 %), synthèse → détail |
-| Démos                               | « Préparer la démo » : workflow guidé en 5 étapes, favoris, « démo fréquente », « ce que je peux démarrer maintenant »                              |
-| « Pause vendredi soir »             | Plannings par projet (ponctuel ou hebdomadaire, fuseau Europe/Paris par défaut), exécutés par le serveur à travers les MÊMES garde-fous qu'un clic  |
-| Être prévenu                        | Alertes au franchissement d'un seuil (une par niveau et par mois) et à J-7 / J-1 de la fin de fenêtre de restauration — Web Push et/ou webhook      |
-| Connexion                           | Double authentification TOTP (RFC 6238) optionnelle par utilisateur, codes de secours à usage unique                                                |
-| Mobile + offline                    | PWA installable, standalone, dernier état connu consultable hors ligne (IndexedDB), **aucune action destructive hors ligne**                        |
+| Besoin                              | Réponse                                                                                                                                                                                |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plusieurs comptes Supabase gratuits | Comptes ajoutés avec un alias + PAT (chiffré sur le serveur ; en local-first, gardé sur l'appareil, chiffrement optionnel), activables/désactivables, testables, import/export chiffré |
+| Voir actifs / en pause              | Vue consolidée multi-comptes, statuts temps réel (15 statuts Management API regroupés en 5 familles UI), recherche / tri / filtres / groupes                                           |
+| Pause / restore à la demande        | Actions confirmées, états transitoires suivis (polling resserré à 5 s), erreurs exploitables, historique d'audit                                                                       |
+| Limite « 2 projets actifs »         | Garde-fou : compteur x/2 par compte, restauration bloquée à la limite (409 + suggestions), proposition automatique des projets à suspendre                                             |
+| Quotas Free Plan                    | Egress · Database size · MAU · File storage en « consommé / quota » (`31 MB / 5 GB`), jauges + seuils configurables (70/85/95 %), synthèse → détail                                    |
+| Démos                               | « Préparer la démo » : workflow guidé en 5 étapes, favoris, « démo fréquente », « ce que je peux démarrer maintenant »                                                                 |
+| « Pause vendredi soir »             | Plannings par projet (ponctuel ou hebdomadaire, fuseau Europe/Paris par défaut), exécutés par le serveur à travers les MÊMES garde-fous qu'un clic                                     |
+| Être prévenu                        | Alertes au franchissement d'un seuil (une par niveau et par mois) et à J-7 / J-1 de la fin de fenêtre de restauration — Web Push et/ou webhook                                         |
+| Connexion                           | Double authentification TOTP (RFC 6238) optionnelle par utilisateur, codes de secours à usage unique                                                                                   |
+| Mobile + offline                    | PWA installable, standalone, dernier état connu consultable hors ligne (IndexedDB), **aucune action destructive hors ligne**                                                           |
 
 ## 2. Architecture
 
@@ -40,7 +47,7 @@ environnements critiques.
 └────────────────┬──────────────────────────────────────────────────┘
                  │ HTTPS même origine — cookie httpOnly + en-tête CSRF
 ┌────────────────▼──────────────────────────────────────────────────┐
-│  Serveur Node ≥ 22.18 (Fastify 5, TypeScript natif, zéro build)   │
+│  Serveur Node ≥ 24.21 (Fastify 5, TypeScript natif, zéro build)   │
 │  · auth sessions + RBAC (admin / operator / viewer) + TOTP        │
 │  · garde-fous partagés (shared/) + audit log                      │
 │  · SQLite (node:sqlite, migrations) : users, comptes (PAT         │
@@ -52,7 +59,7 @@ environnements critiques.
 │        └ ResilientClient : timeout, retry+backoff+jitter,         │
 │          Retry-After, circuit breaker, budget 50 req/min/compte   │
 └───────┬─────────────────────────────────────────┬─────────────────┘
-        │ Bearer PAT (jamais côté client)         │ VAPID (ES256) + aes128gcm
+        │ Bearer PAT (mode serveur)               │ VAPID (ES256) + aes128gcm
 https://api.supabase.com (Management API v1)   services push │ URL https
 ```
 
@@ -95,23 +102,33 @@ Métriques par requêtes SQL **read-only** (projet actif uniquement) :
    inconnue ».
 4. **Fenêtre de restauration = estimation** `pausedAt + 365 j` : un an selon la
    documentation Supabase (relue le 28/09/2026), politique susceptible d'évoluer,
-   réglable dans Réglages. L'ancien défaut de 90 j, figé dans les réglages
+   réglable dans Réglages. Sur le serveur, ce réglage ne pilote pour l'instant
+   que les alertes J-7 / J-1 : la date « restaurable jusqu'au » reste calculée
+   sur 365 j. L'ancien défaut de 90 j, figé dans les réglages
    enregistrés, est porté à un an une fois (migration v3 du serveur, révision 2
    de l'état local).
 5. **Quotas Free** (5 GB / 500 MB / 50k / 1 GB) : constantes produit (juin 2026) ; la synthèse multi-comptes est une somme indicative (les quotas
    réels s'appliquent par organisation).
 6. **Rate limit Management API** : budget local de 50 req/min/compte (limite
    documentée : 60), réglable via `SUPABOSS_API_BUDGET_PER_MIN`.
-7. Démo GitHub Pages = **mock intégral** (état persisté en localStorage) ;
-   l'import de configuration y est volontairement désactivé.
+7. Build GitHub Pages : **démo par défaut** (données fictives persistées en
+   localStorage, import de configuration volontairement désactivé). Il embarque
+   aussi le relais (`VITE_SUPABASE_PROXY`, variable de dépôt
+   `SUPABASE_PROXY_URL`), donc le mode réel local-first (point 8), ainsi que
+   Sentry et PostHog.
 8. **Mode démo à chaud** : sur une instance réelle, Réglages → « Mode démo »
    bascule l'app sur les données fictives (et inversement) sans rebuild —
    badge « démo » dans l'en-tête, snapshot hors-ligne purgé à la bascule.
    Sur le build Pages (`VITE_MOCK=1`) sans proxy, le mock est forcé (pas de
-   backend). **Mode réel local-first** : en fournissant un proxy CORS
-   (`VITE_SUPABASE_PROXY`, cf. `proxy/` — Cloudflare Worker), la
-   PWA Pages interroge directement la Management API avec ton PAT (stocké en
-   local) — la démo devient alors désactivable.
+   backend). **Mode réel local-first** : avec un relais CORS
+   (`VITE_SUPABASE_PROXY`, cf. `proxy/`, un Cloudflare Worker ; la version
+   publique utilise celui du projet), la PWA Pages interroge la Management API à
+   travers ce relais. Ton PAT part dans l'en-tête `Authorization` de chaque
+   appel, transmis à `api.supabase.com` sans être lu ni stocké. Il est gardé dans
+   le localStorage de l'appareil, **en clair par défaut** ; Réglages, « Chiffrement
+   des PAT », le chiffre au repos (AES-256-GCM, clé dérivée d'une phrase secrète
+   par PBKDF2, demandée à chaque ouverture). Ce mode n'a ni export/import, ni 2FA,
+   ni plannings, ni alertes. La démo devient alors désactivable.
 9. **Plannings = serveur.** Une tâche du serveur passe chaque minute ; une
    échéance est jouée **au plus une fois** (avancée en base avant d'agir :
    un redémarrage ne la rejoue pas, une exécution coupée est signalée « en
@@ -189,18 +206,20 @@ miss-supaboss/
 │   │                        #  mock.ts, http.ts (résilience)
 │   └── test/                #  crypto, store, API (fastify.inject + mock)
 ├── src/
-│   ├── api/                 #  Api (interface) + http.ts (zod) + switch mock
+│   ├── api/                 #  Api (interface) : mock, local-first (localRealApi.ts,
+│   │                        #  relais, chiffrement patVault.ts) ou HTTP (http.ts, zod)
 │   ├── mock/                #  mockApi (fixtures, transitions, localStorage)
 │   ├── offline/lastKnown.ts #  snapshot IndexedDB (lecture seule hors ligne)
 │   ├── store/               #  Zustand : session / flotte / UI (toasts)
-│   ├── shared/              #  composants (QuotaBar, StatusBadge, Confirm…)
+│   ├── shared/              #  composants (QuotaBar, StatusBadge, ProjectCard, Skeleton, ToastViewport)
 │   ├── features/            #  dashboard, projects, demo, accounts, quotas,
 │   │                        #  history, settings, auth, onboarding, offline
 │   └── pwa/UpdatePrompt.tsx
 ├── public/push-sw.js        #  push + notificationclick (importé par le SW)
-├── e2e/critical.spec.ts     #  Playwright (@critical, mode mock)
+├── e2e/                     #  Playwright (mode mock) : critical, entree (@critical), a11y (@a11y)
+├── proxy/                   #  relais CORS Cloudflare Worker (mode local-first)
 ├── Dockerfile               #  image unique : API + front statique
-└── .github/workflows/       #  reusable pwa-ci / pwa-deploy (Pages = mock)
+└── .github/workflows/       #  pwa-ci, pwa-deploy, pwa-lighthouse (@v6), deploy-worker (relais), cleanup-runs
 ```
 
 ## 5. Flux principaux
@@ -279,7 +298,10 @@ ou abonnement push visant le réseau interne du serveur).
 - **PAT Supabase** : saisis une fois, envoyés au serveur, chiffrés
   **AES-256-GCM** (clé maître env `SUPABOSS_MASTER_KEY` ou fichier
   `data/master.key` généré, mode 600). Jamais renvoyés au client (hint
-  `sbp_…a1b2`), jamais loggés (redaction pino), jamais stockés navigateur.
+  `sbp_…a1b2`), jamais loggés (redaction pino), jamais stockés dans le
+  navigateur. **Mode local-first** : à l'inverse, le PAT vit dans le
+  localStorage de l'appareil (en clair sauf chiffrement activé) et transite par
+  le relais à chaque appel (§3, point 8).
 - **Sessions** : token opaque 256 bits, stocké **hashé** (SHA-256), cookie
   `httpOnly` + `SameSite=Strict` (+ `Secure` derrière HTTPS) ; mots de passe
   **scrypt** + comparaison temps constant ; login rate-limité + audité.
@@ -310,8 +332,10 @@ ou abonnement push visant le réseau interne du serveur).
   mutation, connexion et déconnexion comprises.
 - **RBAC** : `viewer` (lecture) ⊂ `operator` (pause/restore, tags) ⊂ `admin`
   (comptes, utilisateurs, export/import). Appliqué serveur, reflété UI.
-- **Headers** : CSP stricte (`connect-src 'self'`), nosniff, frame DENY,
-  no-referrer, HSTS (si HTTPS), `Cache-Control: no-store` sur `/api`.
+- **En-têtes (serveur)** : CSP stricte (`connect-src 'self'`), nosniff, frame
+  DENY, no-referrer, HSTS (si HTTPS), `Cache-Control: no-store` sur `/api`. Le
+  build Pages porte sa CSP en balise meta, où `connect-src` s'ouvre au relais, à
+  PostHog (UE) et à Sentry.
 - **Audit** : table `operations` — qui, quoi, quand, sur quel projet, avec
   quel résultat (y compris tentatives de connexion échouées, codes TOTP
   refusés, exécutions de planning — acteur `planning:<créateur>` — et statut
@@ -344,7 +368,7 @@ ou abonnement push visant le réseau interne du serveur).
 
 ## 9. Lancement local
 
-Prérequis : **Node ≥ 22.18** (`node:sqlite` + type stripping), accès GitHub
+Prérequis : **Node ≥ 24.21** (`engines` du `package.json`), accès GitHub
 Packages pour `@mister-guiiug/dev-pwa-config` :
 
 ```bash
@@ -385,15 +409,18 @@ Variables d'environnement du serveur (toutes dans `.env.example`) :
 Qualité :
 
 ```bash
-npm run test            # Vitest (domaine + serveur + UI) — 388 tests
-npm run test:e2e        # Playwright @critical (mode mock, port 5204)
+npm run test            # Vitest (domaine + serveur + UI)
+npm run test:e2e        # Playwright, les trois specs (mode mock, port 5204)
 npm run lint && npm run type-check && npm run format:check
 ```
 
 ## 10. Déploiement
 
-- **GitHub Pages (démo mock)** : workflow `deploy.yml` (reusable
-  `pwa-deploy.yml@v1`, `VITE_MOCK=1`). Activer Pages :
+- **GitHub Pages (démo par défaut, local-first possible)** : workflow
+  `deploy.yml` (reusable `pwa-deploy.yml@v6`, `VITE_MOCK=1` plus
+  `VITE_SUPABASE_PROXY`, `VITE_POSTHOG_KEY` et `VITE_SENTRY_DSN` tirés des
+  variables de dépôt). Le relais se déploie par `deploy-worker.yml` (secrets
+  `CLOUDFLARE_API_TOKEN` et `CLOUDFLARE_ACCOUNT_ID`). Activer Pages :
   `gh api -X POST repos/mister-guiiug/miss-supaboss/pages -f build_type=workflow`.
 - **Docker (mode réel, homelab ou cloud)** :
 
@@ -451,7 +478,9 @@ sortant.
   mockApi (mêmes garde-fous que le serveur, persistance locale, plannings et
   notifications de la démo), connexion TOTP, Réglages (2FA avec le vrai
   module `qr`, push avec le vrai client du socle), plannings de l'écran projet.
-- `e2e/critical.spec.ts` — dashboard, workflow démo, filtres, quotas.
+- `e2e/critical.spec.ts` : dashboard, workflow démo, filtres, quotas ;
+  `e2e/entree.spec.ts` : bandeau de consentement et vue de page ;
+  `e2e/a11y.spec.ts` : axe, WCAG A/AA.
 
 ## 12. Évolutions envisagées
 
