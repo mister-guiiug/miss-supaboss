@@ -93,8 +93,11 @@ Métriques par requêtes SQL **read-only** (projet actif uniquement) :
    (`lastSeenActiveAt`, `pausedAt`) ; une pause déclenchée par l'app pose une
    date certaine ; un projet découvert déjà en pause affiche « date
    inconnue ».
-4. **Fenêtre de restauration = estimation** `pausedAt + 90 j` (politique
-   Supabase susceptible d'évoluer, réglable dans Réglages).
+4. **Fenêtre de restauration = estimation** `pausedAt + 365 j` : un an selon la
+   documentation Supabase (relue le 28/09/2026), politique susceptible d'évoluer,
+   réglable dans Réglages. L'ancien défaut de 90 j, figé dans les réglages
+   enregistrés, est porté à un an une fois (migration v3 du serveur, révision 2
+   de l'état local).
 5. **Quotas Free** (5 GB / 500 MB / 50k / 1 GB) : constantes produit (juin 2026) ; la synthèse multi-comptes est une somme indicative (les quotas
    réels s'appliquent par organisation).
 6. **Rate limit Management API** : budget local de 50 req/min/compte (limite
@@ -158,7 +161,7 @@ miss-supaboss/
 ├── shared/                  # Domaine partagé front ↔ serveur (pur, testé)
 │   ├── status.ts            #  statuts Management API + groupes UI
 │   ├── quotas.ts            #  quotas Free Plan, MetricValue, seuils
-│   ├── guards.ts            #  limite 2 actifs, suggestions, fenêtre 90 j
+│   ├── guards.ts            #  limite 2 actifs, suggestions, fenêtre 1 an
 │   ├── schedule.ts          #  échéances des plannings (fuseaux IANA, pur)
 │   ├── contracts.ts         #  contrat d'API (schémas zod, DTO)
 │   └── format.ts            #  octets/compteurs/pourcents/dates FR
@@ -413,7 +416,7 @@ sortant.
 ## 11. Tests livrés
 
 - `shared/*` — statuts, niveaux de quota, agrégats, garde-fou 2-actifs,
-  suggestions de pause, fenêtre 90 j, formatage (`31 MB / 5 GB`, `50k`).
+  suggestions de pause, fenêtre d'un an, formatage (`31 MB / 5 GB`, `50k`).
 - `server/test/crypto` — AES-GCM round-trip/altération, scrypt, sessions,
   export par passphrase.
 - `server/test/db` — observations actif↔pause (aucune date inventée), audit,

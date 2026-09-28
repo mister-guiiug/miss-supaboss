@@ -189,6 +189,20 @@ CREATE TABLE alert_marks (
 );
 `,
   },
+  {
+    // v3 — fenêtre de restauration d'un an (doc Supabase relue le 28/09/2026).
+    // Le formulaire des Réglages enregistre l'objet ENTIER : un utilisateur
+    // qui a seulement touché un seuil a donc figé l'ancien défaut de 90 jours.
+    // Cette valeur exacte est portée à 365, une seule fois ; toute autre est
+    // un choix, et reste. Un 90 choisi APRÈS cette migration est respecté.
+    version: 3,
+    sql: `
+UPDATE user_settings
+   SET json = json_set(json, '$.restoreWindowDays', 365)
+ WHERE json_valid(json)
+   AND json_extract(json, '$.restoreWindowDays') = 90;
+`,
+  },
 ];
 
 /** Version atteinte après toutes les migrations. */

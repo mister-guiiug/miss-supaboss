@@ -233,7 +233,7 @@ describe('fenêtre de restauration — J-7 et J-1', () => {
 
   it('J-7, puis J-1, une fois chacun ; rien après l’échéance', async () => {
     const browser = await withPush();
-    const pausedAt = '2026-06-20T10:00:00.000Z'; // + 90 j = 18/09/2026 10:00Z
+    const pausedAt = '2025-09-18T10:00:00.000Z'; // + 365 j = 18/09/2026 10:00Z
     const at = (iso: string) =>
       t.ctx.alerts.evaluate(paused(pausedAt), new Date(iso));
 

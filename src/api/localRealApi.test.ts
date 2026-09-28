@@ -286,3 +286,41 @@ describe('localRealApi — Supabase réel via proxy', () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe('localRealApi — fenêtre de restauration d’un an', () => {
+  /** Un état local tel qu'enregistré, avec une fenêtre donnée. */
+  const etat = (jours: number, revision?: number) =>
+    JSON.stringify({
+      accounts: [],
+      meta: {},
+      operations: [],
+      settings: {
+        thresholds: { warn: 70, high: 85, critical: 95 },
+        pollingSeconds: 60,
+        restoreWindowDays: jours,
+      },
+      opSeq: 0,
+      ...(revision ? { revision } : {}),
+    });
+  const fenetre = async () =>
+    (await createLocalRealApi(PROXY).getSettings()).restoreWindowDays;
+
+  it('un appareil neuf part sur un an', async () => {
+    expect(await fenetre()).toBe(365);
+  });
+
+  it('l’ancien défaut de 90 jours, figé par l’enregistrement, devient un an', async () => {
+    localStorage.setItem(REAL_STORAGE_KEY, etat(90));
+    expect(await fenetre()).toBe(365);
+  });
+
+  it('une autre durée est un choix : elle reste', async () => {
+    localStorage.setItem(REAL_STORAGE_KEY, etat(30));
+    expect(await fenetre()).toBe(30);
+  });
+
+  it('un 90 choisi APRÈS la migration est respecté', async () => {
+    localStorage.setItem(REAL_STORAGE_KEY, etat(90, 2));
+    expect(await fenetre()).toBe(90);
+  });
+});

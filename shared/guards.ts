@@ -12,11 +12,22 @@ import {
 export const ACTIVE_PROJECT_LIMIT = 2;
 
 /**
- * Fenêtre de restauration ESTIMÉE : au-delà de ~90 jours de pause, un projet
- * Free ne peut plus être restauré en place (politique Supabase, susceptible
- * d'évoluer — valeur surchargeable dans les Réglages).
+ * Fenêtre de restauration ESTIMÉE : au-delà, un projet Free en pause ne se
+ * restaure plus en place, il reste la sauvegarde à télécharger. La
+ * documentation Supabase (`platform/upgrading`, « Time limits », relue les
+ * 25 et 28/09/2026) dit « a 1-year window to restore the project » : un an,
+ * compté ici en 365 jours, un jour d'avance les années bissextiles. Politique
+ * susceptible d'évoluer : valeur surchargeable dans les Réglages.
  */
-export const RESTORE_WINDOW_DAYS = 90;
+export const RESTORE_WINDOW_DAYS = 365;
+
+/**
+ * L'ancien défaut, tiré d'une politique Supabase révolue. Un réglage
+ * enregistré à cette valeur l'a été par défaut, pas par choix : les deux
+ * migrations (base du serveur, état local du navigateur) le portent une fois
+ * à `RESTORE_WINDOW_DAYS`.
+ */
+export const PREVIOUS_RESTORE_WINDOW_DAYS = 90;
 
 /** Le strict nécessaire pour raisonner sur un projet, côté front comme serveur. */
 export interface ProjectLite {

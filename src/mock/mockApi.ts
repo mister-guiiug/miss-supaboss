@@ -18,7 +18,10 @@ import {
   type SettingsDto,
   type UserDto,
 } from '../../shared/contracts.ts';
-import { estimateRestoreDeadline } from '../../shared/guards.ts';
+import {
+  estimateRestoreDeadline,
+  RESTORE_WINDOW_DAYS,
+} from '../../shared/guards.ts';
 import { MAX_SCHEDULES_PER_PROJECT, nextRunAt } from '../../shared/schedule.ts';
 import { webhookHint } from '../../shared/webhook.ts';
 import {
@@ -208,8 +211,12 @@ function seedState(): MockState {
         2,
         {
           tags: ['archive'],
-          lastSeenActiveAt: iso(-85 * DAY),
-          pausedAt: iso(-85 * DAY),
+          // À cinq jours de la fin de sa fenêtre de restauration : la démo
+          // montre une échéance proche, quelle que soit la durée de la fenêtre.
+          // Créé deux mois AVANT sa mise en pause, pas après.
+          createdAt: iso(-(RESTORE_WINDOW_DAYS + 60) * DAY),
+          lastSeenActiveAt: iso(-(RESTORE_WINDOW_DAYS - 5) * DAY),
+          pausedAt: iso(-(RESTORE_WINDOW_DAYS - 5) * DAY),
         }
       ),
       mkProject(
