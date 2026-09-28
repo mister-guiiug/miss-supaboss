@@ -106,9 +106,15 @@ describe('suggestPauses', () => {
 });
 
 describe('fenêtre de restaurabilité', () => {
-  it('échéance = pausedAt + 90 j par défaut', () => {
+  it('échéance = pausedAt + un an (365 j) par défaut, comme la doc Supabase', () => {
     const deadline = estimateRestoreDeadline('2026-01-01T00:00:00.000Z');
-    expect(deadline).toBe('2026-04-01T00:00:00.000Z');
+    expect(deadline).toBe('2027-01-01T00:00:00.000Z');
+  });
+
+  it('une fenêtre réglée l’emporte sur le défaut', () => {
+    expect(estimateRestoreDeadline('2026-01-01T00:00:00.000Z', 90)).toBe(
+      '2026-04-01T00:00:00.000Z'
+    );
   });
 
   it('null si pausedAt inconnu ou invalide', () => {

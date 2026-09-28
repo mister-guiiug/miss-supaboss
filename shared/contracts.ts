@@ -4,6 +4,7 @@
  * VALIDE les réponses avec ces schémas zod (et le mock s'y conforme).
  */
 import { z } from 'zod';
+import { RESTORE_WINDOW_DAYS } from './guards.ts';
 import { SUPABASE_PROJECT_STATUSES } from './status.ts';
 import {
   DEFAULT_SCHEDULE_TIMEZONE,
@@ -182,7 +183,7 @@ export type SettingsDto = z.infer<typeof settingsSchema>;
 export const DEFAULT_SETTINGS: SettingsDto = {
   thresholds: { warn: 70, high: 85, critical: 95 },
   pollingSeconds: 60,
-  restoreWindowDays: 90,
+  restoreWindowDays: RESTORE_WINDOW_DAYS,
 };
 
 /* ── Corps de requêtes (validés par zod côté serveur ET mock) ─────────── */

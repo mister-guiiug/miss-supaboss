@@ -566,7 +566,7 @@ describe('tâche de fond', () => {
 });
 
 describe('migration de schéma', () => {
-  it('une base v1 existante monte en v2 sans perte', () => {
+  it('une base v1 existante monte à la dernière version sans perte', () => {
     const dir = mkdtempSync(join(tmpdir(), 'supaboss-migration-'));
     try {
       const path = join(dir, 'supaboss.db');
@@ -589,15 +589,51 @@ describe('migration de schéma', () => {
 
       const reopened = new Store(path);
       expect(reopened.schemaVersion()).toBe(SCHEMA_VERSION);
-      expect(SCHEMA_VERSION).toBe(2);
+      expect(SCHEMA_VERSION).toBe(3);
       expect(reopened.findUserByEmail('ancien@test')).not.toBeNull();
       expect(reopened.listDueSchedules(new Date().toISOString())).toEqual([]);
       reopened.close();
 
       // Rouvrir une base à jour ne rejoue rien (les CREATE TABLE échoueraient).
       const again = new Store(path);
-      expect(again.schemaVersion()).toBe(2);
+      expect(again.schemaVersion()).toBe(SCHEMA_VERSION);
       again.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('v3 : l’ancien défaut de 90 jours devient un an, une seule fois', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'supaboss-migration-'));
+    try {
+      const path = join(dir, 'supaboss.db');
+      const base = new Store(path);
+      const reglages = (jours: number) => ({
+        thresholds: { warn: 60, high: 80, critical: 90 },
+        pollingSeconds: 30,
+        restoreWindowDays: jours,
+      });
+      const defaut = base.createUser('defaut@test', 'hash', 'admin');
+      const choix = base.createUser('choix@test', 'hash', 'viewer');
+      base.putSettings(defaut.id, reglages(90));
+      base.putSettings(choix.id, reglages(30));
+      // Ramène la base en v2, avant la migration.
+      base.db.exec(`UPDATE meta SET value='2' WHERE key='schema_version'`);
+      base.close();
+
+      const migree = new Store(path);
+      expect(migree.schemaVersion()).toBe(3);
+      // L'ancien défaut figé devient un an ; le reste du réglage ne bouge pas.
+      expect(migree.getSettings(defaut.id)).toEqual(reglages(365));
+      // Une autre durée est un choix : elle reste.
+      expect(migree.getSettings(choix.id).restoreWindowDays).toBe(30);
+      // Un 90 choisi APRÈS la migration est respecté aux réouvertures.
+      migree.putSettings(defaut.id, reglages(90));
+      migree.close();
+
+      const rouverte = new Store(path);
+      expect(rouverte.getSettings(defaut.id).restoreWindowDays).toBe(90);
+      rouverte.close();
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
