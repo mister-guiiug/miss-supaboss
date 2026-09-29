@@ -4,7 +4,7 @@ import {
   accountUpdateBodySchema,
   type AccountDto,
 } from '../../../shared/contracts.ts';
-import { api, ApiError } from '../../api/index.ts';
+import { api, ApiError, PROXY_BASE } from '../../api/index.ts';
 import { toast } from '../../store/useUiStore.ts';
 import { ConfirmDialog } from '@mister-guiiug/dev-pwa-config/react/confirm-dialog';
 import { useI18n } from '../../i18n/index.ts';
@@ -122,7 +122,13 @@ export function AccountForm({
               className="mt-1 w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 font-mono text-sm"
             />
             <span className="mt-1 block text-xs text-[var(--sb-text-soft)]">
-              {t('accounts.form.patHint')}
+              {/* Version publiée (relais local-first) : le jeton reste dans ce
+                  navigateur. Version auto-hébergée : chiffré côté serveur. */}
+              {t(
+                PROXY_BASE
+                  ? 'accounts.form.patHintLocal'
+                  : 'accounts.form.patHint'
+              )}
             </span>
           </label>
         )}

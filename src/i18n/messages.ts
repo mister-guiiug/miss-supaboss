@@ -113,6 +113,8 @@ export const messages = {
         patLabel: 'Personal Access Token (sbp_…)',
         patHint:
           'Créé sur supabase.com → Account → Access Tokens. Stocké chiffré (AES-256-GCM) côté serveur, jamais dans ce navigateur.',
+        patHintLocal:
+          'Créé sur supabase.com → Account → Access Tokens. Gardé dans ce navigateur, chiffrable par une phrase secrète (Réglages → Sécurité) ; les appels passent par un relais qui ne le conserve pas.',
         colorAria: 'Couleur du compte',
         colorSwatchAria: 'Couleur {color}',
         invalid: 'Saisie invalide',
@@ -132,6 +134,7 @@ export const messages = {
       connectFail: 'Connexion impossible (serveur joignable ?)',
       initialAccount:
         'Compte initial : voir la console serveur au premier démarrage.',
+      guideLink: 'Guide : quand un projet Supabase Free se met en pause',
       tryDemo: 'Essayer en mode démo (données fictives, sans compte)',
       totpTitle: 'Vérification en deux étapes',
       totpBack: 'Revenir au mot de passe',
@@ -632,6 +635,8 @@ export const messages = {
         patLabel: 'Personal Access Token (sbp_…)',
         patHint:
           'Created on supabase.com → Account → Access Tokens. Stored encrypted (AES-256-GCM) server-side, never in this browser.',
+        patHintLocal:
+          'Created on supabase.com → Account → Access Tokens. Kept in this browser, and can be encrypted with a passphrase (Settings → Security); calls go through a relay that does not store it.',
         colorAria: 'Account color',
         colorSwatchAria: 'Color {color}',
         invalid: 'Invalid input',
@@ -650,6 +655,7 @@ export const messages = {
       invalidCreds: 'Invalid credentials',
       connectFail: 'Sign-in failed (is the server reachable?)',
       initialAccount: 'Initial account: see the server console on first start.',
+      guideLink: 'Guide: when a Supabase Free project gets paused',
       tryDemo: 'Try demo mode (fake data, no account)',
       totpTitle: 'Two-step verification',
       totpBack: 'Back to password',
