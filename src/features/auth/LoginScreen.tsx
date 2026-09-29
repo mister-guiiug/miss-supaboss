@@ -164,6 +164,14 @@ export function LoginScreen() {
       >
         <Sparkles size={16} aria-hidden="true" /> {t('login.tryDemo')}
       </button>
+      {/* Le guide public (page statique) : lisible sans compte, et par les
+          moteurs, qui ne voient de l'app que cet écran. */}
+      <a
+        href={`${import.meta.env.BASE_URL}projet-supabase-en-pause.html`}
+        className="text-center text-xs font-medium text-[var(--sb-text-soft)] underline underline-offset-2"
+      >
+        {t('login.guideLink')}
+      </a>
     </main>
   );
 }

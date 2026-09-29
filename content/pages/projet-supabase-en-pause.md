@@ -1,6 +1,9 @@
 ---
 title: Projet Supabase en pause : le restaurer et gérer l'offre gratuite
 description: Projet Supabase gratuit mis en pause ? Pourquoi cela arrive, comment le restaurer, la limite de deux projets actifs, et une app pour suivre plusieurs comptes.
+date: 2026-09-25
+updated: 2026-09-29
+answer: Un projet Supabase gratuit est mis en pause après une semaine d'inactivité. Il se restaure d'un clic depuis le tableau de bord pendant un an. Au-delà, on télécharge sa sauvegarde et ses fichiers pour les restaurer ailleurs. Comme un compte n'a droit qu'à deux projets gratuits actifs, il faut parfois en mettre un autre en pause d'abord.
 ---
 
 # Projet Supabase en pause : comprendre, restaurer, s'organiser
@@ -11,16 +14,16 @@ Votre application ne répond plus, et le tableau de bord de Supabase affiche le 
 
 Deux règles de l'offre gratuite (Free) expliquent presque tout :
 
-- **L'inactivité.** La [page de tarifs de Supabase](https://supabase.com/pricing) indique qu'un projet gratuit est mis en pause après une semaine d'inactivité.
+- **L'inactivité.** La [page de tarifs de Supabase](https://supabase.com/pricing) indique qu'un projet gratuit est mis en pause après une semaine d'inactivité. Supabase prévient le propriétaire par e-mail environ une semaine avant la pause, puis confirme la pause par un second e-mail.
 - **La limite de projets.** La [documentation de facturation](https://supabase.com/docs/guides/platform/billing-on-supabase) accorde deux projets gratuits. Cette limite vaut pour toutes les organisations dont vous êtes propriétaire ou administrateur. Un projet en pause ne compte pas dans cette limite.
 
-Ces règles ont été relevées en septembre 2026. Elles peuvent changer : vérifiez-les sur le site de Supabase avant de prendre une décision importante.
+Selon la documentation de Supabase, quelques requêtes par jour sur la base suffisent en général à éviter la pause. Ces règles ont été relevées le 29 septembre 2026. Elles peuvent changer : vérifiez-les sur le site de Supabase avant de prendre une décision importante.
 
 ## Ce que la pause change, et ce qu'elle ne change pas
 
 Un projet en pause ne répond plus : l'application qui s'appuie dessus tombe. Vos données, elles, ne disparaissent pas tout de suite.
 
-Selon la documentation de Supabase, un projet en pause se restaure d'un clic depuis le tableau de bord pendant une fenêtre de restauration, d'un an à la date de rédaction. Passé ce délai, il reste possible de télécharger la sauvegarde de la base et les fichiers de stockage, puis de les restaurer dans un nouveau projet. La même documentation précise qu'un projet gratuit restauré passe à la dernière version mineure disponible.
+Selon la documentation de Supabase, un projet en pause se restaure d'un clic depuis le tableau de bord pendant une fenêtre de restauration d'un an. Passé ce délai, il reste possible de télécharger la sauvegarde de la base et les fichiers de stockage, puis de les restaurer dans un nouveau projet. La même documentation précise qu'un projet gratuit restauré passe à la dernière version mineure disponible.
 
 ## Restaurer un projet en pause, étape par étape
 
@@ -51,7 +54,7 @@ Entre prototypes et démonstrations, on gère souvent plusieurs comptes Supabase
 
 La version publiée s'ouvre sur des données d'exemple : vous pouvez tout essayer sans rien connecter. Pour vos vrais comptes, désactivez le mode démo dans les Réglages, puis ajoutez chaque compte avec un nom parlant et son jeton d'accès personnel, créé depuis votre compte Supabase (rubrique Access Tokens).
 
-Le jeton reste sur votre appareil. Il n'est transmis qu'au relais de l'application, en HTTPS, qui le fait suivre à l'API de Supabase. Vous pouvez le chiffrer par une phrase secrète, demandée à chaque ouverture. Un jeton d'accès personnel donne un large pouvoir sur votre compte : utilisez un appareil de confiance, et révoquez le jeton depuis Supabase au moindre doute.
+Le jeton reste sur votre appareil, enregistré en clair par défaut ; vous pouvez le chiffrer par une phrase secrète, demandée à chaque ouverture. Il n'est transmis qu'au relais de l'application, en HTTPS, qui le fait suivre à l'API de Supabase sans le garder. Un jeton classique ouvre toutes vos organisations : utilisez un appareil de confiance, et révoquez le jeton depuis Supabase au moindre doute. Supabase propose aussi des jetons limités aux projets et permissions choisis ; si vous en utilisez un, vérifiez qu'il permet de lister, de mettre en pause, de restaurer et de lire vos projets.
 
 Miss Supaboss est une application indépendante, ni affiliée à Supabase ni approuvée par Supabase. Supabase est une marque de son propriétaire.
 
@@ -67,8 +70,16 @@ Non. La documentation de Supabase précise que les projets en pause ne comptent 
 
 ### Mes données sont-elles perdues quand le projet est en pause ?
 
-Pas immédiatement. Pendant la fenêtre de restauration, un clic suffit. Ensuite, Supabase propose de télécharger la sauvegarde et les fichiers pour les restaurer ailleurs. Ne comptez pas sur une conservation sans limite.
+Pas immédiatement. Pendant la fenêtre de restauration d'un an, un clic suffit. Ensuite, Supabase propose de télécharger la sauvegarde et les fichiers pour les restaurer ailleurs. Ne comptez pas sur une conservation sans limite.
 
 ### Miss Supaboss empêche-t-elle la mise en pause ?
 
 Non. Elle ne maintient pas vos projets en éveil. Elle vous montre ce qui est actif ou en pause, vous aide à restaurer le bon projet sans dépasser la limite et, en version auto-hébergée, planifie pauses et restaurations.
+
+## Sources
+
+- [Tarifs de Supabase](https://supabase.com/pricing) : pause après une semaine d'inactivité.
+- [Facturation sur Supabase](https://supabase.com/docs/guides/platform/billing-on-supabase) : deux projets gratuits, projets en pause non comptés.
+- [Mise en pause des projets gratuits](https://supabase.com/docs/guides/platform/free-project-pausing) : e-mails, restauration pendant un an.
+- [Mises à niveau](https://supabase.com/docs/guides/platform/upgrading) : version mineure à la restauration, sauvegarde après la fenêtre.
+- [Jetons d'accès personnels](https://supabase.com/docs/guides/platform/personal-access-tokens) : jetons classiques et jetons limités.
