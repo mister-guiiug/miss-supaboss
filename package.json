@@ -10,7 +10,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "dev:mock": "cross-env VITE_MOCK=1 vite",
+    "dev:mock": "node scripts/with-env.mjs VITE_MOCK=1 -- vite",
     "dev:server": "node --watch --env-file-if-exists=.env server/src/index.ts",
     "build": "tsc -b && vite build && pwa-bundle-budget",
     "preview": "vite preview --base /miss-supaboss/",
@@ -50,7 +50,6 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "@vitest/coverage-v8": "^5.0.3",
-    "cross-env": "^10.1.0",
     "eslint": "^10.12.0",
     "husky": "^9.1.7",
     "jsdom": "^30.1.1",
