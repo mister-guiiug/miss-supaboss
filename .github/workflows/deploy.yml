@@ -26,6 +26,6 @@ jobs:
       use-base-path: true
       build-env: |
         VITE_MOCK=1
-        VITE_SUPABASE_PROXY=${{ vars.SUPABASE_PROXY_URL }}
         VITE_POSTHOG_KEY=${{ vars.VITE_POSTHOG_KEY }}
         VITE_SENTRY_DSN=${{ vars.VITE_SENTRY_DSN }}
+        VITE_SUPABASE_PROXY=${{ vars.VITE_SUPABASE_PROXY }}
