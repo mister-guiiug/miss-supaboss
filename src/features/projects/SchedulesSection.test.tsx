@@ -1,9 +1,11 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  wrapWithQueryClient,
+  clearQueryClient,
+} from '@mister-guiiug/dev-pwa-config/testing/query';
 import { I18nProvider } from '../../i18n/index.ts';
-import { getQueryClient } from '../../shared/queries/client.ts';
 import { useSessionStore } from '../../store/useSessionStore.ts';
 import { SchedulesSection } from './SchedulesSection.tsx';
 
@@ -25,16 +27,16 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  getQueryClient().clear();
+  clearQueryClient();
 });
 
 function renderSection() {
   render(
-    <QueryClientProvider client={getQueryClient()}>
+    wrapWithQueryClient(
       <I18nProvider>
         <SchedulesSection accountId="acc-lab" projectRef="crm-poc" />
       </I18nProvider>
-    </QueryClientProvider>
+    )
   );
   return userEvent.setup();
 }

@@ -1,20 +1,16 @@
-import { QueryClient } from '@tanstack/react-query';
+import { getQueryClient as getFamilyQueryClient } from '@mister-guiiug/dev-pwa-config/react/query-client';
 
-function createAppQueryClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 30_000,
-        retry: 1,
-        refetchOnWindowFocus: true,
-      },
-    },
+/**
+ * Client Query — defaults famille, avec refetch au focus (console ops :
+ * une flotte qu'on revient voir doit être fraîche).
+ */
+export function getQueryClient() {
+  return getFamilyQueryClient({
+    queries: { refetchOnWindowFocus: true },
   });
 }
 
-let client: QueryClient | undefined;
-
-export function getQueryClient(): QueryClient {
-  client ??= createAppQueryClient();
-  return client;
-}
+export {
+  resetQueryClient,
+  createQueryClient,
+} from '@mister-guiiug/dev-pwa-config/react/query-client';
