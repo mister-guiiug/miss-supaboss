@@ -28,8 +28,13 @@
   --sb-text: #0e1a30;
   --sb-text-soft: #54637f;
   --sb-border: #d7e0ee;
-  --sb-ring: #0f9d63;
-  --sb-ok: #0f9d63;
+  /* LE VERT QUI ÉCRIT. #0f9d63 ne tenait que 3,5:1 en texte sur blanc, et 2,8
+     à 2,9:1 dans les pastilles « ok » teintées à 15 % (onglet actif de la
+     barre basse à 11 px, « 1/2 actifs », historique) : sous le 4,5:1 d'un
+     libellé. #066a44 tient 4,6:1 au pire, pastille teintée sur --sb-surface-2
+     comprise, et 6,7:1 sous une encre blanche. Relevé du 07/10/2026. */
+  --sb-ring: #066a44;
+  --sb-ok: #066a44;
   --sb-warn: #b45309;
   --sb-high: #c2410c;
   --sb-critical: #be123c;
@@ -51,12 +56,13 @@
   --dwc-border-strong: var(--sb-text-soft);
   /* La primaire sert AUSSI de couleur de texte (onglet actif, icône d'état
      vide) : le vert de marque #3ecf8e ne tient que 1,9:1 sur blanc. `--sb-ring`
-     porte déjà ce rôle « vert interactif par thème » (#0f9d63 clair, 3,5:1 ;
+     porte déjà ce rôle « vert interactif par thème » (#066a44 clair, 6,7:1 ;
      #3ecf8e sombre, 8,5:1 sur la surface). */
   --dwc-primary: var(--sb-ring);
-  /* L'encre des boutons primaires de l'app (`text-[#06281a]` sur bg-primary) :
-     4,5:1 sur #0f9d63, 7,9:1 sur #3ecf8e. */
-  --dwc-primary-contrast: #06281a;
+  /* L'encre posée SUR la primaire (bouton primaire et confirmation du socle,
+     pastille de la barre basse) : blanche en clair, 6,7:1 sur #066a44. Le
+     sombre garde l'encre des boutons de l'app, #06281a, 7,9:1 sur #3ecf8e. */
+  --dwc-primary-contrast: #ffffff;
   /* `--color-primary-soft` (#103526) est un fond SOMBRE (app dark-first) :
      inutilisable tel quel en clair. On dérive du vert de marque, comme les
      fonds `bg-primary/15` que l'app pose déjà. */
@@ -90,8 +96,9 @@
   --sb-paused: #7d8db0;
   color-scheme: dark;
 
-  /* Seul jeton `--dwc-*` posé en dur plus haut qui doive changer ici : les
+  /* Les jetons `--dwc-*` posés en dur plus haut qui doivent changer ici : les
      autres suivent les `--sb-*` redéfinis ci-dessus. */
+  --dwc-primary-contrast: #06281a;
   --dwc-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
 }
 
