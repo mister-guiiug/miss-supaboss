@@ -68,7 +68,7 @@
     "@fastify/static": "^10.1.5",
     "@sentry/react": "^11.5.0",
     "@tanstack/react-query": "^5.104.1",
-    "fastify": "^5.12.5",
+    "fastify": "^5.12.7",
     "lucide-react": "^1.52.0",
     "posthog-js": "^1.438.2",
     "react": "^19.3.0",
