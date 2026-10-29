@@ -455,7 +455,7 @@ export function createLocalRealApi(proxyBase: string): Api {
           : new ApiError(422, 'pat-invalid', message);
       }
       const acc: RealAccount = {
-        id: `acc-${Math.random().toString(36).slice(2, 8)}`,
+        id: `acc-${crypto.randomUUID().slice(0, 8)}`,
         alias: input.alias,
         color: input.color,
         enabled: true,
