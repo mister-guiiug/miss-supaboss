@@ -503,7 +503,7 @@ export function createMockApi(): Api {
     async createAccount(input) {
       await sleep(600);
       const acc: AccountDto = {
-        id: `acc-${Math.random().toString(36).slice(2, 8)}`,
+        id: `acc-${crypto.randomUUID().slice(0, 8)}`,
         alias: input.alias,
         color: input.color,
         enabled: true,
@@ -781,7 +781,7 @@ export function createMockApi(): Api {
           );
         }
         const schedule: ScheduleDto = {
-          id: `sch-${Math.random().toString(36).slice(2, 10)}`,
+          id: `sch-${crypto.randomUUID().slice(0, 8)}`,
           accountId,
           ref,
           action: input.action,
