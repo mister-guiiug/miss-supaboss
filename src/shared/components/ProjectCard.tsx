@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Star, Zap } from 'lucide-react';
 import type { ProjectDto } from '../../../shared/contracts.ts';
 import { formatRelative } from '../../../shared/format.ts';
+import { isPausable } from '../../../shared/status.ts';
 import { useI18n } from '../../i18n/index.ts';
 import { StatusBadge } from './StatusBadge.tsx';
 
@@ -25,6 +26,9 @@ export function ProjectCard({
   selectMode = false,
   selected = false,
   onToggleSelect,
+  compact = false,
+  onPause,
+  pauseDisabled = false,
 }: {
   project: ProjectDto;
   accountAlias: string;
@@ -32,6 +36,10 @@ export function ProjectCard({
   selectMode?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
+  /** La section liste déjà le compte et l'organisation. */
+  compact?: boolean;
+  onPause?: () => void;
+  pauseDisabled?: boolean;
 }) {
   const { t } = useI18n();
   const { meta } = project;
@@ -79,31 +87,41 @@ export function ProjectCard({
             )}
           </p>
           <p className="truncate text-xs text-[var(--sb-text-soft)]">
-            {project.ref} · {project.organizationSlug} · {activity}
+            {compact
+              ? activity
+              : `${project.ref} · ${project.organizationSlug} · ${activity}`}
           </p>
         </div>
         <StatusBadge status={project.status} />
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <AccountChip alias={accountAlias} color={accountColor} />
-        {meta.tags.map(tag => {
-          const isDemoTag = tag.startsWith('démo:') || tag.startsWith('demo:');
-          return (
-            <span
-              key={tag}
-              className={`rounded-full border px-2 py-0.5 text-xs ${
-                isDemoTag
-                  ? 'border-primary/40 bg-primary/10 font-medium text-primary'
-                  : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
-              }`}
-            >
-              {tag}
-            </span>
-          );
-        })}
-      </div>
+      {(!compact || meta.tags.length > 0) && (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {!compact && (
+            <AccountChip alias={accountAlias} color={accountColor} />
+          )}
+          {meta.tags.map(tag => {
+            const isDemoTag =
+              tag.startsWith('démo:') || tag.startsWith('demo:');
+            return (
+              <span
+                key={tag}
+                className={`rounded-full border px-2 py-0.5 text-xs ${
+                  isDemoTag
+                    ? 'border-primary/40 bg-primary/10 font-medium text-primary'
+                    : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
+                }`}
+              >
+                {tag}
+              </span>
+            );
+          })}
+        </div>
+      )}
     </>
   );
+
+  const showPause =
+    Boolean(onPause) && isPausable(project.status) && !selectMode;
 
   if (selectMode) {
     return (
@@ -124,12 +142,34 @@ export function ProjectCard({
     );
   }
 
+  if (!showPause) {
+    return (
+      <Link
+        to={`/projects/${project.accountId}/${project.ref}`}
+        className="card block p-4 transition-colors hover:border-primary/60"
+      >
+        {body}
+      </Link>
+    );
+  }
+
   return (
-    <Link
-      to={`/projects/${project.accountId}/${project.ref}`}
-      className="card block p-4 transition-colors hover:border-primary/60"
-    >
-      {body}
-    </Link>
+    <div className="card p-4">
+      <Link
+        to={`/projects/${project.accountId}/${project.ref}`}
+        className="block"
+      >
+        {body}
+      </Link>
+      <button
+        type="button"
+        disabled={pauseDisabled}
+        onClick={onPause}
+        aria-label={t('projectCard.pauseAria', { name: project.name })}
+        className="touch-target mt-3 inline-flex items-center rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium disabled:opacity-50"
+      >
+        {t('projectDetail.pause')}
+      </button>
+    </div>
   );
 }

@@ -32,7 +32,7 @@ test('@critical préparer une démo propose les pauses puis restaure', async ({
 
 test('@critical la vue projets filtre par statut', async ({ page }) => {
   await page.goto('/#/projects');
-  await page.getByRole('button', { name: 'En pause' }).click();
+  await page.getByRole('button', { name: /^En pause/ }).click();
   await expect(page.getByText('Hackathon 2026')).toBeVisible();
   await expect(page.getByText('RAG IA Démo')).toBeHidden();
 });
