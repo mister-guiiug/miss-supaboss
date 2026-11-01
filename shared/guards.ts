@@ -44,6 +44,18 @@ export interface ProjectLite {
 /** Tag réservé : un projet « critique démo » n'est jamais suggéré en pause. */
 export const DEMO_CRITICAL_TAG = 'critique-demo';
 
+/** Préfixe des tags de fixtures mock — distincts des tags saisis en réel. */
+export const DEMO_TAG_PREFIX = 'démo:';
+
+/** True si le tag (brut ou préfixé démo) est le marqueur critique-démo. */
+export function isDemoCriticalTag(tag: string): boolean {
+  return (
+    tag === DEMO_CRITICAL_TAG ||
+    tag === `${DEMO_TAG_PREFIX}${DEMO_CRITICAL_TAG}` ||
+    tag.endsWith(`:${DEMO_CRITICAL_TAG}`)
+  );
+}
+
 /** Ne requiert que `status` : accepte ProjectLite comme ProjectDto. */
 export function activeProjects<P extends { status: SupabaseProjectStatus }>(
   projects: readonly P[]
@@ -127,7 +139,7 @@ export function suggestPauses<P extends ProjectLite>(
   const cost = (p: P): number =>
     (p.favorite ? 2 : 0) +
     (p.demoFrequent ? 2 : 0) +
-    (p.tags.includes(DEMO_CRITICAL_TAG) ? 8 : 0);
+    (p.tags.some(isDemoCriticalTag) ? 8 : 0);
 
   return [...actives]
     .sort((a, b) => {

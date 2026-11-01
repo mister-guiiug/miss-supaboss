@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   FileQuestion,
+  HeartPulse,
   PauseCircle,
   PlayCircle,
   Star,
@@ -16,7 +17,7 @@ import {
 } from '../../store/useFleetStore.ts';
 import { useSessionStore } from '../../store/useSessionStore.ts';
 import { toast } from '../../store/useUiStore.ts';
-import { ApiError } from '../../api/index.ts';
+import { api, ApiError, IS_MOCK, PROXY_BASE } from '../../api/index.ts';
 import {
   isPausable,
   isRestorable,
@@ -38,8 +39,91 @@ import { usePolling } from '../../shared/hooks/usePolling.ts';
 import { useOnline } from '@mister-guiiug/dev-pwa-config/react/use-online';
 import { useI18n } from '../../i18n/index.ts';
 import { SchedulesSection } from './SchedulesSection.tsx';
+import type { ServiceHealth } from '../../../shared/supabaseApi.ts';
 
 const SUGGESTED_TAGS = ['poc', 'demo', 'archive', 'critique-demo'];
+const KEEPALIVE_DOC =
+  'https://github.com/mister-guiiug/dev-pwa-config/blob/main/.github/workflows/pwa-supabase-keepalive.yml';
+
+function ProjectHealthCard({
+  accountId,
+  projectRef,
+}: {
+  accountId: string;
+  projectRef: string;
+}) {
+  const { t } = useI18n();
+  const [health, setHealth] = useState<ServiceHealth[] | null>(null);
+  const [healthError, setHealthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .getProjectHealth?.(accountId, projectRef)
+      .then(rows => {
+        if (!cancelled) {
+          setHealth(rows);
+          setHealthError(null);
+        }
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) {
+          setHealth(null);
+          setHealthError(
+            e instanceof ApiError ? e.message : t('projectDetail.healthFail')
+          );
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [accountId, projectRef, t]);
+
+  if (!health && !healthError) return null;
+
+  return (
+    <section
+      className="card space-y-2 p-4"
+      aria-label={t('projectDetail.healthAria')}
+    >
+      <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
+        <HeartPulse size={15} aria-hidden="true" />{' '}
+        {t('projectDetail.healthTitle')}
+      </h2>
+      {healthError && (
+        <p className="text-xs text-[var(--sb-warn)]">{healthError}</p>
+      )}
+      {health && health.length === 0 && (
+        <p className="text-xs text-[var(--sb-text-soft)]">
+          {t('projectDetail.healthEmpty')}
+        </p>
+      )}
+      {health && health.length > 0 && (
+        <ul className="space-y-1 text-sm">
+          {health.map(s => (
+            <li
+              key={s.name}
+              className="flex items-center justify-between gap-2"
+            >
+              <span className="font-medium">{s.name}</span>
+              <span
+                className={
+                  s.healthy
+                    ? 'text-[var(--sb-ok)]'
+                    : 'text-[var(--sb-critical)]'
+                }
+              >
+                {s.healthy
+                  ? t('projectDetail.healthOk')
+                  : (s.error ?? s.status ?? t('projectDetail.healthBad'))}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
 
 export function ProjectDetailScreen() {
   const { t } = useI18n();
@@ -87,6 +171,9 @@ export function ProjectDetailScreen() {
 
   const [confirmPause, setConfirmPause] = useState(false);
   const [busy, setBusy] = useState(false);
+  const showHealth = Boolean(
+    project && !IS_MOCK && PROXY_BASE && online && api.getProjectHealth
+  );
 
   if (!project || !account) {
     return (
@@ -104,6 +191,7 @@ export function ProjectDetailScreen() {
 
   const actives = activeProjects(accountProjects);
   const windowExpired = isRestoreWindowExpired(project.meta.restoreDeadline);
+  const deadlineSource = project.meta.restoreDeadlineSource;
 
   const doPause = async (): Promise<void> => {
     setBusy(true);
@@ -189,7 +277,11 @@ export function ProjectDetailScreen() {
           {project.meta.restoreDeadline && (
             <div className="col-span-2">
               <dt className="text-xs text-[var(--sb-text-soft)]">
-                {t('projectDetail.restorableUntil')}
+                {deadlineSource === 'api-ok'
+                  ? t('projectDetail.restorableUntilApiOk')
+                  : deadlineSource === 'api-blocked'
+                    ? t('projectDetail.restorableUntilApiBlocked')
+                    : t('projectDetail.restorableUntil')}
               </dt>
               <dd
                 className={`font-medium ${windowExpired ? 'text-[var(--sb-critical)]' : ''}`}
@@ -307,6 +399,57 @@ export function ProjectDetailScreen() {
       {/* « Mettre en pause vendredi soir » : une pause, différée. */}
       <SchedulesSection accountId={accountId} projectRef={ref} />
 
+      <section
+        className="card space-y-3 p-4"
+        aria-label={t('projectDetail.keepAliveAria')}
+      >
+        <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
+          {t('projectDetail.keepAliveTitle')}
+        </h2>
+        <p className="text-xs text-[var(--sb-text-soft)]">
+          {t('projectDetail.keepAliveBody')}
+        </p>
+        <div className="flex items-center justify-between gap-3 text-sm">
+          <span id="keepalive-label">{t('projectDetail.keepAliveToggle')}</span>
+          <button
+            type="button"
+            role="switch"
+            aria-labelledby="keepalive-label"
+            aria-checked={Boolean(project.meta.keepAliveOptIn)}
+            disabled={!metaGuard.allowed}
+            onClick={() =>
+              void toggleMeta({
+                keepAliveOptIn: !project.meta.keepAliveOptIn,
+              })
+            }
+            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
+              project.meta.keepAliveOptIn
+                ? 'bg-primary'
+                : 'bg-[var(--sb-surface-2)]'
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className={`inline-block size-5 rounded-full bg-white shadow transition-transform ${
+                project.meta.keepAliveOptIn ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+        <a
+          href={KEEPALIVE_DOC}
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs font-medium text-primary underline underline-offset-2"
+        >
+          {t('projectDetail.keepAliveLink')}
+        </a>
+      </section>
+
+      {showHealth && (
+        <ProjectHealthCard accountId={accountId} projectRef={ref} />
+      )}
+
       <section className="card space-y-3 p-4" aria-label={t('titles.quotas')}>
         <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
           {t('titles.quotas')}
@@ -321,6 +464,8 @@ export function ProjectDetailScreen() {
               key={m.kind}
               metric={m}
               thresholds={settings.thresholds}
+              accountId={accountId}
+              projectRef={ref}
             />
           ))
         )}

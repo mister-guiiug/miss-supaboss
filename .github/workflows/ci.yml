@@ -38,9 +38,14 @@ jobs:
       # donc ne compare rien, et le job sort vert. Relevé du 13/09/2026 :
       # six dépôts déclaraient des seuils, UN SEUL les jouait.
       run-coverage: true
-      # Le build CI valide le bundle mock (même build que GitHub Pages).
+      # Le build CI mesure le preload AVEC les vars de prod (même forme que
+      # Deploy) — sinon le plafond `preloadGzipKb` ne casse qu'au Deploy
+      # (#153). Valeurs vides = skip injection, mais les clés restent alignées.
       build-env: |
         VITE_MOCK=1
+        VITE_POSTHOG_KEY=${{ vars.VITE_POSTHOG_KEY }}
+        VITE_SENTRY_DSN=${{ vars.VITE_SENTRY_DSN }}
+        VITE_SUPABASE_PROXY=${{ vars.VITE_SUPABASE_PROXY }}
       run-e2e: true
       # Ni `e2e-grep` ni `e2e-project` : les deux ne faisaient que recopier le
       # défaut du socle (`@critical|@a11y` et `chromium`). Recopié, un défaut

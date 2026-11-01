@@ -35,6 +35,11 @@ export const accountSchema = z.object({
   createdAt: z.string(),
   lastSyncAt: z.string().nullable(),
   lastError: z.string().nullable(),
+  /**
+   * Rappel local (saisie manuelle) : date d'expiration du PAT côté Supabase.
+   * Jamais lue depuis l'API — pure aide-mémoire UI.
+   */
+  patExpiresAt: z.string().nullable().optional(),
 });
 export type AccountDto = z.infer<typeof accountSchema>;
 
@@ -47,6 +52,19 @@ export const projectMetaSchema = z.object({
   lastSeenActiveAt: z.string().nullable(),
   pausedAt: z.string().nullable(),
   restoreDeadline: z.string().nullable(),
+  /**
+   * Opt-in local : ce projet doit rester « chaud » via un workflow keep-alive
+   * externe (GHA `pwa-supabase-keepalive.yml`). Miss Supaboss n'exécute rien ;
+   * le drapeau sert de mémo + lien doc.
+   */
+  keepAliveOptIn: z.boolean().optional(),
+  /**
+   * Origine de `restoreDeadline` : estimation locale, ou confirmée/refusée
+   * via GET /v1/projects/{ref}/restore.
+   */
+  restoreDeadlineSource: z
+    .enum(['estimate', 'api-ok', 'api-blocked'])
+    .optional(),
 });
 export type ProjectMetaDto = z.infer<typeof projectMetaSchema>;
 
@@ -205,6 +223,12 @@ export const accountCreateBodySchema = z.object({
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/)
     .default('#3ecf8e'),
+  /** ISO date (YYYY-MM-DD) optionnelle — rappel d'expiration PAT. */
+  patExpiresAt: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
 });
 
 export const accountUpdateBodySchema = z.object({
@@ -215,6 +239,11 @@ export const accountUpdateBodySchema = z.object({
     .regex(/^#[0-9a-fA-F]{6}$/)
     .optional(),
   pat: z.string().trim().min(20).max(200).regex(/^sbp_/).optional(),
+  patExpiresAt: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
 });
 
 export const projectMetaBodySchema = z.object({
@@ -222,6 +251,7 @@ export const projectMetaBodySchema = z.object({
   favorite: z.boolean().optional(),
   demoFrequent: z.boolean().optional(),
   notes: z.string().max(2000).optional(),
+  keepAliveOptIn: z.boolean().optional(),
 });
 
 export const restoreBodySchema = z.object({

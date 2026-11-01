@@ -65,6 +65,7 @@ interface MockProject {
   notes: string;
   lastSeenActiveAt: string | null;
   pausedAt: string | null;
+  keepAliveOptIn?: boolean;
   /** Base de métriques (MB / utilisateurs) pour des valeurs stables. */
   seed: number;
 }
@@ -121,7 +122,7 @@ function mkProject(
     organizationName: org[1],
     status,
     createdAt: iso(-90 * DAY),
-    tags: ['poc'],
+    tags: ['démo:poc'],
     favorite: false,
     demoFrequent: false,
     notes: '',
@@ -141,7 +142,7 @@ function demoProjectsForAccount(
   const org: [string, string] = [`org-${accountId}`, alias];
   return [
     mkProject(accountId, org, `${accountId}-api`, 'API', 'ACTIVE_HEALTHY', 8, {
-      tags: ['prod'],
+      tags: ['démo:prod'],
       favorite: true,
     }),
     mkProject(
@@ -160,7 +161,7 @@ function demoProjectsForAccount(
       'INACTIVE',
       2,
       {
-        tags: ['staging'],
+        tags: ['démo:staging'],
         lastSeenActiveAt: iso(-20 * DAY),
         pausedAt: iso(-20 * DAY),
       }
@@ -178,7 +179,7 @@ function seedState(): MockState {
     ],
     projects: [
       mkProject('acc-lab', labOrg, 'crm-poc', 'CRM POC', 'ACTIVE_HEALTHY', 6, {
-        tags: ['poc', 'demo'],
+        tags: ['démo:poc', 'démo:demo'],
         demoFrequent: true,
       }),
       // seed 49 → dbSize ≈ 361 MB / 500 MB (~72 %) : illustre le seuil warn.
@@ -190,7 +191,7 @@ function seedState(): MockState {
         'ACTIVE_HEALTHY',
         49,
         {
-          tags: ['demo', 'critique-demo'],
+          tags: ['démo:demo', 'démo:critique-demo'],
           favorite: true,
         }
       ),
@@ -210,7 +211,7 @@ function seedState(): MockState {
         'INACTIVE',
         2,
         {
-          tags: ['archive'],
+          tags: ['démo:archive'],
           // À cinq jours de la fin de sa fenêtre de restauration : la démo
           // montre une échéance proche, quelle que soit la durée de la fenêtre.
           // Créé deux mois AVANT sa mise en pause, pas après.
@@ -227,7 +228,7 @@ function seedState(): MockState {
         'ACTIVE_HEALTHY',
         9,
         {
-          tags: ['demo'],
+          tags: ['démo:demo'],
           favorite: true,
           demoFrequent: true,
         }
@@ -241,7 +242,7 @@ function seedState(): MockState {
         'INACTIVE',
         5,
         {
-          tags: ['demo'],
+          tags: ['démo:demo'],
           demoFrequent: true,
           lastSeenActiveAt: iso(-30 * DAY),
           pausedAt: iso(-30 * DAY),
@@ -362,6 +363,8 @@ export function createMockApi(): Api {
         p.pausedAt,
         state.settings.restoreWindowDays
       ),
+      restoreDeadlineSource: p.pausedAt ? 'estimate' : undefined,
+      keepAliveOptIn: p.keepAliveOptIn,
     },
   });
 
@@ -713,6 +716,8 @@ export function createMockApi(): Api {
       if (fields.demoFrequent !== undefined)
         p.demoFrequent = fields.demoFrequent;
       if (fields.notes !== undefined) p.notes = fields.notes;
+      if (fields.keepAliveOptIn !== undefined)
+        p.keepAliveOptIn = fields.keepAliveOptIn;
       save();
     },
 

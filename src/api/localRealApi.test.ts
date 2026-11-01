@@ -92,6 +92,12 @@ function managementOk(
       return json(orgProjectsPage());
     }
     if (path === '/v1/projects') return json(PROJECTS);
+    if (
+      path?.endsWith('/restore') &&
+      (!init?.method || init.method === 'GET')
+    ) {
+      return json({ available_versions: [{ version: '15.8.1.085' }] });
+    }
     return json(null, 404);
   };
 }
@@ -101,10 +107,17 @@ beforeEach(() => {
   localStorage.clear();
 });
 
+async function withVault(
+  api: ReturnType<typeof createLocalRealApi>
+): Promise<void> {
+  await api.vault?.enable('phrase-test-coffre');
+}
+
 describe('localRealApi — Supabase réel via proxy', () => {
   it('createAccount → testAccount/getFleet renvoient orgs + statuts des projets', async () => {
     stubFetch(managementOk());
     const api = createLocalRealApi(PROXY);
+    await withVault(api);
     const acc = await api.createAccount({
       alias: 'Khelypso',
       color: '#3ecf8e',
@@ -147,6 +160,7 @@ describe('localRealApi — Supabase réel via proxy', () => {
       return json(null, 404);
     });
     const api = createLocalRealApi(PROXY);
+    await withVault(api);
     const acc = await api.createAccount({
       alias: 'Beta',
       color: '#3ecf8e',
@@ -161,9 +175,23 @@ describe('localRealApi — Supabase réel via proxy', () => {
     vi.unstubAllGlobals();
   });
 
+  it('createAccount exige le coffre avant tout PAT', async () => {
+    stubFetch(managementOk());
+    const api = createLocalRealApi(PROXY);
+    await expect(
+      api.createAccount({
+        alias: 'X',
+        color: '#3ecf8e',
+        pat: 'sbp_DEMOFAKEtoken',
+      })
+    ).rejects.toMatchObject({ status: 400, code: 'vault-required' });
+    vi.unstubAllGlobals();
+  });
+
   it('createAccount rejette un PAT invalide (401 du proxy)', async () => {
     stubFetch(() => json({ message: 'Unauthorized' }, 401));
     const api = createLocalRealApi(PROXY);
+    await withVault(api);
     await expect(
       api.createAccount({ alias: 'X', color: '#3ecf8e', pat: 'sbp_bad' })
     ).rejects.toMatchObject({ status: 401, code: 'pat-invalid' });
@@ -175,16 +203,21 @@ describe('localRealApi — Supabase réel via proxy', () => {
   it('persiste le compte localement (clé dédiée, séparée de la démo)', async () => {
     stubFetch(managementOk());
     const first = createLocalRealApi(PROXY);
+    await withVault(first);
     await first.createAccount({
       alias: 'Khelypso',
       color: '#3ecf8e',
       pat: 'sbp_DEMOFAKEtoken',
     });
     expect(localStorage.getItem(REAL_STORAGE_KEY)).toContain('Khelypso');
+    expect(localStorage.getItem(REAL_STORAGE_KEY)).not.toContain(
+      'sbp_DEMOFAKEtoken'
+    );
     // Mock démo intact (clés distinctes).
     expect(localStorage.getItem('miss-supaboss-mock-v1')).toBeNull();
 
-    // Une nouvelle instance recharge le compte persisté.
+    // Une nouvelle instance recharge le compte persisté (coffre encore unlock
+    // en mémoire pour cette session de test — métadonnées seules en storage).
     const second = createLocalRealApi(PROXY);
     expect(await second.listAccounts()).toHaveLength(1);
     vi.unstubAllGlobals();
@@ -207,6 +240,7 @@ describe('localRealApi — Supabase réel via proxy', () => {
       })
     );
     const api = createLocalRealApi(PROXY);
+    await withVault(api);
     await api.createAccount({
       alias: 'Khelypso',
       color: '#3ecf8e',
@@ -245,6 +279,7 @@ describe('localRealApi — Supabase réel via proxy', () => {
       })
     );
     const api = createLocalRealApi(PROXY);
+    await withVault(api);
     await api.createAccount({
       alias: 'Khelypso',
       color: '#3ecf8e',
@@ -263,6 +298,7 @@ describe('localRealApi — Supabase réel via proxy', () => {
   it('favori (méta) conservé localement et fusionné à la flotte live', async () => {
     stubFetch(managementOk());
     const api = createLocalRealApi(PROXY);
+    await withVault(api);
     const acc = await api.createAccount({
       alias: 'Khelypso',
       color: '#3ecf8e',
@@ -289,14 +325,13 @@ describe('localRealApi — Supabase réel via proxy', () => {
       })
     );
     const first = createLocalRealApi(PROXY);
+    await first.vault?.enable('ma-phrase-secrete');
     await first.createAccount({
       alias: 'Khelypso',
       color: '#3ecf8e',
       pat: 'sbp_DEMOFAKEtoken',
     });
 
-    // Activer le chiffrement → l'état persisté ne doit plus contenir le clair.
-    await first.vault?.enable('ma-phrase-secrete');
     const stored = localStorage.getItem(REAL_STORAGE_KEY) ?? '';
     expect(stored).not.toContain('sbp_DEMOFAKEtoken');
     expect(stored).toContain('patEnc');

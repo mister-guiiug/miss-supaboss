@@ -54,6 +54,7 @@ export interface Api {
     alias: string;
     pat: string;
     color: string;
+    patExpiresAt?: string | null;
   }): Promise<AccountDto>;
   updateAccount(
     id: string,
@@ -62,6 +63,7 @@ export interface Api {
       enabled: boolean;
       color: string;
       pat: string;
+      patExpiresAt: string | null;
     }>
   ): Promise<AccountDto>;
   deleteAccount(id: string): Promise<void>;
@@ -81,6 +83,11 @@ export interface Api {
     ref: string,
     refresh: boolean
   ): Promise<ProjectDto>;
+  /** Santé des services (local-first). Absent / 501 ailleurs. */
+  getProjectHealth?(
+    accountId: string,
+    ref: string
+  ): Promise<import('../../shared/supabaseApi.ts').ServiceHealth[]>;
   assessRestore(accountId: string, ref: string): Promise<RestoreAssessmentDto>;
   pauseProject(accountId: string, ref: string): Promise<void>;
   restoreProject(
@@ -92,7 +99,10 @@ export interface Api {
     accountId: string,
     ref: string,
     fields: Partial<
-      Pick<ProjectMetaDto, 'tags' | 'favorite' | 'demoFrequent' | 'notes'>
+      Pick<
+        ProjectMetaDto,
+        'tags' | 'favorite' | 'demoFrequent' | 'notes' | 'keepAliveOptIn'
+      >
     >
   ): Promise<void>;
 

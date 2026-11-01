@@ -34,6 +34,13 @@ const ALLOWED: ReadonlyArray<{ method: string; pattern: RegExp }> = [
   { method: 'GET', pattern: /^\/v1\/projects$/ },
   { method: 'POST', pattern: /^\/v1\/projects\/[a-z]{20}\/pause$/ },
   { method: 'POST', pattern: /^\/v1\/projects\/[a-z]{20}\/restore$/ },
+  // Versions de restauration (fenêtre / disponibilité côté plateforme).
+  { method: 'GET', pattern: /^\/v1\/projects\/[a-z]{20}\/restore$/ },
+  // Santé des services (auth, db, storage…) — détail projet + sparklines.
+  {
+    method: 'GET',
+    pattern: /^\/v1\/projects\/[a-z]{20}\/health(?:\?.*)?$/,
+  },
   {
     method: 'POST',
     pattern: /^\/v1\/projects\/[a-z]{20}\/database\/query\/read-only$/,

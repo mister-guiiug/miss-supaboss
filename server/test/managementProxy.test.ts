@@ -89,6 +89,28 @@ describe('proxy management — CORS + liste blanche', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
+  it('GET /v1/projects/{ref}/restore et /health autorisés', async () => {
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response('[]', {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+    );
+    for (const path of [
+      '/v1/projects/abcdefghijklmnopqrst/restore',
+      '/v1/projects/abcdefghijklmnopqrst/health?services=auth,db',
+    ]) {
+      const res = await handleProxy(
+        makeReq('GET', { path, origin: ORIGIN, auth: 'Bearer sbp_DEMO' }),
+        [ORIGIN],
+        fetchImpl as unknown as typeof fetch
+      );
+      expect(res.status).toBe(200);
+    }
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
   it('GET /v1/organizations/{slug}/projects autorisé → relaie avec query', async () => {
     const path = '/v1/organizations/poc-lab/projects?limit=100&offset=0';
     const fetchImpl = vi.fn(

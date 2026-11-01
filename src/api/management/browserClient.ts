@@ -13,10 +13,26 @@ import {
   parseOrganizationProjectsPage,
   parseOrganizations,
   parseProjects,
+  parseRestoreVersions,
+  parseServiceHealth,
   type RawOrganization,
   type RawProject,
+  type RestoreVersion,
+  type ServiceHealth,
 } from '../../../shared/supabaseApi.ts';
+import { authFailures } from '../authFailures.ts';
 import { ApiError } from '../types.ts';
+
+function maybeWarnPatRotation(): void {
+  if (!authFailures.shouldWarn()) return;
+  authFailures.markWarned();
+  // Toast différé : évite d'importer le store au chargement du client.
+  void import('../../store/useUiStore.ts').then(({ toast }) => {
+    void import('../../i18n/index.ts').then(({ translate }) => {
+      toast.error(translate('authFailures.toast'));
+    });
+  });
+}
 
 /** Taille de page max documentée pour GET /v1/organizations/{slug}/projects. */
 const ORG_PROJECTS_PAGE_SIZE = 100;
@@ -60,6 +76,8 @@ export class BrowserManagementClient {
       );
     }
     if (!res.ok) {
+      authFailures.record(res.status);
+      if (res.status === 401) maybeWarnPatRotation();
       let code = 'supabase';
       let message = `Erreur Supabase (HTTP ${res.status})`;
       if (res.status === 401) {
@@ -67,7 +85,8 @@ export class BrowserManagementClient {
         message = 'PAT invalide ou expiré';
       } else if (res.status === 403) {
         code = 'forbidden';
-        message = 'Accès refusé — le PAT a-t-il la portée requise ?';
+        message =
+          'Accès refusé — élargissez le PAT (orgs + projects read, pause/restore si besoin)';
       }
       try {
         const body: unknown = await res.json();
@@ -160,6 +179,42 @@ export class BrowserManagementClient {
       method: 'POST',
       body: '{}',
     });
+  }
+
+  /**
+   * Versions de restauration disponibles. `ok: false` = plateforme refuse /
+   * endpoint inaccessible → on traite la fenêtre comme bloquée côté API.
+   */
+  async listRestoreVersions(
+    pat: string,
+    ref: string
+  ): Promise<{ ok: boolean; versions: RestoreVersion[] }> {
+    try {
+      const versions = parseRestoreVersions(
+        await this.call(pat, `/v1/projects/${ref}/restore`)
+      );
+      return { ok: true, versions };
+    } catch (e) {
+      if (
+        e instanceof ApiError &&
+        (e.status === 404 || e.status === 400 || e.status === 410)
+      ) {
+        return { ok: false, versions: [] };
+      }
+      // 401/403/réseau : on ne conclut pas « fenêtre close », on laisse l'estimation.
+      throw e;
+    }
+  }
+
+  async getProjectHealth(
+    pat: string,
+    ref: string,
+    services: string[] = ['auth', 'db', 'storage', 'realtime', 'rest']
+  ): Promise<ServiceHealth[]> {
+    const qs = `services=${services.map(encodeURIComponent).join(',')}`;
+    return parseServiceHealth(
+      await this.call(pat, `/v1/projects/${ref}/health?${qs}`)
+    );
   }
 
   /**
