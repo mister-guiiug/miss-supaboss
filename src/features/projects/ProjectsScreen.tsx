@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, SearchX, Star, type LucideIcon } from 'lucide-react';
+import { Search, SearchX, Star } from 'lucide-react';
 import { useFleetStore } from '../../store/useFleetStore.ts';
-import { statusGroup, type StatusGroup } from '../../../shared/status.ts';
+import {
+  countsTowardActiveLimit,
+  isPausable,
+  isRestorable,
+  statusGroup,
+  type StatusGroup,
+} from '../../../shared/status.ts';
 import {
   ACTIVE_PROJECT_LIMIT,
   activeProjects,
@@ -12,29 +18,18 @@ import { DemoModeBanner } from '../../shared/components/DemoModeBanner.tsx';
 import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { ListSkeleton } from '../../shared/components/Skeleton.tsx';
 import { useI18n } from '../../i18n/index.ts';
-import type { Messages } from '../../i18n/messages.ts';
 import { toast } from '../../store/useUiStore.ts';
 import { ApiError } from '../../api/index.ts';
-import { isRestorable } from '../../../shared/status.ts';
-import { countsTowardActiveLimit } from '../../../shared/status.ts';
+import { ConfirmDialog } from '@mister-guiiug/dev-pwa-config/react/confirm-dialog';
+import { useActionGuard } from '../../shared/hooks/useActionGuard.ts';
 
 type Filter = 'all' | StatusGroup | 'favorite';
 type Sort = 'name' | 'status' | 'activity';
 
 const FILTERS_KEY = 'miss-supaboss-projects-filters-v1';
 
-const FILTERS: {
-  id: Filter;
-  labelKey: keyof Messages['projects']['filter'];
-  icon?: LucideIcon;
-}[] = [
-  { id: 'all', labelKey: 'all' },
-  { id: 'active', labelKey: 'active' },
-  { id: 'paused', labelKey: 'paused' },
-  { id: 'transition', labelKey: 'transition' },
-  { id: 'error', labelKey: 'error' },
-  { id: 'favorite', labelKey: 'favorite', icon: Star },
-];
+const PRIMARY_FILTERS = ['all', 'active', 'paused'] as const;
+const MORE_FILTERS = ['transition', 'error', 'favorite'] as const;
 
 function loadFilters(): {
   filter: Filter;
@@ -70,9 +65,29 @@ export function ProjectsScreen() {
   const [filter, setFilter] = useState<Filter>(initial.filter);
   const [sort, setSort] = useState<Sort>(initial.sort);
   const [orgFilter, setOrgFilter] = useState<string>(initial.orgFilter);
+  const [moreOpen, setMoreOpen] = useState(
+    () =>
+      initial.filter === 'transition' ||
+      initial.filter === 'error' ||
+      initial.filter === 'favorite' ||
+      initial.orgFilter !== 'all'
+  );
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [pauseBusy, setPauseBusy] = useState(false);
+  const [pauseTarget, setPauseTarget] = useState<{
+    accountId: string;
+    ref: string;
+    name: string;
+    alias: string;
+    active: number;
+  } | null>(null);
+  const actionGuard = useActionGuard({
+    online: true,
+    operate: true,
+    writable: true,
+  });
 
   useEffect(() => {
     try {
@@ -126,6 +141,41 @@ export function ProjectsScreen() {
     }
     return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
   }, [fleet]);
+
+  const tallies = useMemo(() => {
+    const counts = {
+      all: 0,
+      active: 0,
+      paused: 0,
+      transition: 0,
+      error: 0,
+      favorite: 0,
+    };
+    if (!fleet) return counts;
+    const q = query.trim().toLowerCase();
+    for (const af of fleet.accounts) {
+      for (const p of af.projects) {
+        if (orgFilter !== 'all' && p.organizationSlug !== orgFilter) continue;
+        if (q) {
+          const haystack =
+            `${p.name} ${p.ref} ${p.organizationName} ${p.organizationSlug} ${p.meta.tags.join(' ')}`.toLowerCase();
+          if (!haystack.includes(q)) continue;
+        }
+        counts.all += 1;
+        const group = statusGroup(p.status);
+        if (
+          group === 'active' ||
+          group === 'paused' ||
+          group === 'transition' ||
+          group === 'error'
+        ) {
+          counts[group] += 1;
+        }
+        if (p.meta.favorite || p.meta.demoFrequent) counts.favorite += 1;
+      }
+    }
+    return counts;
+  }, [fleet, query, orgFilter]);
 
   const groups = useMemo(() => {
     if (!fleet) return [];
@@ -269,6 +319,21 @@ export function ProjectsScreen() {
     toast.success(t('projects.bulkRestoreDone', { ok, fail }));
   };
 
+  const doPause = async (): Promise<void> => {
+    if (!pauseTarget) return;
+    setPauseBusy(true);
+    try {
+      await pause(pauseTarget.accountId, pauseTarget.ref);
+      setPauseTarget(null);
+    } catch (error) {
+      toast.error(
+        error instanceof ApiError ? error.message : t('projectDetail.pauseFail')
+      );
+    } finally {
+      setPauseBusy(false);
+    }
+  };
+
   if (!fleet && loading) return <ListSkeleton count={4} />;
 
   const total = groups.reduce((n, g) => n + g.projectCount, 0);
@@ -277,49 +342,40 @@ export function ProjectsScreen() {
     <div className="space-y-4">
       <DemoModeBanner />
 
-      {orgQuotas.length > 0 && (
-        <div
-          className="flex gap-2 overflow-x-auto pb-1"
-          role="list"
-          aria-label={t('projects.orgQuotaAria')}
-        >
-          {orgQuotas.map(o => {
-            const hot = o.active >= ACTIVE_PROJECT_LIMIT;
-            return (
-              <button
-                key={o.slug || o.name}
-                type="button"
-                role="listitem"
-                onClick={() =>
-                  setOrgFilter(prev =>
-                    prev === o.slug && o.slug ? 'all' : o.slug || 'all'
-                  )
-                }
-                className={`shrink-0 rounded-xl border px-3 py-2 text-left text-xs ${
-                  orgFilter === o.slug
-                    ? 'border-primary bg-primary/10'
-                    : 'border-[var(--sb-border)]'
-                }`}
-              >
-                <span className="block font-medium">{o.name}</span>
-                <span
-                  className={
-                    hot
-                      ? 'font-semibold text-[var(--sb-critical)]'
-                      : 'text-[var(--sb-text-soft)]'
-                  }
-                >
-                  {t('projects.orgQuotaChip', {
-                    active: o.active,
-                    limit: ACTIVE_PROJECT_LIMIT,
-                    total: o.total,
-                  })}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+      {orgQuotas
+        .filter(o => o.active >= ACTIVE_PROJECT_LIMIT)
+        .map(o => (
+          <div
+            key={o.slug || o.name}
+            className="rounded-xl border border-[var(--sb-border)] bg-[var(--sb-surface)] px-3 py-2.5"
+          >
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-sm font-semibold">
+                {t('projects.slotFullTitle')}
+              </p>
+              <p className="text-sm text-[var(--sb-text-soft)]">
+                {t('projects.slotFullCount', {
+                  active: o.active,
+                  limit: ACTIVE_PROJECT_LIMIT,
+                })}
+              </p>
+            </div>
+            <p className="mt-1 text-xs text-[var(--sb-text-soft)]">
+              {t('projects.slotFullBody', { name: o.name })}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setFilter('active');
+                if (o.slug) setOrgFilter(o.slug);
+                setMoreOpen(true);
+              }}
+              className="mt-1 text-xs font-semibold text-primary"
+            >
+              {t('projects.slotFullSee')}
+            </button>
+          </div>
+        ))}
 
       <div className="space-y-2">
         <label className="card flex items-center gap-2 px-3 py-2.5">
@@ -338,67 +394,107 @@ export function ProjectsScreen() {
           />
         </label>
         <div
-          className="flex gap-1.5 overflow-x-auto pb-1"
+          className="flex flex-wrap gap-1.5"
           role="group"
           aria-label={t('projects.filtersAria')}
         >
-          {FILTERS.map(f => (
+          {PRIMARY_FILTERS.map(id => (
             <button
-              key={f.id}
+              key={id}
               type="button"
-              aria-pressed={filter === f.id}
-              onClick={() => setFilter(f.id)}
-              className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium ${
-                filter === f.id
+              aria-pressed={filter === id}
+              onClick={() => setFilter(id)}
+              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium ${
+                filter === id
                   ? 'border-primary bg-primary/15 text-primary'
                   : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
               }`}
             >
-              {f.icon && <f.icon size={13} aria-hidden="true" />}
-              {t(`projects.filter.${f.labelKey}`)}
+              {t(`projects.filter.${id}`)} {tallies[id]}
             </button>
           ))}
-          {orgOptions.length > 0 && (
-            <select
-              aria-label={t('projects.orgFilterAria')}
-              value={orgFilter}
-              onChange={e => setOrgFilter(e.target.value)}
-              className="shrink-0 rounded-full border border-[var(--sb-border)] bg-[var(--sb-surface)] px-3 py-1.5 text-xs font-medium"
-            >
-              <option value="all">{t('projects.orgFilterAll')}</option>
-              {orgOptions.map(o => (
-                <option key={o.slug} value={o.slug}>
-                  {o.name} ({o.slug})
-                </option>
-              ))}
-            </select>
-          )}
-          <select
-            aria-label={t('projects.sortAria')}
-            value={sort}
-            onChange={e => setSort(e.target.value as Sort)}
-            className="shrink-0 rounded-full border border-[var(--sb-border)] bg-[var(--sb-surface)] px-3 py-1.5 text-xs font-medium"
-          >
-            <option value="status">{t('projects.sort.status')}</option>
-            <option value="name">{t('projects.sort.name')}</option>
-            <option value="activity">{t('projects.sort.activity')}</option>
-          </select>
           <button
             type="button"
-            aria-pressed={selectMode}
-            onClick={() => {
-              setSelectMode(m => !m);
-              setSelected(new Set());
-            }}
-            className={`inline-flex shrink-0 items-center rounded-full border px-3 py-1.5 text-xs font-medium ${
-              selectMode
+            aria-expanded={moreOpen}
+            aria-pressed={
+              filter === 'transition' ||
+              filter === 'error' ||
+              filter === 'favorite' ||
+              orgFilter !== 'all'
+            }
+            onClick={() => setMoreOpen(open => !open)}
+            className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium ${
+              filter === 'transition' ||
+              filter === 'error' ||
+              filter === 'favorite' ||
+              orgFilter !== 'all'
                 ? 'border-primary bg-primary/15 text-primary'
                 : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
             }`}
           >
-            {t('projects.bulkToggle')}
+            {t('projects.moreFilters')}
           </button>
         </div>
+        {moreOpen && (
+          <div className="flex flex-wrap gap-1.5">
+            {MORE_FILTERS.map(id => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={filter === id}
+                onClick={() => setFilter(id)}
+                className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium ${
+                  filter === id
+                    ? 'border-primary bg-primary/15 text-primary'
+                    : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
+                }`}
+              >
+                {id === 'favorite' && <Star size={13} aria-hidden="true" />}
+                {t(`projects.filter.${id}`)} {tallies[id]}
+              </button>
+            ))}
+            {orgOptions.length > 0 && (
+              <select
+                aria-label={t('projects.orgFilterAria')}
+                value={orgFilter}
+                onChange={e => setOrgFilter(e.target.value)}
+                className="rounded-full border border-[var(--sb-border)] bg-[var(--sb-surface)] px-3 py-1.5 text-xs font-medium"
+              >
+                <option value="all">{t('projects.orgFilterAll')}</option>
+                {orgOptions.map(o => (
+                  <option key={o.slug} value={o.slug}>
+                    {o.name} ({o.slug})
+                  </option>
+                ))}
+              </select>
+            )}
+            <select
+              aria-label={t('projects.sortAria')}
+              value={sort}
+              onChange={e => setSort(e.target.value as Sort)}
+              className="rounded-full border border-[var(--sb-border)] bg-[var(--sb-surface)] px-3 py-1.5 text-xs font-medium"
+            >
+              <option value="status">{t('projects.sort.status')}</option>
+              <option value="name">{t('projects.sort.name')}</option>
+              <option value="activity">{t('projects.sort.activity')}</option>
+            </select>
+            <button
+              type="button"
+              aria-pressed={selectMode}
+              onClick={() => {
+                setSelectMode(m => !m);
+                setSelected(new Set());
+              }}
+              className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium ${
+                selectMode
+                  ? 'border-primary bg-primary/15 text-primary'
+                  : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
+              }`}
+            >
+              {t('projects.bulkToggle')}
+            </button>
+          </div>
+        )}
       </div>
 
       {selectMode && selected.size > 0 && (
@@ -464,6 +560,25 @@ export function ProjectsScreen() {
                         selectMode={selectMode}
                         selected={selected.has(keyOf(p))}
                         onToggleSelect={() => toggleSelect(p)}
+                        compact
+                        pauseDisabled={!actionGuard.allowed || pauseBusy}
+                        onPause={
+                          isPausable(p.status)
+                            ? () => {
+                                const siblings =
+                                  fleet?.accounts.find(
+                                    a => a.account.id === g.account.id
+                                  )?.projects ?? [];
+                                setPauseTarget({
+                                  accountId: p.accountId,
+                                  ref: p.ref,
+                                  name: p.name,
+                                  alias: g.account.alias,
+                                  active: activeProjects(siblings).length,
+                                });
+                              }
+                            : undefined
+                        }
                       />
                     ))}
                   </div>
@@ -473,6 +588,24 @@ export function ProjectsScreen() {
           </section>
         ))
       )}
+      <ConfirmDialog
+        open={pauseTarget !== null}
+        title={t('projectDetail.pauseTitle', {
+          name: pauseTarget?.name ?? '',
+        })}
+        confirmLabel={t('projectDetail.pause')}
+        loading={pauseBusy}
+        onCancel={() => setPauseTarget(null)}
+        onConfirm={() => void doPause()}
+      >
+        <p>
+          {t('projectDetail.pauseBody', {
+            alias: pauseTarget?.alias ?? '',
+            active: pauseTarget?.active ?? 0,
+            limit: ACTIVE_PROJECT_LIMIT,
+          })}
+        </p>
+      </ConfirmDialog>
     </div>
   );
 }
