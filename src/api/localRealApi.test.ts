@@ -110,7 +110,7 @@ beforeEach(() => {
 async function withVault(
   api: ReturnType<typeof createLocalRealApi>
 ): Promise<void> {
-  await api.vault?.enable('phrase-test-coffre');
+  await api.vault?.enable('phrase-test-coffre-ok');
 }
 
 describe('localRealApi — Supabase réel via proxy', () => {
@@ -325,7 +325,7 @@ describe('localRealApi — Supabase réel via proxy', () => {
       })
     );
     const first = createLocalRealApi(PROXY);
-    await first.vault?.enable('ma-phrase-secrete');
+    await first.vault?.enable('ma-phrase-secrete-ok');
     await first.createAccount({
       alias: 'Khelypso',
       color: '#3ecf8e',
@@ -344,7 +344,7 @@ describe('localRealApi — Supabase réel via proxy', () => {
 
     // Mauvaise phrase refusée, bonne phrase OK → PAT redéchiffré en mémoire.
     expect(await reopened.vault?.unlock('mauvaise')).toBe(false);
-    expect(await reopened.vault?.unlock('ma-phrase-secrete')).toBe(true);
+    expect(await reopened.vault?.unlock('ma-phrase-secrete-ok')).toBe(true);
 
     const fleet = await reopened.getFleet(true);
     expect(

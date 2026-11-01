@@ -22,16 +22,19 @@ export function ProjectCard({
   project,
   accountAlias,
   accountColor,
+  selectMode = false,
+  selected = false,
+  onToggleSelect,
 }: {
   project: ProjectDto;
   accountAlias: string;
   accountColor: string;
+  selectMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const { t } = useI18n();
   const { meta } = project;
-  // Le libellé porte le « depuis » : découper « il y a » dans la chaîne rendue
-  // ne marchait qu'en français, et même là plus du tout — `Intl` dit « hier »
-  // ou « avant-hier », sans préfixe à retirer.
   const never = t('common.never');
   const activity =
     project.status === 'INACTIVE'
@@ -44,14 +47,21 @@ export function ProjectCard({
           rel: formatRelative(meta.lastSeenActiveAt, { never }),
         });
 
-  return (
-    <Link
-      to={`/projects/${project.accountId}/${project.ref}`}
-      className="card block p-4 transition-colors hover:border-primary/60"
-    >
+  const body = (
+    <>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 font-semibold">
+            {selectMode && (
+              <input
+                type="checkbox"
+                checked={selected}
+                onChange={onToggleSelect}
+                onClick={e => e.stopPropagation()}
+                aria-label={t('projects.selectAria', { name: project.name })}
+                className="size-4 shrink-0 accent-[var(--sb-primary,#3ecf8e)]"
+              />
+            )}
             <span className="truncate">{project.name}</span>
             {meta.favorite && (
               <Star
@@ -92,6 +102,34 @@ export function ProjectCard({
           );
         })}
       </div>
+    </>
+  );
+
+  if (selectMode) {
+    return (
+      <div
+        className={`card p-4 ${selected ? 'border-primary/60' : ''}`}
+        onClick={onToggleSelect}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onToggleSelect?.();
+          }
+        }}
+        role="button"
+        tabIndex={0}
+      >
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      to={`/projects/${project.accountId}/${project.ref}`}
+      className="card block p-4 transition-colors hover:border-primary/60"
+    >
+      {body}
     </Link>
   );
 }

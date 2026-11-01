@@ -46,6 +46,10 @@ import type { RawProject } from '../../shared/supabaseApi.ts';
 import { ApiError, type Api } from './types.ts';
 import { BrowserManagementClient } from './management/browserClient.ts';
 import { patVault } from './crypto/patVault.ts';
+import {
+  openPortableAccounts,
+  sealPortableAccounts,
+} from './crypto/portableExport.ts';
 import { metricHistory } from './metricHistory.ts';
 import { classifySyncError } from './syncError.ts';
 
@@ -620,19 +624,69 @@ export function createLocalRealApi(proxyBase: string): Api {
           : new ApiError(502, 'test-failed', message);
       }
     },
-    async exportAccounts() {
-      throw new ApiError(
-        501,
-        'local-unsupported',
-        'Export/import chiffré indisponible en mode local'
-      );
+    async exportAccounts(passphrase) {
+      if (!patVault.isEnabled() || !patVault.isUnlocked()) {
+        throw new ApiError(
+          400,
+          'vault-required',
+          'Déverrouillez le coffre avant d’exporter'
+        );
+      }
+      const accounts = state.accounts
+        .filter(a => a.pat.length > 0)
+        .map(a => ({
+          alias: a.alias,
+          color: a.color,
+          pat: a.pat,
+          patExpiresAt: a.patExpiresAt ?? null,
+        }));
+      if (accounts.length === 0) {
+        throw new ApiError(400, 'empty', 'Aucun compte à exporter');
+      }
+      try {
+        const blob = await sealPortableAccounts(accounts, passphrase);
+        return { blob, count: accounts.length };
+      } catch {
+        throw new ApiError(400, 'export-failed', 'Export impossible');
+      }
     },
-    async importAccounts() {
-      throw new ApiError(
-        501,
-        'local-unsupported',
-        'Export/import chiffré indisponible en mode local'
-      );
+    async importAccounts(passphrase, blob) {
+      if (!patVault.isEnabled() || !patVault.isUnlocked()) {
+        throw new ApiError(
+          400,
+          'vault-required',
+          'Déverrouillez le coffre avant d’importer'
+        );
+      }
+      let incoming;
+      try {
+        incoming = await openPortableAccounts(blob, passphrase);
+      } catch (e) {
+        const reason = e instanceof Error ? e.message : 'format';
+        throw new ApiError(
+          400,
+          reason === 'passphrase' ? 'bad-passphrase' : 'bad-blob',
+          reason === 'passphrase'
+            ? 'Phrase d’export incorrecte'
+            : 'Blob d’export invalide'
+        );
+      }
+      let imported = 0;
+      for (const row of incoming) {
+        if (state.accounts.some(a => a.alias === row.alias)) continue;
+        try {
+          await this.createAccount({
+            alias: row.alias,
+            pat: row.pat,
+            color: row.color,
+            patExpiresAt: row.patExpiresAt,
+          });
+          imported += 1;
+        } catch {
+          // PAT mort / org inaccessible : on saute, on compte quand même total
+        }
+      }
+      return { imported, total: incoming.length };
     },
 
     async getFleet(refresh) {
@@ -723,6 +777,32 @@ export function createLocalRealApi(proxyBase: string): Api {
       const lite = toLite(await projectsOf(accountId, false));
       return toRestoreAssessmentDto(assessRestore(lite, ref));
     },
+    async pingKeepAlive(accountId, ref) {
+      const acc = getAccount(accountId);
+      if (!acc.pat) {
+        throw new ApiError(400, 'vault-locked', 'Coffre verrouillé');
+      }
+      // Collecte SQL read-only : réveille le compute Free sans workflow externe.
+      const result = await client.collectMetrics(acc.pat, ref);
+      if (result.failed) {
+        throw new ApiError(
+          502,
+          'keepalive-failed',
+          'Keep-alive impossible (réseau ou PAT)'
+        );
+      }
+      recordOp({
+        action: 'project.meta',
+        accountId,
+        accountAlias: acc.alias,
+        projectRef: ref,
+        projectName: null,
+        status: 'ok',
+        detail: 'keepalive ping',
+      });
+      save();
+    },
+
     async pauseProject(accountId, ref) {
       const acc = getAccount(accountId);
       const projects = await projectsOf(accountId, false);

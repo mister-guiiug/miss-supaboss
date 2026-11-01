@@ -29,6 +29,7 @@ import {
 import { useSessionStore } from './store/useSessionStore.ts';
 import { useFleetStore } from './store/useFleetStore.ts';
 import { api, IS_MOCK } from './api/index.ts';
+import { disarmAutoLock, patVault } from './api/crypto/patVault.ts';
 import { useFleetBootstrap } from './shared/queries/fleet.ts';
 import { AppHeader } from './shared/components/AppHeader.tsx';
 import { ToastViewport } from './shared/components/ToastViewport.tsx';
@@ -307,6 +308,16 @@ function Inner() {
       setBootDone(true);
     })();
   }, [bootstrap, hydrateFromCache]);
+
+  // Re-verrouille le coffre après inactivité / onglet en arrière-plan.
+  useEffect(() => {
+    if (!api.vault?.isEnabled() || !api.vault.isUnlocked()) return;
+    patVault.armAutoLock(() => {
+      api.vault?.lock();
+      setVaultUnlocked(false);
+    });
+    return () => disarmAutoLock();
+  }, [vaultUnlocked]);
 
   if (!bootDone) {
     return (

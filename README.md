@@ -484,18 +484,21 @@ sortant.
 
 ## 12. Évolutions
 
-**Livré (P0–P2)** : blocage PAT en démo + bandeau ; garde `check-proxy-in-bundle`
-dans `npm run build` ; coffre PAT obligatoire en local-first ; regroupement /
-filtre org ; keep-alive mémo + lien workflow ; sondage `GET …/restore` pour
-affiner la fenêtre ; scopes documentés ; tags `démo:…` ; bannière sync
-actionnable ; rappel 401 / expiration PAT ; health services + sparklines
-locales ; doc multi-appareils sans BDD cloud ; CI build avec vars prod.
+**Maturité : stable** (catalogue `dev-pwa-config`, 01/11/2026).
+
+**Livré (P0–P2 + passe stable)** : blocage PAT en démo ; garde
+`check-proxy-in-bundle` ; coffre obligatoire (min. 12, entropie, lockout,
+auto-lock inactivité) ; export/import local-first (`msb1.…`) ; regroupement /
+quotas Free par org ; sélection multi pause/restore ; keep-alive ping SQL +
+workflow ; health + sparklines (états vides) ; rate-limit proxy par origine ;
+Vitest isole `PROXY_BASE` ; CI build avec vars prod.
 
 **Reste ouvert** :
 
 - Notifications par e-mail (SMTP) ; alertes de quota en fond sans collecte SQL.
 - Egress réel le jour où un endpoint public existe (`SupabaseProvider` prêt).
 - Alignement miroir de `miss-supatool` sur le même piège `vars.VITE_*`.
+- Publier `dev-pwa-config` pour que `<FamilyApps>` affiche `stable` en prod.
 
 ---
 

@@ -42,6 +42,8 @@ import { ConsentSection } from '@mister-guiiug/dev-pwa-config/react/consent-sect
 import { clearSnapshot } from '../../offline/lastKnown.ts';
 import { APP_ID } from '../../appId.ts';
 import { useI18n } from '../../i18n/index.ts';
+import { isPassphraseAcceptable } from '../../api/crypto/passphraseStrength.ts';
+import { PassphraseField } from '../../shared/components/PassphraseField.tsx';
 import { NotificationsSection } from './NotificationsSection.tsx';
 import { TotpSection } from './TotpSection.tsx';
 
@@ -80,7 +82,7 @@ export function SettingsScreen() {
   };
 
   const doExport = async (): Promise<void> => {
-    if (passphrase.length < 8) {
+    if (!isPassphraseAcceptable(passphrase)) {
       toast.error(t('settings.passphraseMin'));
       return;
     }
@@ -97,7 +99,7 @@ export function SettingsScreen() {
   };
 
   const doImport = async (): Promise<void> => {
-    if (passphrase.length < 8 || importBlob.length === 0) {
+    if (!isPassphraseAcceptable(passphrase) || importBlob.length === 0) {
       toast.error(t('settings.passphraseBlobRequired'));
       return;
     }
@@ -119,7 +121,7 @@ export function SettingsScreen() {
   const enableVault = async (): Promise<void> => {
     const vault = api.vault;
     if (!vault) return;
-    if (vaultPass.length < 8) {
+    if (!isPassphraseAcceptable(vaultPass)) {
       toast.error(t('settings.vaultMin'));
       return;
     }
@@ -448,14 +450,11 @@ export function SettingsScreen() {
               <p className="text-xs text-[var(--sb-text-soft)]">
                 {t('settings.vaultDisabledInfo')}
               </p>
-              <input
-                type="password"
+              <PassphraseField
                 value={vaultPass}
-                onChange={e => setVaultPass(e.target.value)}
+                onChange={setVaultPass}
                 placeholder={t('settings.vaultNewPlaceholder')}
-                autoComplete="new-password"
-                aria-label={t('settings.vaultNewAria')}
-                className="w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 text-sm"
+                ariaLabel={t('settings.vaultNewAria')}
               />
               <input
                 type="password"
@@ -507,50 +506,46 @@ export function SettingsScreen() {
           <p className="text-xs text-[var(--sb-text-soft)]">
             {t('settings.exportInfo')}
           </p>
-          {PROXY_BASE ? (
-            <p className="text-xs text-[var(--sb-warn)]">
-              {t('settings.exportLocalUnavailable')}
+          {PROXY_BASE && (
+            <p className="text-xs text-[var(--sb-text-soft)]">
+              {t('settings.exportLocalInfo')}
             </p>
-          ) : (
-            <>
-              <input
-                type="password"
-                value={passphrase}
-                onChange={e => setPassphrase(e.target.value)}
-                placeholder={t('settings.exportPassphrasePlaceholder')}
-                autoComplete="off"
-                aria-label={t('settings.exportPassphraseAria')}
-                className="w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 text-sm"
-              />
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void doExport()}
-                  className="touch-target flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium disabled:opacity-50"
-                >
-                  <Download size={16} aria-hidden="true" />{' '}
-                  {t('settings.export')}
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void doImport()}
-                  className="touch-target flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium disabled:opacity-50"
-                >
-                  <Upload size={16} aria-hidden="true" /> {t('settings.import')}
-                </button>
-              </div>
-              <textarea
-                value={importBlob}
-                onChange={e => setImportBlob(e.target.value)}
-                placeholder={t('settings.importPlaceholder')}
-                aria-label={t('settings.importAria')}
-                rows={3}
-                className="w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 font-mono text-xs"
-              />
-            </>
           )}
+          <input
+            type="password"
+            value={passphrase}
+            onChange={e => setPassphrase(e.target.value)}
+            placeholder={t('settings.exportPassphrasePlaceholder')}
+            autoComplete="off"
+            aria-label={t('settings.exportPassphraseAria')}
+            className="w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 text-sm"
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void doExport()}
+              className="touch-target flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium disabled:opacity-50"
+            >
+              <Download size={16} aria-hidden="true" /> {t('settings.export')}
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void doImport()}
+              className="touch-target flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium disabled:opacity-50"
+            >
+              <Upload size={16} aria-hidden="true" /> {t('settings.import')}
+            </button>
+          </div>
+          <textarea
+            value={importBlob}
+            onChange={e => setImportBlob(e.target.value)}
+            placeholder={t('settings.importPlaceholder')}
+            aria-label={t('settings.importAria')}
+            rows={3}
+            className="w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 font-mono text-xs"
+          />
         </section>
       )}
 

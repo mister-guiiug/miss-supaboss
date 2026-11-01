@@ -150,11 +150,18 @@ export const messages = {
           'Créé sur supabase.com → Account → Access Tokens. Gardé dans ce navigateur, chiffré par une phrase secrète obligatoire ; les appels passent par un relais qui ne le conserve pas.',
         patScopes:
           'Scopes minimaux : lecture organisations + projets (organization_projects_read / projects_read). Pause/restore et health exigent project_admin. Fine-grained trop étroit → 403 « élargir le PAT ».',
+        scopePresetLegend: 'Intention des scopes',
+        scopeRead: 'Lecture seule',
+        scopeAdmin: 'Admin pause/restore',
+        scopeReadHint:
+          'Inventaire et quotas : organization_projects_read + projects_read. Pas de pause/restore.',
+        scopeAdminHint:
+          'Lecture + project_admin pour pause, restore et health. Moins privilégié que le PAT « full ».',
         patExpiresLabel: 'Expiration du PAT (rappel local, optionnel)',
         patExpiresHint:
           'Aide-mémoire uniquement — Supabase ne l’expose pas à l’API. Après plusieurs 401, régénérez le jeton.',
         vaultRequired:
-          'Coffre obligatoire : choisissez une phrase secrète (min. 8) avant de stocker le PAT sur cet appareil.',
+          'Coffre obligatoire : phrase secrète (min. 12, pas trop faible) avant de stocker le PAT sur cet appareil.',
         colorAria: 'Couleur du compte',
         colorSwatchAria: 'Couleur {color}',
         invalid: 'Saisie invalide',
@@ -189,9 +196,16 @@ export const messages = {
       wrong: 'Phrase incorrecte.',
       unlock: 'Déverrouiller',
       unlocking: 'Déverrouillage…',
+      lockout: 'Trop d’essais — réessayez dans {seconds} s.',
+      resetTitle: 'Effacer le coffre de cet appareil ?',
       resetWarning:
         'Réinitialiser efface définitivement les comptes chiffrés de cet appareil. Les PAT restent régénérables sur Supabase.',
-      reset: 'Réinitialiser',
+      resetStep1: 'Les comptes et PAT chiffrés de CE navigateur sont effacés.',
+      resetStep2:
+        'Régénérez un PAT sur supabase.com (Account → Access Tokens).',
+      resetStep3:
+        'Revenez ici, activez le coffre, puis ajoutez le nouveau PAT.',
+      reset: 'Tout effacer',
       forgot: 'Phrase oubliée ?',
       resetDone: 'Coffre réinitialisé.',
     },
@@ -202,6 +216,17 @@ export const messages = {
       sortAria: 'Trier',
       orgFilterAria: 'Filtrer par organisation',
       orgFilterAll: 'Toutes les orgs',
+      orgQuotaAria: 'Quotas Free par organisation',
+      orgQuotaChip: '{active}/{limit} actifs · {total} projets',
+      selectAria: 'Sélectionner {name}',
+      bulkToggle: 'Sélection',
+      bulkSelected: '{count} sélectionné(s)',
+      bulkPause: 'Mettre en pause',
+      bulkRestore: 'Restaurer',
+      bulkNoPause: 'Aucun projet actif sélectionné',
+      bulkNoRestore: 'Aucun projet en pause sélectionné',
+      bulkPauseDone: 'Pause : {ok} ok, {fail} échec(s)',
+      bulkRestoreDone: 'Restore : {ok} ok, {fail} échec(s)',
       disabledSuffix: ' (désactivé)',
       emptyTitle: 'Aucun projet ne correspond',
       emptyBody: 'Modifiez la recherche ou les filtres.',
@@ -251,11 +276,15 @@ export const messages = {
       keepAliveAria: 'Keep-alive anti-pause',
       keepAliveTitle: 'Keep-alive (anti-pause Free)',
       keepAliveBody:
-        'Mémo local : ce projet doit rester chaud via un workflow GitHub Actions externe. Miss Supaboss n’exécute rien ici.',
+        'Marquez le projet, pinguez-le ici (SQL read-only) ou via un workflow GitHub Actions pour éviter la pause Free.',
       keepAliveToggle: 'Marquer pour keep-alive',
+      keepAlivePing: 'Ping keep-alive maintenant',
+      keepAlivePingOk: 'Keep-alive envoyé',
+      keepAlivePingFail: 'Keep-alive impossible',
       keepAliveLink: 'Voir le workflow pwa-supabase-keepalive.yml',
       healthAria: 'Santé des services',
       healthTitle: 'Santé des services',
+      healthLoading: 'Interrogation de la santé…',
       healthFail: 'Santé indisponible',
       healthEmpty: 'Aucun service renvoyé.',
       healthOk: 'OK',
@@ -348,12 +377,18 @@ export const messages = {
         'Choisissez le mode réel (pas la démo), activez le coffre, puis ajoutez le PAT — un résumé orgs/projets confirme avant commit.',
       step3:
         'Visualisez les projets actifs/en pause par organisation, les quotas Free Plan, et préparez vos démos en un geste.',
+      localStep1:
+        'Restez en mode réel (pas la démo) — le basculement est proposé si besoin.',
+      localStep2:
+        'Créez une phrase secrète solide (coffre, min. 12) : elle chiffre les PAT sur CET appareil.',
+      localStep3:
+        'Créez un PAT sur supabase.com (scopes lecture, ou admin pour pause/restore), collez-le : Miss Supaboss sonde les orgs avant d’enregistrer.',
       addFirst: 'Ajouter mon premier compte',
       askAdmin: "Demandez à un admin d'ajouter le premier compte.",
       security: {
         demo: "Mode démo : comptes et données simulés. Rien n'est envoyé à Supabase.",
         localFirst:
-          "Mode local-first : le PAT est chiffré sur CET appareil (coffre obligatoire) et n'est transmis qu'au proxy de relais, en HTTPS. Pas de sync multi-appareils cloud — ré-ajoutez le PAT ailleurs ou exportez depuis une instance serveur.",
+          'Mode local-first : le PAT est chiffré sur CET appareil (coffre obligatoire) et n’est transmis qu’au proxy de relais, en HTTPS. Export/import chiffré pour un autre appareil — pas de BDD cloud.',
         server:
           "Les PAT sont chiffrés (AES-256-GCM) côté serveur et n'atteignent jamais ce navigateur. Chaque action est journalisée.",
       },
@@ -387,21 +422,29 @@ export const messages = {
       disable: 'Désactiver',
       vaultDisabledInfo:
         'Le coffre est exigé à l’ajout d’un PAT. Activez-le ici pour chiffrer les jetons déjà présents, ou depuis le formulaire d’ajout. Phrase oubliée = PAT à ressaisir (régénérables sur Supabase).',
-      vaultNewPlaceholder: 'Phrase secrète (min. 8 caractères)',
+      vaultNewPlaceholder: 'Phrase secrète (min. 12 caractères)',
       vaultNewAria: 'Nouvelle phrase secrète',
       vaultConfirm: 'Confirmer la phrase secrète',
       enableEncryption: 'Activer le chiffrement',
+      passphraseStrength: {
+        weak: 'Trop faible — allongez ou mélangez',
+        fair: 'Correcte — encore perfectible',
+        good: 'Bonne phrase',
+        strong: 'Phrase solide',
+      },
       multiDeviceAria: 'Multi-appareils',
       multiDeviceHeading: 'Multi-appareils — pas de BDD cloud',
       multiDeviceInfo:
-        'Pages = silo localStorage par appareil. Pas de projet Supabase « pour sync ». Sur une autre machine : phrase du coffre + ressaisie des PAT, ou instance auto-hébergée avec export/import chiffré ci-dessous.',
+        'Pages = silo localStorage par appareil. Pas de projet Supabase « pour sync ». Sur une autre machine : export/import chiffré ci-dessous, ou phrase du coffre + ressaisie des PAT.',
       exportAria: 'Export / import',
       exportHeading: 'Sauvegarde — Export / import chiffré des comptes',
       exportInfo:
-        "Blob AES-256-GCM dérivé d'une passphrase (scrypt) : portable vers une autre instance Miss Supaboss (serveur). En local-first Pages, l’export n’est pas disponible — utilisez le coffre appareil par appareil.",
+        'Blob AES-256-GCM dérivé d’une passphrase : portable vers une autre instance Miss Supaboss (serveur ou Pages).',
       exportLocalUnavailable:
         'Export/import réservé à l’instance serveur. Ici, chaque appareil a son coffre.',
-      exportPassphrasePlaceholder: 'Passphrase (min. 8 caractères)',
+      exportLocalInfo:
+        'Local-first : le blob est chiffré avec une passphrase d’export (indépendante du coffre). Coffre déverrouillé requis.',
+      exportPassphrasePlaceholder: 'Passphrase (min. 12 caractères)',
       exportPassphraseAria: "Passphrase d'export",
       export: 'Exporter',
       import: 'Importer',
@@ -423,13 +466,13 @@ export const messages = {
       invalidValues: 'Valeurs invalides',
       thresholdsOrder:
         'Les seuils doivent être croissants (warn < high < critical)',
-      passphraseMin: 'Passphrase : 8 caractères minimum',
+      passphraseMin: 'Passphrase : 12 caractères minimum, pas trop faible',
       exportOk: '{count} compte(s) exporté(s) — blob copié au presse-papier',
       exportFail: 'Export impossible',
       passphraseBlobRequired: 'Passphrase et blob requis',
       importOk: '{imported}/{total} compte(s) importé(s)',
       importFail: 'Import impossible',
-      vaultMin: 'Phrase secrète : 8 caractères minimum',
+      vaultMin: 'Phrase secrète : 12 caractères minimum, pas trop faible',
       vaultMismatch: 'Les deux phrases ne correspondent pas',
       vaultEnabled:
         'Chiffrement activé — la phrase sera demandée au prochain démarrage.',
@@ -739,11 +782,18 @@ export const messages = {
           'Created on supabase.com → Account → Access Tokens. Kept in this browser, encrypted with a required passphrase; calls go through a relay that does not store it.',
         patScopes:
           'Minimum scopes: organizations + projects read (organization_projects_read / projects_read). Pause/restore and health need project_admin. Too-narrow fine-grained → 403 “widen the PAT”.',
+        scopePresetLegend: 'Scope intent',
+        scopeRead: 'Read-only',
+        scopeAdmin: 'Admin pause/restore',
+        scopeReadHint:
+          'Inventory and quotas: organization_projects_read + projects_read. No pause/restore.',
+        scopeAdminHint:
+          'Read + project_admin for pause, restore and health. Less privileged than a full PAT.',
         patExpiresLabel: 'PAT expiry (local reminder, optional)',
         patExpiresHint:
           'Reminder only — Supabase does not expose this via API. After repeated 401s, regenerate the token.',
         vaultRequired:
-          'Vault required: choose a passphrase (min. 8) before storing the PAT on this device.',
+          'Vault required: passphrase (min. 12, not too weak) before storing the PAT on this device.',
         colorAria: 'Account color',
         colorSwatchAria: 'Color {color}',
         invalid: 'Invalid input',
@@ -777,9 +827,14 @@ export const messages = {
       wrong: 'Wrong passphrase.',
       unlock: 'Unlock',
       unlocking: 'Unlocking…',
+      lockout: 'Too many attempts — try again in {seconds} s.',
+      resetTitle: 'Erase the vault on this device?',
       resetWarning:
         'Resetting permanently erases the encrypted accounts on this device. PATs can still be regenerated on Supabase.',
-      reset: 'Reset',
+      resetStep1: 'Encrypted accounts and PATs on THIS browser are wiped.',
+      resetStep2: 'Regenerate a PAT on supabase.com (Account → Access Tokens).',
+      resetStep3: 'Come back, enable the vault, then add the new PAT.',
+      reset: 'Erase everything',
       forgot: 'Forgot passphrase?',
       resetDone: 'Vault reset.',
     },
@@ -790,6 +845,17 @@ export const messages = {
       sortAria: 'Sort',
       orgFilterAria: 'Filter by organization',
       orgFilterAll: 'All orgs',
+      orgQuotaAria: 'Free quotas by organization',
+      orgQuotaChip: '{active}/{limit} active · {total} projects',
+      selectAria: 'Select {name}',
+      bulkToggle: 'Select',
+      bulkSelected: '{count} selected',
+      bulkPause: 'Pause',
+      bulkRestore: 'Restore',
+      bulkNoPause: 'No active project selected',
+      bulkNoRestore: 'No paused project selected',
+      bulkPauseDone: 'Pause: {ok} ok, {fail} failed',
+      bulkRestoreDone: 'Restore: {ok} ok, {fail} failed',
       disabledSuffix: ' (disabled)',
       emptyTitle: 'No matching project',
       emptyBody: 'Adjust the search or filters.',
@@ -838,11 +904,15 @@ export const messages = {
       keepAliveAria: 'Keep-alive anti-pause',
       keepAliveTitle: 'Keep-alive (Free anti-pause)',
       keepAliveBody:
-        'Local memo: this project should stay warm via an external GitHub Actions workflow. Miss Supaboss does not run it here.',
+        'Mark the project, ping it here (read-only SQL) or via a GitHub Actions workflow to avoid Free pause.',
       keepAliveToggle: 'Mark for keep-alive',
+      keepAlivePing: 'Ping keep-alive now',
+      keepAlivePingOk: 'Keep-alive sent',
+      keepAlivePingFail: 'Keep-alive failed',
       keepAliveLink: 'See workflow pwa-supabase-keepalive.yml',
       healthAria: 'Services health',
       healthTitle: 'Services health',
+      healthLoading: 'Fetching health…',
       healthFail: 'Health unavailable',
       healthEmpty: 'No services returned.',
       healthOk: 'OK',
@@ -933,12 +1003,18 @@ export const messages = {
         'Pick real mode (not demo), enable the vault, then add the PAT — an orgs/projects summary confirms before commit.',
       step3:
         'View active/paused projects by organization, Free Plan quotas, and prepare your demos in one gesture.',
+      localStep1:
+        'Stay in real mode (not demo) — switching is offered when needed.',
+      localStep2:
+        'Create a solid passphrase (vault, min. 12): it encrypts PATs on THIS device.',
+      localStep3:
+        'Create a PAT on supabase.com (read scopes, or admin for pause/restore), paste it: Miss Supaboss probes orgs before saving.',
       addFirst: 'Add my first account',
       askAdmin: 'Ask an admin to add the first account.',
       security: {
         demo: 'Demo mode: simulated accounts and data. Nothing is sent to Supabase.',
         localFirst:
-          'Local-first mode: the PAT is encrypted on THIS device (required vault) and is only forwarded to the relay proxy, over HTTPS. No cloud multi-device sync — re-add the PAT elsewhere or export from a server instance.',
+          'Local-first mode: the PAT is encrypted on THIS device (required vault) and is only forwarded to the relay proxy, over HTTPS. Encrypted export/import for another device — no cloud DB.',
         server:
           'PATs are encrypted (AES-256-GCM) server-side and never reach this browser. Every action is logged.',
       },
@@ -972,25 +1048,33 @@ export const messages = {
       disable: 'Disable',
       vaultDisabledInfo:
         'The vault is required when adding a PAT. Enable it here to encrypt existing tokens, or from the add form. Forgotten passphrase = PATs to re-enter (regenerable on Supabase).',
-      vaultNewPlaceholder: 'Passphrase (min. 8 characters)',
+      vaultNewPlaceholder: 'Passphrase (min. 12 characters)',
       vaultNewAria: 'New passphrase',
       vaultConfirm: 'Confirm the passphrase',
       enableEncryption: 'Enable encryption',
+      passphraseStrength: {
+        weak: 'Too weak — lengthen or mix characters',
+        fair: 'Fair — can still improve',
+        good: 'Good passphrase',
+        strong: 'Strong passphrase',
+      },
       multiDeviceAria: 'Multi-device',
       multiDeviceHeading: 'Multi-device — no cloud DB',
       multiDeviceInfo:
-        'Pages = localStorage silo per device. No Supabase project “for sync”. On another machine: vault passphrase + re-enter PATs, or a self-hosted instance with encrypted export/import below.',
+        'Pages = localStorage silo per device. No Supabase project “for sync”. On another machine: encrypted export/import below, or vault passphrase + re-enter PATs.',
       exportAria: 'Export / import',
       exportHeading: 'Backup — Encrypted account export / import',
       exportInfo:
-        'AES-256-GCM blob derived from a passphrase (scrypt): portable to another Miss Supaboss instance (server). On local-first Pages, export is unavailable — use a per-device vault.',
+        'AES-256-GCM blob derived from a passphrase: portable to another Miss Supaboss instance (server or Pages).',
       exportLocalUnavailable:
         'Export/import is for the server instance. Here each device has its own vault.',
-      exportPassphrasePlaceholder: 'Passphrase (min. 8 characters)',
+      exportLocalInfo:
+        'Local-first: the blob is encrypted with an export passphrase (independent of the vault). Unlocked vault required.',
+      exportPassphrasePlaceholder: 'Passphrase (min. 12 characters)',
       exportPassphraseAria: 'Export passphrase',
       export: 'Export',
       import: 'Import',
-      importPlaceholder: 'Paste a supaboss-export-v1:… blob here to import',
+      importPlaceholder: 'Paste a supaboss-export-v1:… or msb1.… blob here',
       importAria: 'Import blob',
       storageAria: 'Local storage',
       storageHeading: 'Maintenance — Local storage',
@@ -1006,13 +1090,13 @@ export const messages = {
       aboutAria: 'About',
       invalidValues: 'Invalid values',
       thresholdsOrder: 'Thresholds must be increasing (warn < high < critical)',
-      passphraseMin: 'Passphrase: 8 characters minimum',
+      passphraseMin: 'Passphrase: 12 characters minimum, not too weak',
       exportOk: '{count} account(s) exported — blob copied to clipboard',
       exportFail: 'Export failed',
       passphraseBlobRequired: 'Passphrase and blob required',
       importOk: '{imported}/{total} account(s) imported',
       importFail: 'Import failed',
-      vaultMin: 'Passphrase: 8 characters minimum',
+      vaultMin: 'Passphrase: 12 characters minimum, not too weak',
       vaultMismatch: 'The two passphrases do not match',
       vaultEnabled:
         'Encryption enabled — the passphrase will be asked on next start.',

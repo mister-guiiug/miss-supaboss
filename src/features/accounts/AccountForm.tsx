@@ -12,6 +12,8 @@ import {
   REAL_AVAILABLE,
   switchDemoMode,
 } from '../../api/index.ts';
+import { isPassphraseAcceptable } from '../../api/crypto/passphraseStrength.ts';
+import { PassphraseField } from '../../shared/components/PassphraseField.tsx';
 import { toast } from '../../store/useUiStore.ts';
 import { ConfirmDialog } from '@mister-guiiug/dev-pwa-config/react/confirm-dialog';
 import { useI18n } from '../../i18n/index.ts';
@@ -24,6 +26,8 @@ const COLORS = [
   '#fbbf24',
   '#f97316',
 ];
+
+type ScopePreset = 'read' | 'admin';
 
 /**
  * Ajout OU modification d'un compte. À l'ajout, le PAT part au serveur en HTTPS
@@ -59,11 +63,11 @@ export function AccountForm({
     !isEdit && Boolean(PROXY_BASE) && !(api.vault?.isEnabled() ?? false);
   const [vaultPass, setVaultPass] = useState('');
   const [vaultPass2, setVaultPass2] = useState('');
+  const [scopePreset, setScopePreset] = useState<ScopePreset>('admin');
 
   const submit = async (): Promise<void> => {
     setError(null);
 
-    // P0 UX : un PAT réel en mode démo invente API/Web/Staging — on bloque.
     if (!isEdit && IS_MOCK) {
       setError(
         REAL_AVAILABLE
@@ -101,7 +105,7 @@ export function AccountForm({
     }
 
     if (needsVault) {
-      if (vaultPass.length < 8) {
+      if (!isPassphraseAcceptable(vaultPass)) {
         setError(t('settings.vaultMin'));
         return;
       }
@@ -126,6 +130,7 @@ export function AccountForm({
       if (needsVault && api.vault) {
         await api.vault.enable(vaultPass);
       }
+      // createAccount sonde déjà GET /organizations (PAT + scopes lecture).
       await api.createAccount(parsed.data);
       toast.success(t('accounts.form.added', { alias: parsed.data.alias }));
       setAlias('');
@@ -209,9 +214,41 @@ export function AccountForm({
                   : 'accounts.form.patHint'
               )}
             </span>
-            <span className="mt-1 block text-xs text-[var(--sb-text-soft)]">
-              {t('accounts.form.patScopes')}
-            </span>
+            <fieldset className="mt-2 space-y-1.5">
+              <legend className="text-xs font-medium text-[var(--sb-text-soft)]">
+                {t('accounts.form.scopePresetLegend')}
+              </legend>
+              <div className="flex gap-2">
+                {(
+                  [
+                    ['read', 'accounts.form.scopeRead'],
+                    ['admin', 'accounts.form.scopeAdmin'],
+                  ] as const
+                ).map(([id, labelKey]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={scopePreset === id}
+                    onClick={() => setScopePreset(id)}
+                    disabled={IS_MOCK}
+                    className={`flex-1 rounded-xl border px-2 py-2 text-xs font-medium disabled:opacity-50 ${
+                      scopePreset === id
+                        ? 'border-primary bg-primary/15 text-primary'
+                        : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
+                    }`}
+                  >
+                    {t(labelKey)}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-[var(--sb-text-soft)]">
+                {t(
+                  scopePreset === 'read'
+                    ? 'accounts.form.scopeReadHint'
+                    : 'accounts.form.scopeAdminHint'
+                )}
+              </p>
+            </fieldset>
           </label>
         )}
 
@@ -236,14 +273,11 @@ export function AccountForm({
             <p className="text-xs font-medium text-[var(--sb-text)]">
               {t('accounts.form.vaultRequired')}
             </p>
-            <input
-              type="password"
+            <PassphraseField
               value={vaultPass}
-              onChange={e => setVaultPass(e.target.value)}
+              onChange={setVaultPass}
               placeholder={t('settings.vaultNewPlaceholder')}
-              autoComplete="new-password"
-              aria-label={t('settings.vaultNewAria')}
-              className="w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 text-sm"
+              ariaLabel={t('settings.vaultNewAria')}
             />
             <input
               type="password"

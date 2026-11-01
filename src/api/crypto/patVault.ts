@@ -16,12 +16,25 @@
  * les blobs chiffrés des PAT sont stockés par `localRealApi` (avec les comptes).
  */
 
+import {
+  isPassphraseAcceptable,
+  PASSPHRASE_MIN_LENGTH,
+} from './passphraseStrength.ts';
+
 const VAULT_META_KEY = 'miss-supaboss-vault-v1';
+const VAULT_LOCKOUT_KEY = 'miss-supaboss-vault-lockout-v1';
 const PBKDF2_ITERATIONS = 210_000;
 const SALT_BYTES = 16;
 const IV_BYTES = 12;
 /** Texte témoin chiffré à l'activation : son déchiffrement valide la phrase. */
 const VERIFIER_PLAINTEXT = 'miss-supaboss-vault-ok';
+
+/** Échecs avant verrouillage temporaire. */
+const MAX_FAILED_UNLOCKS = 5;
+/** Durée du verrouillage après trop d’échecs. */
+const LOCKOUT_MS = 60_000;
+/** Inactivité avant re-verrouillage automatique de la session. */
+export const VAULT_IDLE_LOCK_MS = 15 * 60_000;
 
 interface VaultMeta {
   v: 1;
@@ -32,8 +45,59 @@ interface VaultMeta {
   verifier: string;
 }
 
+interface LockoutState {
+  fails: number;
+  lockedUntil: number;
+}
+
 /** Clé dérivée, vivante uniquement en mémoire (jamais sérialisée). */
 let memoryKey: CryptoKey | null = null;
+let idleTimer: ReturnType<typeof setTimeout> | null = null;
+let idleHandler: (() => void) | null = null;
+let visibilityHandler: (() => void) | null = null;
+let onIdleLock: (() => void) | null = null;
+
+function clearIdleTimer(): void {
+  if (idleTimer) {
+    clearTimeout(idleTimer);
+    idleTimer = null;
+  }
+}
+
+function scheduleIdleLock(): void {
+  clearIdleTimer();
+  if (!memoryKey || !onIdleLock) return;
+  idleTimer = setTimeout(() => {
+    memoryKey = null;
+    const cb = onIdleLock;
+    disarmAutoLock();
+    cb?.();
+  }, VAULT_IDLE_LOCK_MS);
+}
+
+function disarmAutoLock(): void {
+  clearIdleTimer();
+  if (idleHandler) {
+    window.removeEventListener('pointerdown', idleHandler, true);
+    window.removeEventListener('keydown', idleHandler, true);
+    idleHandler = null;
+  }
+  if (visibilityHandler) {
+    document.removeEventListener('visibilitychange', visibilityHandler);
+    visibilityHandler = null;
+  }
+  onIdleLock = null;
+}
+
+function recordFailedUnlock(): void {
+  const cur = readLockout();
+  const fails = cur.fails + 1;
+  const lockedUntil = fails >= MAX_FAILED_UNLOCKS ? Date.now() + LOCKOUT_MS : 0;
+  writeLockout({
+    fails: fails >= MAX_FAILED_UNLOCKS ? 0 : fails,
+    lockedUntil,
+  });
+}
 
 const toB64 = (bytes: Uint8Array): string =>
   btoa(String.fromCharCode(...bytes));
@@ -60,6 +124,32 @@ function readMeta(): VaultMeta | null {
     return raw ? (JSON.parse(raw) as VaultMeta) : null;
   } catch {
     return null;
+  }
+}
+
+function readLockout(): LockoutState {
+  try {
+    const raw = localStorage.getItem(VAULT_LOCKOUT_KEY);
+    if (!raw) return { fails: 0, lockedUntil: 0 };
+    return JSON.parse(raw) as LockoutState;
+  } catch {
+    return { fails: 0, lockedUntil: 0 };
+  }
+}
+
+function writeLockout(state: LockoutState): void {
+  try {
+    localStorage.setItem(VAULT_LOCKOUT_KEY, JSON.stringify(state));
+  } catch {
+    /* stockage indisponible */
+  }
+}
+
+function clearLockout(): void {
+  try {
+    localStorage.removeItem(VAULT_LOCKOUT_KEY);
+  } catch {
+    /* ignore */
   }
 }
 
@@ -104,6 +194,8 @@ async function aesDecrypt(key: CryptoKey, blob: string): Promise<string> {
 }
 
 export const patVault = {
+  minPassphraseLength: PASSPHRASE_MIN_LENGTH,
+
   /** Le chiffrement au repos est-il activé (métadonnées présentes) ? */
   isEnabled(): boolean {
     return readMeta() !== null;
@@ -114,12 +206,21 @@ export const patVault = {
     return memoryKey !== null;
   },
 
+  /** Ms restants de verrouillage après trop d’échecs (0 = libre). */
+  lockoutRemainingMs(): number {
+    const { lockedUntil } = readLockout();
+    return Math.max(0, lockedUntil - Date.now());
+  },
+
   /**
    * Active le coffre avec une nouvelle phrase : génère un sel, dérive la clé
    * (gardée en mémoire) et écrit le vérificateur. L'appelant chiffre ensuite
    * les PAT existants via `encrypt`.
    */
   async enable(passphrase: string): Promise<void> {
+    if (!isPassphraseAcceptable(passphrase)) {
+      throw new Error('passphrase-weak');
+    }
     const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
     const key = await deriveKey(passphrase, salt, PBKDF2_ITERATIONS);
     const verifier = await aesEncrypt(key, VERIFIER_PLAINTEXT);
@@ -131,14 +232,16 @@ export const patVault = {
     };
     localStorage.setItem(VAULT_META_KEY, JSON.stringify(meta));
     memoryKey = key;
+    clearLockout();
   },
 
   /**
    * Déverrouille : dérive la clé depuis la phrase et valide le vérificateur.
    * Retourne false si la phrase est incorrecte (échec d'auth GCM), sans rien
-   * révéler de plus.
+   * révéler de plus. Pendant un lockout, refuse immédiatement.
    */
   async unlock(passphrase: string): Promise<boolean> {
+    if (this.lockoutRemainingMs() > 0) return false;
     const meta = readMeta();
     if (!meta) return false;
     try {
@@ -148,11 +251,15 @@ export const patVault = {
         meta.iterations
       );
       if ((await aesDecrypt(key, meta.verifier)) !== VERIFIER_PLAINTEXT) {
+        recordFailedUnlock();
         return false;
       }
       memoryKey = key;
+      clearLockout();
+      scheduleIdleLock();
       return true;
     } catch {
+      recordFailedUnlock();
       return false;
     }
   },
@@ -160,6 +267,7 @@ export const patVault = {
   /** Oublie la clé en mémoire (re-déverrouillage requis). */
   lock(): void {
     memoryKey = null;
+    clearIdleTimer();
   },
 
   /** Désactive le chiffrement : retire les métadonnées et la clé mémoire. */
@@ -169,7 +277,44 @@ export const patVault = {
     } catch {
       // stockage indisponible
     }
+    clearLockout();
     memoryKey = null;
+    disarmAutoLock();
+  },
+
+  /**
+   * Arme le verrouillage automatique après inactivité. `onLock` est appelé
+   * après oubli de la clé — l’UI doit repasser par UnlockScreen.
+   */
+  armAutoLock(onLock: () => void): void {
+    disarmAutoLock();
+    onIdleLock = onLock;
+    idleHandler = () => {
+      if (memoryKey) scheduleIdleLock();
+    };
+    window.addEventListener('pointerdown', idleHandler, {
+      capture: true,
+      passive: true,
+    });
+    window.addEventListener('keydown', idleHandler, {
+      capture: true,
+      passive: true,
+    });
+    visibilityHandler = () => {
+      if (document.visibilityState === 'hidden' && memoryKey) {
+        clearIdleTimer();
+        idleTimer = setTimeout(() => {
+          memoryKey = null;
+          const cb = onIdleLock;
+          disarmAutoLock();
+          cb?.();
+        }, VAULT_IDLE_LOCK_MS / 2);
+      } else if (document.visibilityState === 'visible' && memoryKey) {
+        scheduleIdleLock();
+      }
+    };
+    document.addEventListener('visibilitychange', visibilityHandler);
+    scheduleIdleLock();
   },
 
   async encrypt(plaintext: string): Promise<string> {
@@ -182,3 +327,5 @@ export const patVault = {
     return aesDecrypt(memoryKey, blob);
   },
 };
+
+export { disarmAutoLock };

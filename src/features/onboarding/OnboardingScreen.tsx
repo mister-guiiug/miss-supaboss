@@ -39,43 +39,79 @@ export function OnboardingScreen() {
   const user = useSessionStore(s => s.user);
   const [formOpen, setFormOpen] = useState(false);
   const NoteIcon = securityNote.icon;
+  const localFirst = Boolean(PROXY_BASE) && !IS_MOCK;
 
   return (
     <div className="mx-auto flex max-w-sm flex-col items-center gap-5 px-2 py-10 text-center">
       <Hand size={44} aria-hidden="true" className="text-primary" />
       <h1 className="text-xl font-bold">{t('onboarding.welcome')}</h1>
       <ol className="card w-full space-y-3 p-5 text-left text-sm">
-        <li className="flex gap-2.5">
-          <span
-            aria-hidden="true"
-            className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary"
-          >
-            1
-          </span>
-          <span>
-            {t('onboarding.step1.pre')} <strong>supabase.com</strong>{' '}
-            {t('onboarding.step1.mid')} <strong>Personal Access Token</strong>{' '}
-            {t('onboarding.step1.post')}
-          </span>
-        </li>
-        <li className="flex gap-2.5">
-          <span
-            aria-hidden="true"
-            className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary"
-          >
-            2
-          </span>
-          <span>{t('onboarding.step2')}</span>
-        </li>
-        <li className="flex gap-2.5">
-          <span
-            aria-hidden="true"
-            className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary"
-          >
-            3
-          </span>
-          <span>{t('onboarding.step3')}</span>
-        </li>
+        {localFirst ? (
+          <>
+            <li className="flex gap-2.5">
+              <span
+                aria-hidden="true"
+                className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary"
+              >
+                1
+              </span>
+              <span>{t('onboarding.localStep1')}</span>
+            </li>
+            <li className="flex gap-2.5">
+              <span
+                aria-hidden="true"
+                className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary"
+              >
+                2
+              </span>
+              <span>{t('onboarding.localStep2')}</span>
+            </li>
+            <li className="flex gap-2.5">
+              <span
+                aria-hidden="true"
+                className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary"
+              >
+                3
+              </span>
+              <span>{t('onboarding.localStep3')}</span>
+            </li>
+          </>
+        ) : (
+          <>
+            <li className="flex gap-2.5">
+              <span
+                aria-hidden="true"
+                className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary"
+              >
+                1
+              </span>
+              <span>
+                {t('onboarding.step1.pre')} <strong>supabase.com</strong>{' '}
+                {t('onboarding.step1.mid')}{' '}
+                <strong>Personal Access Token</strong>{' '}
+                {t('onboarding.step1.post')}
+              </span>
+            </li>
+            <li className="flex gap-2.5">
+              <span
+                aria-hidden="true"
+                className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary"
+              >
+                2
+              </span>
+              <span>{t('onboarding.step2')}</span>
+            </li>
+            <li className="flex gap-2.5">
+              <span
+                aria-hidden="true"
+                className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary"
+              >
+                3
+              </span>
+              <span>{t('onboarding.step3')}</span>
+            </li>
+          </>
+        )}
       </ol>
       <p className="flex items-start gap-2 text-left text-xs text-[var(--sb-text-soft)]">
         <NoteIcon
