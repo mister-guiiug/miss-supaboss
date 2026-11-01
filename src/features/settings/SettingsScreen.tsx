@@ -32,6 +32,7 @@ import {
   setDemoSeed,
   switchDemoMode,
 } from '../../api/index.ts';
+import { storeVaultPassphrase } from '../../api/crypto/browserCredentials.ts';
 import { useFleetStore } from '../../store/useFleetStore.ts';
 import { canAdmin, useSessionStore } from '../../store/useSessionStore.ts';
 import { toast } from '../../store/useUiStore.ts';
@@ -132,6 +133,7 @@ export function SettingsScreen() {
     setBusy(true);
     try {
       await vault.enable(vaultPass);
+      await storeVaultPassphrase(vaultPass);
       setVaultEnabled(true);
       setVaultPass('');
       setVaultPass2('');
@@ -426,6 +428,30 @@ export function SettingsScreen() {
                   className="mt-0.5 shrink-0 text-primary"
                 />
                 {t('settings.vaultActiveInfo')}
+              </p>
+              <p className="text-xs text-[var(--sb-text-soft)]">
+                {t('settings.vaultBrowserStore')}
+              </p>
+              <p className="text-xs text-[var(--sb-text-soft)]">
+                {t('settings.vaultExternalPropose')}{' '}
+                <a
+                  href="https://1password.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  1Password
+                </a>
+                {' · '}
+                <a
+                  href="https://bitwarden.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  Bitwarden
+                </a>
+                .
               </p>
               <div className="flex gap-2">
                 <button

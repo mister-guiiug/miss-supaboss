@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { KeyRound, LockKeyhole, ShieldAlert } from 'lucide-react';
 import { api } from '../../api/index.ts';
+import { loadVaultPassphrase } from '../../api/crypto/browserCredentials.ts';
 import { patVault } from '../../api/crypto/patVault.ts';
 import { toast } from '../../store/useUiStore.ts';
 import { useI18n } from '../../i18n/index.ts';
@@ -9,6 +10,7 @@ import { useI18n } from '../../i18n/index.ts';
  * Coffre activé mais verrouillé (mode local-first) : phrase secrète avant de
  * déchiffrer les PAT. Lockout après trop d’échecs. « Phrase oubliée » efface
  * coffre + comptes (PAT régénérables côté Supabase).
+ * Piste A : tente une lecture via Credential Management au montage.
  */
 export function UnlockScreen({ onUnlocked }: { onUnlocked: () => void }) {
   const { t } = useI18n();
@@ -27,6 +29,27 @@ export function UnlockScreen({ onUnlocked }: { onUnlocked: () => void }) {
     }, 500);
     return () => window.clearInterval(id);
   }, [lockoutMs]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (!api.vault || patVault.lockoutRemainingMs() > 0) return;
+      const fromBrowser = await loadVaultPassphrase();
+      if (cancelled || !fromBrowser || !api.vault) return;
+      setPassphrase(fromBrowser);
+      setBusy(true);
+      const ok = await api.vault.unlock(fromBrowser);
+      if (cancelled) return;
+      setBusy(false);
+      if (ok) {
+        setPassphrase('');
+        onUnlocked();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [onUnlocked]);
 
   const locked = lockoutMs > 0;
 
@@ -66,6 +89,19 @@ export function UnlockScreen({ onUnlocked }: { onUnlocked: () => void }) {
         onSubmit={e => void submit(e)}
         className="card w-full space-y-3 p-5"
       >
+        <p className="text-xs text-[var(--sb-text-soft)]">
+          {t('unlock.browserHint')}
+        </p>
+        <input
+          type="text"
+          name="username"
+          autoComplete="username"
+          value="miss-supaboss-vault"
+          readOnly
+          tabIndex={-1}
+          aria-hidden="true"
+          className="sr-only"
+        />
         <input
           type="password"
           value={passphrase}

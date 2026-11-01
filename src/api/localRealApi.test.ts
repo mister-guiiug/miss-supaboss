@@ -175,9 +175,41 @@ describe('localRealApi — Supabase réel via proxy', () => {
     vi.unstubAllGlobals();
   });
 
-  it('createAccount exige le coffre avant tout PAT', async () => {
+  it('createAccount sans coffre : PAT persisté en clair', async () => {
     stubFetch(managementOk());
     const api = createLocalRealApi(PROXY);
+    const acc = await api.createAccount({
+      alias: 'Plain',
+      color: '#3ecf8e',
+      pat: 'sbp_DEMOFAKEtoken',
+    });
+    expect(acc.alias).toBe('Plain');
+    const raw = localStorage.getItem(REAL_STORAGE_KEY) ?? '';
+    expect(raw).toContain('sbp_DEMOFAKEtoken');
+    expect(raw).not.toContain('"patEnc"');
+    vi.unstubAllGlobals();
+  });
+
+  it('createAccount avec coffre : PAT chiffré, jamais en clair au repos', async () => {
+    stubFetch(managementOk());
+    const api = createLocalRealApi(PROXY);
+    await withVault(api);
+    await api.createAccount({
+      alias: 'Safe',
+      color: '#3ecf8e',
+      pat: 'sbp_DEMOFAKEtoken',
+    });
+    const raw = localStorage.getItem(REAL_STORAGE_KEY) ?? '';
+    expect(raw).toContain('"patEnc"');
+    expect(raw).not.toContain('sbp_DEMOFAKEtoken');
+    vi.unstubAllGlobals();
+  });
+
+  it('createAccount refuse si le coffre est verrouillé', async () => {
+    stubFetch(managementOk());
+    const api = createLocalRealApi(PROXY);
+    await withVault(api);
+    api.vault?.lock();
     await expect(
       api.createAccount({
         alias: 'X',
