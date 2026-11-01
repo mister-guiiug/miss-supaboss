@@ -45,7 +45,9 @@ for (const file of jsFiles) {
   const body = await readFile(join(assetsDir, file), 'utf8');
   if (body.includes(marker) || body.includes(proxy)) {
     found = true;
-    console.log(`check-proxy-in-bundle: OK — « ${marker} » dans assets/${file}`);
+    console.log(
+      `check-proxy-in-bundle: OK — « ${marker} » dans assets/${file}`
+    );
     break;
   }
 }
