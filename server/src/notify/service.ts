@@ -1,8 +1,7 @@
 /**
- * Canaux de notification d'un utilisateur — Web Push et webhook — et la
- * remise d'un message sur TOUS ses canaux, avec statut consigné.
- *
- * Pas d'e-mail : il faudrait un serveur SMTP, que l'instance n'a pas.
+ * Canaux de notification d'un utilisateur — Web Push, webhook et e-mail SMTP
+ * optionnel — et la remise d'un message sur TOUS ses canaux, avec statut
+ * consigné.
  */
 import type {
   DeliveryReportDto,
@@ -11,6 +10,7 @@ import type {
 import { openSecret, sealSecret } from '../crypto.ts';
 import type { Store, UserRow } from '../db.ts';
 import { checkDestination, type HostResolver } from './destination.ts';
+import { sendSmtp } from './smtp.ts';
 import {
   generateVapidKeys,
   sendWebPush,
@@ -56,6 +56,14 @@ export interface NotificationServiceOptions {
   resolver?: HostResolver;
   /** `SUPABOSS_WEBHOOK_ALLOW_PRIVATE` : webhooks vers le réseau local permis. */
   allowPrivateWebhooks?: boolean;
+  /** URL SMTP (`smtp://` / `smtps://`) — absente = canal e-mail coupé. */
+  smtpUrl?: string;
+  /** Expéditeur des alertes e-mail. */
+  smtpFrom?: string;
+  /** Synchro de fond avec collecte SQL des quotas. */
+  backgroundMetrics?: boolean;
+  /** Injectable pour les tests SMTP. */
+  sendSmtpImpl?: typeof sendSmtp;
 }
 
 export class NotificationService {
@@ -110,6 +118,7 @@ export class NotificationService {
     const keys = this.vapidKeys();
     const webhook = this.store.getWebhook(user.id);
     const last = this.store.lastOperation('alert.send', user.email);
+    const smtpReady = Boolean(this.options.smtpUrl && this.options.smtpFrom);
     return {
       push: {
         available: keys !== null,
@@ -117,6 +126,11 @@ export class NotificationService {
         subscriptions: this.store.listPushSubscriptions(user.id).length,
       },
       webhook: { configured: webhook !== null, hint: webhook?.hint ?? null },
+      email: {
+        available: smtpReady,
+        to: smtpReady ? user.email : null,
+      },
+      backgroundMetrics: this.options.backgroundMetrics === true,
       lastDelivery: last
         ? {
             at: last.ts,
@@ -250,12 +264,35 @@ export class NotificationService {
       );
     }
 
-    if (subscriptions.length === 0 && !hook) {
+    let email: DeliveryReportDto['email'] = 'skipped';
+    const smtpUrl = this.options.smtpUrl;
+    const smtpFrom = this.options.smtpFrom;
+    if (smtpUrl && smtpFrom) {
+      const send = this.options.sendSmtpImpl ?? sendSmtp;
+      const result = await send(smtpUrl, {
+        from: smtpFrom,
+        to: user.email,
+        subject: message.title,
+        text: `${message.body}\n\n— Miss Supaboss (${message.path})`,
+      });
+      email = result.ok ? 'sent' : 'failed';
+      notes.push(
+        result.ok
+          ? `email : ${user.email}`
+          : `email : ${result.error ?? 'échec'}`
+      );
+    }
+
+    if (subscriptions.length === 0 && !hook && email === 'skipped') {
       notes.push('aucun canal configuré');
     }
     const detail = notes.join(' ; ');
-    const delivered = push.sent > 0 || webhook === 'sent';
-    const failed = push.failed > 0 || webhook === 'failed' || !delivered;
+    const delivered = push.sent > 0 || webhook === 'sent' || email === 'sent';
+    const failed =
+      push.failed > 0 ||
+      webhook === 'failed' ||
+      email === 'failed' ||
+      !delivered;
     this.store.recordOperation({
       userEmail: user.email,
       action: 'alert.send',
@@ -266,7 +303,7 @@ export class NotificationService {
       status: failed ? 'error' : 'ok',
       detail: `${message.title} — ${detail}`,
     });
-    return { push, webhook, detail };
+    return { push, webhook, email, detail };
   }
 
   /** Le bouton « Envoyer une notification de test » des Réglages. */

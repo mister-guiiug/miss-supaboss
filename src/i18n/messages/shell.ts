@@ -1,0 +1,138 @@
+/** Domaine i18n « shell » — fr + en. */
+export const shellFr = {
+  common: {
+    appName: 'Miss Supaboss',
+    cancel: 'Annuler',
+    save: 'Enregistrer',
+    delete: 'Supprimer',
+    retry: 'Réessayer',
+    back: 'Retour',
+    working: 'En cours…',
+    loading: 'Chargement…',
+    manage: 'Gérer',
+    favorite: 'Favori',
+    demoFrequent: 'Démo fréquente',
+    dismissToast: 'Fermer la notification',
+    never: 'jamais',
+  },
+  languages: {
+    fr: 'Français',
+    en: 'English',
+  },
+  nav: {
+    aria: 'Navigation principale',
+    home: 'Accueil',
+    accounts: 'Comptes',
+    projects: 'Projets',
+    quotas: 'Quotas',
+    settings: 'Réglages',
+  },
+  titles: {
+    projects: 'Projets',
+    accounts: 'Comptes',
+    quotas: 'Quotas Free Plan',
+    history: 'Historique',
+    settings: 'Réglages',
+  },
+  header: {
+    offlineState: 'hors ligne — état {rel}',
+    synced: 'synchro {rel}',
+    demoBadge: 'démo',
+    disableDemo: 'Désactiver les données de démo',
+    offline: 'hors ligne',
+    refresh: 'Rafraîchir les données',
+    exitDemoTitle: 'Quitter le mode démo ?',
+    exitDemoConfirm: 'Désactiver la démo',
+    exitDemoBody:
+      "Retour aux données réelles — l'application se recharge. Les données de démo sont remises à zéro : la prochaine démo repartira propre.",
+  },
+  error: {
+    title: 'Quelque chose a cassé',
+    reload: "Recharger l'app",
+    reference: 'Référence à communiquer au support',
+  },
+  guard: {
+    offline: 'Connexion requise',
+    readonly: 'Lecture seule (hors ligne)',
+    operate: 'Droits opérateur requis',
+    admin: 'Droits administrateur requis',
+  },
+  fleet: {
+    syncFail: 'Synchronisation impossible',
+    metricsPartial:
+      'Métriques indisponibles pour {count} projet(s) — proxy ou PAT à vérifier.',
+    metricsFail: 'Collecte des métriques impossible.',
+    settingsSaved: 'Réglages enregistrés',
+    pauseStarted: 'Mise en pause lancée',
+    restoreStarted: 'Restauration lancée',
+  },
+} as const;
+
+export const shellEn = {
+  common: {
+    appName: 'Miss Supaboss',
+    cancel: 'Cancel',
+    save: 'Save',
+    delete: 'Delete',
+    retry: 'Retry',
+    back: 'Back',
+    working: 'Working…',
+    loading: 'Loading…',
+    manage: 'Manage',
+    favorite: 'Favorite',
+    demoFrequent: 'Frequent demo',
+    dismissToast: 'Dismiss notification',
+    never: 'never',
+  },
+  languages: {
+    fr: 'Français',
+    en: 'English',
+  },
+  nav: {
+    aria: 'Main navigation',
+    home: 'Home',
+    accounts: 'Accounts',
+    projects: 'Projects',
+    quotas: 'Quotas',
+    settings: 'Settings',
+  },
+  titles: {
+    projects: 'Projects',
+    accounts: 'Accounts',
+    quotas: 'Free Plan quotas',
+    history: 'History',
+    settings: 'Settings',
+  },
+  header: {
+    offlineState: 'offline — state {rel}',
+    synced: 'synced {rel}',
+    demoBadge: 'demo',
+    disableDemo: 'Disable demo data',
+    offline: 'offline',
+    refresh: 'Refresh data',
+    exitDemoTitle: 'Leave demo mode?',
+    exitDemoConfirm: 'Disable demo',
+    exitDemoBody:
+      'Back to real data — the app reloads. Demo data is reset: the next demo starts clean.',
+  },
+  error: {
+    title: 'Something broke',
+    reload: 'Reload the app',
+    reference: 'Reference to share with support',
+  },
+  guard: {
+    offline: 'Connection required',
+    readonly: 'Read-only (offline)',
+    operate: 'Operator rights required',
+    admin: 'Administrator rights required',
+  },
+  fleet: {
+    syncFail: 'Synchronization failed',
+    metricsPartial:
+      'Metrics unavailable for {count} project(s) — check proxy or PAT.',
+    metricsFail: 'Metrics collection failed.',
+    settingsSaved: 'Settings saved',
+    pauseStarted: 'Pause started',
+    restoreStarted: 'Restore started',
+  },
+} as const;

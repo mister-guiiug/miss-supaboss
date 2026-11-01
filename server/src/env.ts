@@ -43,6 +43,13 @@ const envSchema = z.object({
    * compte pourrait alors s'en servir pour sonder ce réseau.
    */
   SUPABOSS_WEBHOOK_ALLOW_PRIVATE: z.string().optional(),
+  /**
+   * Relais SMTP optionnel : `smtp://user:pass@host:587` ou `smtps://…:465`.
+   * Absent → canal e-mail désactivé.
+   */
+  SUPABOSS_SMTP_URL: z.string().optional(),
+  /** Expéditeur des alertes (défaut : SUPABOSS_ADMIN_EMAIL). */
+  SUPABOSS_SMTP_FROM: z.string().optional(),
   NODE_ENV: z.string().default('development'),
 });
 
@@ -65,6 +72,10 @@ export type Env = Readonly<{
   totpReset: string | undefined;
   /** Webhooks vers le réseau interne permis (garde anti-SSRF levée). */
   webhookAllowPrivate: boolean;
+  /** URL SMTP (smtp:// ou smtps://), sinon undefined. */
+  smtpUrl: string | undefined;
+  /** Adresse From des alertes e-mail. */
+  smtpFrom: string;
   production: boolean;
 }>;
 
@@ -93,6 +104,10 @@ export function loadEnv(raw: NodeJS.ProcessEnv = process.env): Env {
     webhookAllowPrivate:
       parsed.SUPABOSS_WEBHOOK_ALLOW_PRIVATE === '1' ||
       parsed.SUPABOSS_WEBHOOK_ALLOW_PRIVATE === 'true',
+    smtpUrl: parsed.SUPABOSS_SMTP_URL?.trim() || undefined,
+    smtpFrom: (
+      parsed.SUPABOSS_SMTP_FROM?.trim() || parsed.SUPABOSS_ADMIN_EMAIL
+    ).toLowerCase(),
     production: parsed.NODE_ENV === 'production',
   };
 }

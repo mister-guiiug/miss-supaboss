@@ -30,6 +30,8 @@ describe('loadEnv — les valeurs par défaut', () => {
       vapidSubject: 'mailto:admin@local',
       totpReset: undefined,
       webhookAllowPrivate: false,
+      smtpUrl: undefined,
+      smtpFrom: 'admin@local',
       production: false,
     });
   });

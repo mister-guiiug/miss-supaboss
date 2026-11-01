@@ -153,18 +153,21 @@ Métriques par requêtes SQL **read-only** (projet actif uniquement) :
     l'activité (ce qui retarderait sa mise en pause automatique). Sans ce
     réglage, les alertes de quota partent aux collectes déclenchées par
     l'app. Messages rédigés en français par le serveur.
-11. **Canaux : Web Push et webhook, pas d'e-mail** (il faudrait un serveur
-    SMTP, que l'instance n'a pas). Web Push : clés VAPID engendrées au premier
-    démarrage, chiffrées par la clé maître ; changer de clé maître rend le
-    push indisponible (les abonnements dépendent de l'ancienne clé publique)
-    plutôt que de régénérer en silence. Sur iPhone/iPad, le push n'existe
-    qu'**app installée** (iOS ≥ 16.4). Webhook : POST JSON vers une URL
-    **https** saisie par l'utilisateur, délai de 8 s, aucune redirection vers
-    une autre origine. L'URL est appelée PAR LE SERVEUR, donc **aucune
-    destination interne** (garde anti-SSRF, §7) : un ntfy auto-hébergé sur le
-    réseau local demande `SUPABOSS_WEBHOOK_ALLOW_PRIVATE=1`, que tout compte
-    pourra alors utiliser pour sonder ce réseau. La démo montre les réglages
-    et dit que l'envoi demande le serveur.
+11. **Canaux : Web Push, webhook, e-mail SMTP optionnel.** Web Push : clés
+    VAPID engendrées au premier démarrage, chiffrées par la clé maître ;
+    changer de clé maître rend le push indisponible (les abonnements
+    dépendent de l'ancienne clé publique) plutôt que de régénérer en silence.
+    Sur iPhone/iPad, le push n'existe qu'**app installée** (iOS ≥ 16.4).
+    Webhook : POST JSON vers une URL **https** saisie par l'utilisateur,
+    délai de 8 s, aucune redirection vers une autre origine. L'URL est
+    appelée PAR LE SERVEUR, donc **aucune destination interne** (garde
+    anti-SSRF, §7) : un ntfy auto-hébergé sur le réseau local demande
+    `SUPABOSS_WEBHOOK_ALLOW_PRIVATE=1`, que tout compte pourra alors utiliser
+    pour sonder ce réseau. E-mail : `SUPABOSS_SMTP_URL`
+    (`smtp://user:pass@host:587` ou `smtps://…:465`) + `SUPABOSS_SMTP_FROM`
+    (défaut = admin) — les alertes partent à l'e-mail du compte connecté.
+    Absent → canal coupé, l'UI le dit. La démo montre les réglages et dit
+    que l'envoi demande le serveur.
 12. **Double authentification = serveur.** TOTP SHA-1, 6 chiffres, 30 s,
     ±1 pas ; un code déjà accepté est refusé s'il revient. Téléphone ET codes
     de secours perdus : `SUPABOSS_TOTP_RESET=<e-mail>` retire la 2FA de ce
@@ -181,7 +184,8 @@ miss-supaboss/
 │   ├── guards.ts            #  limite 2 actifs, suggestions, fenêtre 1 an
 │   ├── schedule.ts          #  échéances des plannings (fuseaux IANA, pur)
 │   ├── contracts.ts         #  contrat d'API (schémas zod, DTO)
-│   └── format.ts            #  octets/compteurs/pourcents/dates FR
+│   ├── format.ts            #  octets/compteurs/pourcents/dates FR
+│   └── management/ops.ts    #  client Management API (front + serveur)
 ├── server/
 │   ├── tsconfig.json        #  erasableSyntaxOnly (type stripping Node)
 │   ├── src/
@@ -198,8 +202,7 @@ miss-supaboss/
 │   │   ├── schedules.ts     #  plannings : création, exécution au plus 1 fois
 │   │   ├── alerts.ts        #  seuils franchis, fin de fenêtre (J-7 / J-1)
 │   │   ├── jobs.ts          #  tâche de fond (plannings + synchro)
-│   │   ├── notify/          #  webpush.ts (VAPID + aes128gcm), webhook.ts,
-│   │   │                    #  service.ts (canaux, remise, statut)
+│   │   ├── notify/          #  webpush, webhook, smtp, service (canaux)
 │   │   ├── routes/          #  auth, totp, accounts, projects, schedules,
 │   │   │                    #  notifications, system
 │   │   └── supabase/        #  provider.ts (interface), management.ts (réel),
@@ -405,6 +408,8 @@ Variables d'environnement du serveur (toutes dans `.env.example`) :
 | `SUPABOSS_VAPID_SUBJECT`         | `mailto:<admin>`   | Contact VAPID transmis aux services push (`mailto:` ou `https:`)                                      |
 | `SUPABOSS_TOTP_RESET`            | —                  | E-mail dont la 2FA est retirée au démarrage (secours, puis retirer)                                   |
 | `SUPABOSS_WEBHOOK_ALLOW_PRIVATE` | —                  | `1` : webhooks vers le réseau interne permis (ntfy du réseau local) — lève la garde anti-SSRF, cf. §7 |
+| `SUPABOSS_SMTP_URL`              | —                  | Relais SMTP optionnel (`smtp://` STARTTLS ou `smtps://` TLS) — absent = pas d'e-mail                  |
+| `SUPABOSS_SMTP_FROM`             | e-mail admin       | Expéditeur des alertes e-mail                                                                         |
 
 Qualité :
 
@@ -486,16 +491,20 @@ sortant.
 
 **Maturité : stable** (catalogue `dev-pwa-config`, 01/11/2026).
 
-**Livré (P0–P2 + passe stable)** : blocage PAT en démo ; garde
+**Livré (P0–P2 + passe stable + maintenance)** : blocage PAT en démo ; garde
 `check-proxy-in-bundle` ; coffre obligatoire (min. 12, entropie, lockout,
 auto-lock inactivité) ; export/import local-first (`msb1.…`) ; regroupement /
 quotas Free par org ; sélection multi pause/restore ; keep-alive ping SQL +
 workflow ; health + sparklines (états vides) ; rate-limit proxy par origine ;
-Vitest isole `PROXY_BASE` ; CI build avec vars prod.
+Vitest isole `PROXY_BASE` ; CI build avec vars prod ; i18n découpé par domaine ;
+client Management unifié (`shared/management/ops`) ; e-mail SMTP optionnel
+(`SUPABOSS_SMTP_URL`) ; statut fond/quotas dans les réglages ; `doctor-strict`
+en CI.
 
 **Reste ouvert** :
 
-- Notifications par e-mail (SMTP) ; alertes de quota en fond sans collecte SQL.
+- Alertes de quota en fond **sans** collecte SQL (aujourd'hui
+  `SUPABOSS_SYNC_METRICS=1` interroge la base de chaque projet actif).
 - Egress réel le jour où un endpoint public existe (`SupabaseProvider` prêt).
 - Alignement miroir de `miss-supatool` sur le même piège `vars.VITE_*`.
 - Publier `dev-pwa-config` pour que `<FamilyApps>` affiche `stable` en prod.

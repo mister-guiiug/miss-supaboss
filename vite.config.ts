@@ -145,6 +145,8 @@ export default defineConfig(({ command, mode }) => {
         basePath,
         logoPath: '/icon-512.png',
         themeColor: { light: '#f4f7fb', dark: '#0c1222' },
+        jsonLd: true,
+        servedContent: true,
       }),
       VitePWA({
         registerType: 'prompt',
@@ -178,7 +180,7 @@ export default defineConfig(({ command, mode }) => {
           importScripts: ['push-sw.js'],
         },
         manifest: {
-          id: '/miss-supaboss/',
+          id: 'https://mister-guiiug.github.io/miss-supaboss/',
           name: 'Miss Supaboss — Pilotage Supabase Free',
           short_name: 'Miss Supaboss',
           description:

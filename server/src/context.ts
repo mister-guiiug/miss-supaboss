@@ -45,6 +45,9 @@ export function createAppContext(input: ContextInput): AppContext {
   const notifier = new NotificationService(input.store, input.masterKey, {
     subject: input.env.vapidSubject,
     allowPrivateWebhooks: input.env.webhookAllowPrivate,
+    backgroundMetrics: input.env.syncMetrics,
+    ...(input.env.smtpUrl ? { smtpUrl: input.env.smtpUrl } : {}),
+    smtpFrom: input.env.smtpFrom,
     ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
     ...(input.resolver ? { resolver: input.resolver } : {}),
   });

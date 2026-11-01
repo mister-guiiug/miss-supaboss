@@ -89,6 +89,8 @@ describe('mockApi — ce que la démo promet et ce qu’elle ne fait pas', () =>
     expect(initial).toEqual({
       push: { available: false, publicKey: null, subscriptions: 0 },
       webhook: { configured: false, hint: null },
+      email: { available: false, to: null },
+      backgroundMetrics: false,
       lastDelivery: null,
     });
 
