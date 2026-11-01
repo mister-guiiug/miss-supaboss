@@ -25,10 +25,14 @@ export const settingsFr = {
     vaultHeading: 'Sécurité — Chiffrement des PAT',
     vaultActiveInfo:
       'Actif : les PAT sont chiffrés au repos (AES-256-GCM, clé dérivée de votre phrase). La phrase est demandée à chaque ouverture.',
+    vaultBrowserStore:
+      'Phrase proposée au gestionnaire du navigateur (Credential Management) à l’activation — reprise possible à l’ouverture.',
+    vaultExternalPropose:
+      'Pour un PAT qui ne repose jamais dans Pages : gardez-le dans un coffre externe et collez-le à la demande —',
     lock: 'Verrouiller',
     disable: 'Désactiver',
     vaultDisabledInfo:
-      'Le coffre est exigé à l’ajout d’un PAT. Activez-le ici pour chiffrer les jetons déjà présents, ou depuis le formulaire d’ajout. Phrase oubliée = PAT à ressaisir (régénérables sur Supabase).',
+      'Recommandé à l’ajout d’un PAT (coché par défaut). Activez-le ici pour chiffrer les jetons déjà en clair, ou depuis le formulaire d’ajout. Phrase oubliée = PAT à ressaisir (régénérables sur Supabase).',
     vaultNewPlaceholder: 'Phrase secrète (min. 12 caractères)',
     vaultNewAria: 'Nouvelle phrase secrète',
     vaultConfirm: 'Confirmer la phrase secrète',
@@ -220,10 +224,14 @@ export const settingsEn = {
     vaultHeading: 'Security — PAT encryption',
     vaultActiveInfo:
       'Active: PATs are encrypted at rest (AES-256-GCM, key derived from your passphrase). The passphrase is requested on every open.',
+    vaultBrowserStore:
+      'Passphrase offered to the browser password manager (Credential Management) on enable — can be reused on unlock.',
+    vaultExternalPropose:
+      'For a PAT that never rests in Pages: keep it in an external vault and paste it on demand —',
     lock: 'Lock',
     disable: 'Disable',
     vaultDisabledInfo:
-      'The vault is required when adding a PAT. Enable it here to encrypt existing tokens, or from the add form. Forgotten passphrase = PATs to re-enter (regenerable on Supabase).',
+      'Recommended when adding a PAT (checked by default). Enable it here to encrypt tokens already stored in plaintext, or from the add form. Forgotten passphrase = PATs to re-enter (regenerable on Supabase).',
     vaultNewPlaceholder: 'Passphrase (min. 12 characters)',
     vaultNewAria: 'New passphrase',
     vaultConfirm: 'Confirm the passphrase',

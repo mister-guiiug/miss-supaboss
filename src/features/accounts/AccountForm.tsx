@@ -12,6 +12,7 @@ import {
   REAL_AVAILABLE,
   switchDemoMode,
 } from '../../api/index.ts';
+import { storeVaultPassphrase } from '../../api/crypto/browserCredentials.ts';
 import { isPassphraseAcceptable } from '../../api/crypto/passphraseStrength.ts';
 import { PassphraseField } from '../../shared/components/PassphraseField.tsx';
 import { toast } from '../../store/useUiStore.ts';
@@ -36,7 +37,7 @@ type ScopePreset = 'read' | 'admin';
  * parent → les champs sont pré-remplis depuis `account`.
  *
  * Garde P0 : en mode démo, pas d'ajout de PAT « réel » (fixtures fictives).
- * Local-first : coffre obligatoire avant la première persistance du PAT.
+ * Local-first : coffre recommandé (défaut coché), optionnel avec avertissement.
  */
 export function AccountForm({
   open,
@@ -59,8 +60,11 @@ export function AccountForm({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const needsVault =
+  /** Premier PAT local-first sans coffre déjà actif → on propose d'en créer un. */
+  const canOfferVault =
     !isEdit && Boolean(PROXY_BASE) && !(api.vault?.isEnabled() ?? false);
+  /** Défaut : coffre recommandé (coché). */
+  const [enableVault, setEnableVault] = useState(true);
   const [vaultPass, setVaultPass] = useState('');
   const [vaultPass2, setVaultPass2] = useState('');
   const [scopePreset, setScopePreset] = useState<ScopePreset>('admin');
@@ -104,7 +108,7 @@ export function AccountForm({
       return;
     }
 
-    if (needsVault) {
+    if (canOfferVault && enableVault) {
       if (!isPassphraseAcceptable(vaultPass)) {
         setError(t('settings.vaultMin'));
         return;
@@ -127,8 +131,10 @@ export function AccountForm({
     }
     setBusy(true);
     try {
-      if (needsVault && api.vault) {
+      if (canOfferVault && enableVault && api.vault) {
         await api.vault.enable(vaultPass);
+        // Piste A : phrase proposée au gestionnaire du navigateur (défaut).
+        await storeVaultPassphrase(vaultPass);
       }
       // createAccount sonde déjà GET /organizations (PAT + scopes lecture).
       await api.createAccount(parsed.data);
@@ -268,26 +274,60 @@ export function AccountForm({
           </span>
         </label>
 
-        {needsVault && !IS_MOCK && (
+        {canOfferVault && !IS_MOCK && (
           <div className="space-y-2 rounded-xl border border-primary/30 bg-primary/5 p-3">
-            <p className="text-xs font-medium text-[var(--sb-text)]">
-              {t('accounts.form.vaultRequired')}
-            </p>
-            <PassphraseField
-              value={vaultPass}
-              onChange={setVaultPass}
-              placeholder={t('settings.vaultNewPlaceholder')}
-              ariaLabel={t('settings.vaultNewAria')}
-            />
-            <input
-              type="password"
-              value={vaultPass2}
-              onChange={e => setVaultPass2(e.target.value)}
-              placeholder={t('settings.vaultConfirm')}
-              autoComplete="new-password"
-              aria-label={t('settings.vaultConfirm')}
-              className="w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 text-sm"
-            />
+            <label className="flex items-start gap-2 text-xs font-medium text-[var(--sb-text)]">
+              <input
+                type="checkbox"
+                checked={enableVault}
+                onChange={e => setEnableVault(e.target.checked)}
+                className="mt-0.5 size-4 shrink-0 rounded border-[var(--sb-border)]"
+              />
+              <span>{t('accounts.form.vaultEnable')}</span>
+            </label>
+            {enableVault ? (
+              <>
+                <p className="text-xs text-[var(--sb-text-soft)]">
+                  {t('accounts.form.vaultRecommended')}
+                </p>
+                <p className="text-xs text-[var(--sb-text-soft)]">
+                  {t('accounts.form.vaultBrowserStore')}
+                </p>
+                {/* Login fixe pour le gestionnaire de mots de passe (piste A). */}
+                <input
+                  type="text"
+                  name="username"
+                  autoComplete="username"
+                  value="miss-supaboss-vault"
+                  readOnly
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  className="sr-only"
+                />
+                <PassphraseField
+                  value={vaultPass}
+                  onChange={setVaultPass}
+                  placeholder={t('settings.vaultNewPlaceholder')}
+                  ariaLabel={t('settings.vaultNewAria')}
+                />
+                <input
+                  type="password"
+                  value={vaultPass2}
+                  onChange={e => setVaultPass2(e.target.value)}
+                  placeholder={t('settings.vaultConfirm')}
+                  autoComplete="new-password"
+                  aria-label={t('settings.vaultConfirm')}
+                  className="w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 text-sm"
+                />
+              </>
+            ) : (
+              <p
+                role="status"
+                className="rounded-lg border border-[var(--sb-warn)]/40 bg-[var(--sb-warn)]/10 px-2 py-1.5 text-xs text-[var(--sb-warn)]"
+              >
+                {t('accounts.form.vaultSkipped')}
+              </p>
+            )}
           </div>
         )}
 

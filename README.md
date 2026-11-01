@@ -125,10 +125,13 @@ Métriques par requêtes SQL **read-only** (projet actif uniquement) :
    publique utilise celui du projet), la PWA Pages interroge la Management API à
    travers ce relais. Ton PAT part dans l'en-tête `Authorization` de chaque
    appel, transmis à `api.supabase.com` sans être lu ni stocké. Il est gardé dans
-   le localStorage de l'appareil, **en clair par défaut** ; Réglages, « Chiffrement
-   des PAT », le chiffre au repos (AES-256-GCM, clé dérivée d'une phrase secrète
-   par PBKDF2, demandée à chaque ouverture). Ce mode n'a ni export/import, ni 2FA,
-   ni plannings, ni alertes. La démo devient alors désactivable.
+   le localStorage de l'appareil. À l'ajout d'un PAT, le **coffre est recommandé**
+   (coché par défaut : AES-256-GCM, clé dérivée d'une phrase secrète par PBKDF2,
+   demandée à chaque ouverture) ; on peut le décocher — le PAT reste alors **en
+   clair** (avertissement UX). Réglages → « Chiffrement des PAT » active aussi le
+   coffre après coup. Export/import portable (`msb1.…`) exige un coffre
+   déverrouillé. Pas de 2FA, plannings ni alertes en local-first. La démo devient
+   alors désactivable.
 9. **Plannings = serveur.** Une tâche du serveur passe chaque minute ; une
    échéance est jouée **au plus une fois** (avancée en base avant d'agir :
    un redémarrage ne la rejoue pas, une exécution coupée est signalée « en
@@ -492,19 +495,38 @@ sortant.
 **Maturité : stable** (catalogue `dev-pwa-config`, 01/11/2026).
 
 **Livré (P0–P2 + passe stable + maintenance)** : blocage PAT en démo ; garde
-`check-proxy-in-bundle` ; coffre obligatoire (min. 12, entropie, lockout,
-auto-lock inactivité) ; export/import local-first (`msb1.…`) ; regroupement /
-quotas Free par org ; sélection multi pause/restore ; keep-alive ping SQL +
-workflow ; health + sparklines (états vides) ; rate-limit proxy par origine ;
-Vitest isole `PROXY_BASE` ; CI build avec vars prod ; i18n découpé par domaine ;
-client Management unifié (`shared/management/ops`) ; e-mail SMTP optionnel
-(`SUPABOSS_SMTP_URL`) ; statut fond/quotas dans les réglages ; `doctor-strict`
-en CI.
+`check-proxy-in-bundle` ; coffre recommandé à l'ajout (min. 12, entropie,
+lockout, auto-lock ; optionnel avec PAT en clair + avertissement) ;
+export/import local-first (`msb1.…`) ; regroupement / quotas Free par org ;
+sélection multi pause/restore ; keep-alive ping SQL + workflow ; health +
+sparklines ; rate-limit proxy ; Vitest isole `PROXY_BASE` ; CI build avec vars
+prod ; i18n découpé ; client Management unifié ; SMTP optionnel ;
+`doctor-strict` en CI.
+
+### Coffres : A par défaut, C proposé
+
+Quand le coffre Miss Supaboss est activé, la **phrase est proposée au
+gestionnaire du navigateur** (piste **A**, Credential Management —
+`storeVaultPassphrase` / `loadVaultPassphrase`). Déverrouillage : tentative
+auto si une entrée est offerte. Support inégal (Chrome/Edge OK ;
+Firefox/Safari souvent sans `PasswordCredential`).
+
+Dans Réglages (coffre actif), proposition de la piste **C** : garder le PAT
+dans [1Password](https://1password.com) / [Bitwarden](https://bitwarden.com) et
+le coller à la demande — le PAT ne repose alors jamais dans Pages. Pas de SDK
+branché (OAuth / hors-ligne) ; liens + copie seulement.
+
+| Piste                        | Statut                                            |
+| ---------------------------- | ------------------------------------------------- |
+| **A. Credential Management** | Branché à l'activation / déverrouillage du coffre |
+| **B. WebAuthn PRF**          | Non branché (piste)                               |
+| **C. 1Password / Bitwarden** | Proposé en UI (pas de SDK)                        |
 
 **Reste ouvert** :
 
 - Alertes de quota en fond **sans** collecte SQL (aujourd'hui
   `SUPABOSS_SYNC_METRICS=1` interroge la base de chaque projet actif).
+- SDK 1Password/Bitwarden et WebAuthn PRF.
 - Egress réel le jour où un endpoint public existe (`SupabaseProvider` prêt).
 - Alignement miroir de `miss-supatool` sur le même piège `vars.VITE_*`.
 - Publier `dev-pwa-config` pour que `<FamilyApps>` affiche `stable` en prod.
