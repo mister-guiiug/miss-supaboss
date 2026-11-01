@@ -21,6 +21,8 @@ export const authFr = {
   unlock: {
     title: 'Coffre verrouillé',
     body: 'Saisissez votre phrase secrète pour déchiffrer les PAT stockés sur cet appareil.',
+    browserHint:
+      'Si le navigateur propose une phrase enregistrée, elle est essayée automatiquement.',
     passphrase: 'Phrase secrète',
     wrong: 'Phrase incorrecte.',
     unlock: 'Déverrouiller',
@@ -96,7 +98,7 @@ export const authFr = {
     localStep1:
       'Restez en mode réel (pas la démo) — le basculement est proposé si besoin.',
     localStep2:
-      'Créez une phrase secrète solide (coffre, min. 12) : elle chiffre les PAT sur CET appareil.',
+      'Créez une phrase secrète (coffre recommandé, min. 12) : elle chiffre les PAT sur CET appareil. Vous pouvez l’ignorer — le PAT restera alors en clair.',
     localStep3:
       'Créez un PAT sur supabase.com (scopes lecture, ou admin pour pause/restore), collez-le : Miss Supaboss sonde les orgs avant d’enregistrer.',
     addFirst: 'Ajouter mon premier compte',
@@ -104,7 +106,7 @@ export const authFr = {
     security: {
       demo: "Mode démo : comptes et données simulés. Rien n'est envoyé à Supabase.",
       localFirst:
-        'Mode local-first : le PAT est chiffré sur CET appareil (coffre obligatoire) et n’est transmis qu’au proxy de relais, en HTTPS. Export/import chiffré pour un autre appareil — pas de BDD cloud.',
+        'Mode local-first : le PAT reste sur CET appareil (coffre recommandé) et n’est transmis qu’au proxy de relais, en HTTPS. Export/import chiffré pour un autre appareil — pas de BDD cloud.',
       server:
         "Les PAT sont chiffrés (AES-256-GCM) côté serveur et n'atteignent jamais ce navigateur. Chaque action est journalisée.",
     },
@@ -132,6 +134,8 @@ export const authEn = {
   unlock: {
     title: 'Vault locked',
     body: 'Enter your passphrase to decrypt the PATs stored on this device.',
+    browserHint:
+      'If the browser offers a saved passphrase, it is tried automatically.',
     passphrase: 'Passphrase',
     wrong: 'Wrong passphrase.',
     unlock: 'Unlock',
@@ -207,7 +211,7 @@ export const authEn = {
     localStep1:
       'Stay in real mode (not demo) — switching is offered when needed.',
     localStep2:
-      'Create a solid passphrase (vault, min. 12): it encrypts PATs on THIS device.',
+      'Create a passphrase (recommended vault, min. 12): it encrypts PATs on THIS device. You can skip it — the PAT then stays in plaintext.',
     localStep3:
       'Create a PAT on supabase.com (read scopes, or admin for pause/restore), paste it: Miss Supaboss probes orgs before saving.',
     addFirst: 'Add my first account',
@@ -215,7 +219,7 @@ export const authEn = {
     security: {
       demo: 'Demo mode: simulated accounts and data. Nothing is sent to Supabase.',
       localFirst:
-        'Local-first mode: the PAT is encrypted on THIS device (required vault) and is only forwarded to the relay proxy, over HTTPS. Encrypted export/import for another device — no cloud DB.',
+        'Local-first mode: the PAT stays on THIS device (recommended vault) and is only forwarded to the relay proxy, over HTTPS. Encrypted export/import for another device — no cloud DB.',
       server:
         'PATs are encrypted (AES-256-GCM) server-side and never reach this browser. Every action is logged.',
     },

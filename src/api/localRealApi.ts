@@ -487,12 +487,13 @@ export function createLocalRealApi(proxyBase: string): Api {
       return state.accounts.map(toAccountDto);
     },
     async createAccount(input) {
-      // P0 sécurité : pas de PAT en clair — le coffre doit être actif.
-      if (!patVault.isEnabled() || !patVault.isUnlocked()) {
+      // Coffre recommandé mais optionnel : s'il est actif il doit être
+      // déverrouillé ; sinon le PAT part en clair via `save()`.
+      if (patVault.isEnabled() && !patVault.isUnlocked()) {
         throw new ApiError(
           400,
           'vault-required',
-          'Activez le coffre (phrase secrète) avant d’ajouter un PAT'
+          'Déverrouillez le coffre avant d’ajouter un PAT'
         );
       }
       // Valide le PAT en interrogeant les organisations (échoue si invalide).
@@ -527,7 +528,9 @@ export function createLocalRealApi(proxyBase: string): Api {
         lastError: null,
         patExpiresAt: input.patExpiresAt ?? null,
       };
-      acc.patEnc = await patVault.encrypt(input.pat);
+      if (patVault.isEnabled() && patVault.isUnlocked()) {
+        acc.patEnc = await patVault.encrypt(input.pat);
+      }
       state.accounts.push(acc);
       recordOp({
         action: 'account.create',
@@ -549,7 +552,7 @@ export function createLocalRealApi(proxyBase: string): Api {
       if (fields.patExpiresAt !== undefined)
         acc.patExpiresAt = fields.patExpiresAt;
       if (fields.pat !== undefined) {
-        if (!patVault.isEnabled() || !patVault.isUnlocked()) {
+        if (patVault.isEnabled() && !patVault.isUnlocked()) {
           throw new ApiError(
             400,
             'vault-required',
@@ -558,7 +561,11 @@ export function createLocalRealApi(proxyBase: string): Api {
         }
         acc.pat = fields.pat;
         acc.patHint = `sbp_…${fields.pat.slice(-4)}`;
-        acc.patEnc = await patVault.encrypt(fields.pat);
+        if (patVault.isEnabled() && patVault.isUnlocked()) {
+          acc.patEnc = await patVault.encrypt(fields.pat);
+        } else {
+          acc.patEnc = undefined;
+        }
       }
       cache.delete(id);
       recordOp({

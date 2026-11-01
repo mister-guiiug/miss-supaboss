@@ -49,7 +49,7 @@ export const accountsFr = {
       patHint:
         'Créé sur supabase.com → Account → Access Tokens. Stocké chiffré (AES-256-GCM) côté serveur, jamais dans ce navigateur.',
       patHintLocal:
-        'Créé sur supabase.com → Account → Access Tokens. Gardé dans ce navigateur, chiffré par une phrase secrète obligatoire ; les appels passent par un relais qui ne le conserve pas.',
+        'Créé sur supabase.com → Account → Access Tokens. Gardé dans ce navigateur (coffre recommandé) ; les appels passent par un relais qui ne le conserve pas.',
       patScopes:
         'Scopes minimaux : lecture organisations + projets (organization_projects_read / projects_read). Pause/restore et health exigent project_admin. Fine-grained trop étroit → 403 « élargir le PAT ».',
       scopePresetLegend: 'Intention des scopes',
@@ -62,8 +62,13 @@ export const accountsFr = {
       patExpiresLabel: 'Expiration du PAT (rappel local, optionnel)',
       patExpiresHint:
         'Aide-mémoire uniquement — Supabase ne l’expose pas à l’API. Après plusieurs 401, régénérez le jeton.',
-      vaultRequired:
-        'Coffre obligatoire : phrase secrète (min. 12, pas trop faible) avant de stocker le PAT sur cet appareil.',
+      vaultEnable: 'Activer le coffre (recommandé)',
+      vaultRecommended:
+        'Phrase secrète (min. 12, pas trop faible) : chiffre le PAT sur cet appareil (AES-256-GCM).',
+      vaultBrowserStore:
+        'Par défaut, la phrase est proposée au gestionnaire de mots de passe du navigateur (Credential Management).',
+      vaultSkipped:
+        'Sans coffre, le PAT est stocké en clair dans ce navigateur (localStorage). Toute extension ou personne avec accès à cet appareil peut le lire.',
       colorAria: 'Couleur du compte',
       colorSwatchAria: 'Couleur {color}',
       invalid: 'Saisie invalide',
@@ -125,7 +130,7 @@ export const accountsEn = {
       patHint:
         'Created on supabase.com → Account → Access Tokens. Stored encrypted (AES-256-GCM) server-side, never in this browser.',
       patHintLocal:
-        'Created on supabase.com → Account → Access Tokens. Kept in this browser, encrypted with a required passphrase; calls go through a relay that does not store it.',
+        'Created on supabase.com → Account → Access Tokens. Kept in this browser (vault recommended); calls go through a relay that does not store it.',
       patScopes:
         'Minimum scopes: organizations + projects read (organization_projects_read / projects_read). Pause/restore and health need project_admin. Too-narrow fine-grained → 403 “widen the PAT”.',
       scopePresetLegend: 'Scope intent',
@@ -138,8 +143,13 @@ export const accountsEn = {
       patExpiresLabel: 'PAT expiry (local reminder, optional)',
       patExpiresHint:
         'Reminder only — Supabase does not expose this via API. After repeated 401s, regenerate the token.',
-      vaultRequired:
-        'Vault required: passphrase (min. 12, not too weak) before storing the PAT on this device.',
+      vaultEnable: 'Enable the vault (recommended)',
+      vaultRecommended:
+        'Passphrase (min. 12, not too weak): encrypts the PAT on this device (AES-256-GCM).',
+      vaultBrowserStore:
+        'By default, the passphrase is offered to the browser password manager (Credential Management).',
+      vaultSkipped:
+        'Without a vault, the PAT is stored in plaintext in this browser (localStorage). Any extension or person with access to this device can read it.',
       colorAria: 'Account color',
       colorSwatchAria: 'Color {color}',
       invalid: 'Invalid input',
