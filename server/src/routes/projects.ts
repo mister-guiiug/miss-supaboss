@@ -6,6 +6,8 @@ import {
 } from '../../../shared/contracts.ts';
 import { requireCsrfHeader, requireRole } from '../auth.ts';
 import type { AppContext } from '../context.ts';
+import type { UserRow } from '../db.ts';
+import { fleetWithRestoreWindow, projectWithRestoreWindow } from '../fleet.ts';
 
 const paramsSchema = z.object({ accountId: z.string(), ref: z.string() });
 const refreshQuerySchema = z.object({ refresh: z.string().optional() });
@@ -19,7 +21,12 @@ export function registerProjectRoutes(
     { preHandler: requireRole(ctx, 'viewer') },
     async req => {
       const { refresh } = refreshQuerySchema.parse(req.query);
-      return ctx.fleet.getFleet(refresh === '1');
+      const fleet = await ctx.fleet.getFleet(refresh === '1');
+      const user = req.user as UserRow;
+      return fleetWithRestoreWindow(
+        fleet,
+        ctx.store.getSettings(user.id).restoreWindowDays
+      );
     }
   );
 
@@ -39,12 +46,17 @@ export function registerProjectRoutes(
       const { accountId, ref } = paramsSchema.parse(req.params);
       const { refresh } = refreshQuerySchema.parse(req.query);
       const fleet = await ctx.fleet.accountFleet(accountId, refresh === '1');
-      const project = fleet.projects.find(p => p.ref === ref);
-      if (!project) {
+      const found = fleet.projects.find(p => p.ref === ref);
+      if (!found) {
         return reply
           .code(404)
           .send({ error: 'not-found', message: `Projet ${ref} introuvable` });
       }
+      const user = req.user as UserRow;
+      const project = projectWithRestoreWindow(
+        found,
+        ctx.store.getSettings(user.id).restoreWindowDays
+      );
       return { project, account: fleet.account, syncedAt: fleet.syncedAt };
     }
   );

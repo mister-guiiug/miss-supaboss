@@ -82,18 +82,7 @@ export function NotificationsSection() {
     };
   }, [controller, refreshHere]);
 
-  if (!controller) {
-    return (
-      <section className="card space-y-2 p-4" aria-label={t('notify.aria')}>
-        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
-          <Bell size={15} aria-hidden="true" /> {t('notify.heading')}
-        </h2>
-        <p className="text-xs text-[var(--sb-text-soft)]">
-          {t('notify.serverOnly')}
-        </p>
-      </section>
-    );
-  }
+  if (!controller) return null;
 
   const fail = (e: unknown, fallback: string): void =>
     setError(e instanceof ApiError ? e.message : fallback);

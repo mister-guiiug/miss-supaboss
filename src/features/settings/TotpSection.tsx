@@ -142,6 +142,8 @@ export function TotpSection() {
     }
   };
 
+  if (!controller) return null;
+
   return (
     <section className="card space-y-3 p-4" aria-label={t('totp.aria')}>
       <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
@@ -151,11 +153,7 @@ export function TotpSection() {
         {notice}
       </p>
 
-      {!controller ? (
-        <p className="text-xs text-[var(--sb-text-soft)]">
-          {t('totp.serverOnly')}
-        </p>
-      ) : loadFailed ? (
+      {loadFailed ? (
         <p className="text-sm text-[var(--sb-warn)]">{t('totp.loadFail')}</p>
       ) : status === null ? (
         <p className="text-xs text-[var(--sb-text-soft)]">

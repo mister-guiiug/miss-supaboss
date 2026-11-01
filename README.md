@@ -15,10 +15,11 @@ environnements critiques.
 > passe par un relais Cloudflare Worker (§3, point 8).
 > 🔐 **Mode réel auto-hébergé** : serveur Docker, les PAT chiffrés restent sur le
 > serveur et n'atteignent jamais le navigateur.
-> 📊 **Mesure (version publique)** : Sentry (région européenne) démarre à
-> l'ouverture, sans demande de consentement : il signale la session et reçoit un
-> rapport à chaque erreur. PostHog (nuage européen) ne se charge qu'après accord
-> dans le bandeau de consentement ; rien n'est mesuré sur refus.
+> 📊 **Mesure (version publique)** : Sentry (région européenne) et PostHog
+> (nuage européen) ne se chargent qu'après accord dans le bandeau de
+> consentement. Sentry filtre les PAT (`sbp_…`) et les en-têtes Authorization
+> avant envoi. Sans clé PostHog, le bandeau n'existe pas et Sentry démarre,
+> toujours filtré. Rien n'est mesuré sur refus.
 
 ---
 
@@ -100,11 +101,10 @@ Métriques par requêtes SQL **read-only** (projet actif uniquement) :
    (`lastSeenActiveAt`, `pausedAt`) ; une pause déclenchée par l'app pose une
    date certaine ; un projet découvert déjà en pause affiche « date
    inconnue ».
-4. **Fenêtre de restauration = estimation** `pausedAt + 365 j` : un an selon la
+4. **Fenêtre de restauration = estimation** `pausedAt + fenêtre` : un an selon la
    documentation Supabase (relue le 28/09/2026), politique susceptible d'évoluer,
-   réglable dans Réglages. Sur le serveur, ce réglage ne pilote pour l'instant
-   que les alertes J-7 / J-1 : la date « restaurable jusqu'au » reste calculée
-   sur 365 j. L'ancien défaut de 90 j, figé dans les réglages
+   réglable dans Réglages. La date « restaurable jusqu'au » et les alertes
+   J-7 / J-1 utilisent ce réglage (défaut 365 j). L'ancien défaut de 90 j, figé dans les réglages
    enregistrés, est porté à un an une fois (migration v3 du serveur, révision 2
    de l'état local).
 5. **Quotas Free** (5 GB / 500 MB / 50k / 1 GB) : constantes produit (juin 2026) ; la synthèse multi-comptes est une somme indicative (les quotas
@@ -126,7 +126,8 @@ Métriques par requêtes SQL **read-only** (projet actif uniquement) :
    travers ce relais. Ton PAT part dans l'en-tête `Authorization` de chaque
    appel, transmis à `api.supabase.com` sans être lu ni stocké. Il est gardé dans
    le localStorage de l'appareil. À l'ajout d'un PAT, le **coffre est recommandé**
-   (coché par défaut : AES-256-GCM, clé dérivée d'une phrase secrète par PBKDF2,
+   (coché par défaut : AES-256-GCM, clé dérivée d'une phrase secrète par PBKDF2
+   à 600 000 itérations,
    demandée à chaque ouverture) ; on peut le décocher — le PAT reste alors **en
    clair** (avertissement UX). Réglages → « Chiffrement des PAT » active aussi le
    coffre après coup. Export/import portable (`msb1.…`) exige un coffre

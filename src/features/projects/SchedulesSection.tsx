@@ -93,19 +93,7 @@ export function SchedulesSection({
   const [error, setError] = useState<string | null>(null);
   const zones = useMemo(() => timeZones(), []);
 
-  if (!controller) {
-    return (
-      <section className="card space-y-2 p-4" aria-label={t('schedules.aria')}>
-        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
-          <CalendarClock size={15} aria-hidden="true" />{' '}
-          {t('schedules.heading')}
-        </h2>
-        <p className="text-xs text-[var(--sb-text-soft)]">
-          {t('schedules.serverOnly')}
-        </p>
-      </section>
-    );
-  }
+  if (!controller) return null;
 
   const refresh = (): void => {
     const client = getQueryClient();

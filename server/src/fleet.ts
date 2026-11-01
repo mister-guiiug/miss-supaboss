@@ -84,6 +84,41 @@ export type FleetSyncEvent =
 
 export type FleetSyncListener = (event: FleetSyncEvent) => void;
 
+/**
+ * La date affichée suit le réglage de l'utilisateur qui lit la flotte.
+ * Le cache interne reste sur le défaut : on copie, on ne le mute pas.
+ */
+export function projectWithRestoreWindow(
+  project: ProjectDto,
+  windowDays: number
+): ProjectDto {
+  return {
+    ...project,
+    meta: {
+      ...project.meta,
+      restoreDeadline: estimateRestoreDeadline(
+        project.meta.pausedAt,
+        windowDays
+      ),
+    },
+  };
+}
+
+export function fleetWithRestoreWindow(
+  fleet: FleetDto,
+  windowDays: number
+): FleetDto {
+  return {
+    ...fleet,
+    accounts: fleet.accounts.map(row => ({
+      ...row,
+      projects: row.projects.map(project =>
+        projectWithRestoreWindow(project, windowDays)
+      ),
+    })),
+  };
+}
+
 export class FleetService {
   private readonly cache = new Map<string, CacheEntry>();
   private readonly listeners = new Set<FleetSyncListener>();

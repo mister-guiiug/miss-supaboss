@@ -122,7 +122,7 @@ export const projectsFr = {
     realAvailable:
       'Mode démo actif — les comptes ajoutés ici créent des projets fictifs (API / Web / Staging), pas votre flotte Supabase.',
     forced: 'Données d’exemple — ce build n’a pas de proxy réel configuré.',
-    switchReal: 'Passer en réel',
+    switchReal: 'Voir mes comptes',
   },
   dashboard: {
     accounts: 'Comptes',
@@ -136,6 +136,13 @@ export const projectsFr = {
     seeAllQuotas: 'Voir tous les quotas',
     emptyTitle: 'Aucune donnée',
     emptyBody: 'Vérifiez la connexion au serveur puis rafraîchissez.',
+    modeDemo: 'Démo : rien n’est envoyé à Supabase.',
+    modeLocal:
+      'Cet appareil agit tant qu’il est ouvert — pas de planning ni d’alerte une fois l’onglet fermé.',
+    modeServer: 'Le serveur joue les plannings et les alertes.',
+    patExpiryAria: 'Jetons bientôt expirés',
+    patExpires: 'PAT de {alias} : expire le {date}',
+    patExpired: 'PAT de {alias} : expiré le {date}',
   },
   quotas: {
     emptyTitle: 'Métriques pas encore collectées',
@@ -312,7 +319,7 @@ export const projectsEn = {
     realAvailable:
       'Demo mode on — accounts added here create fake projects (API / Web / Staging), not your Supabase fleet.',
     forced: 'Sample data — this build has no real proxy configured.',
-    switchReal: 'Switch to real',
+    switchReal: 'See my accounts',
   },
   dashboard: {
     accounts: 'Accounts',
@@ -326,6 +333,13 @@ export const projectsEn = {
     seeAllQuotas: 'See all quotas',
     emptyTitle: 'No data',
     emptyBody: 'Check the server connection, then refresh.',
+    modeDemo: 'Demo: nothing is sent to Supabase.',
+    modeLocal:
+      'This device acts only while it is open — no schedule or alert once the tab is closed.',
+    modeServer: 'The server runs schedules and alerts.',
+    patExpiryAria: 'Tokens expiring soon',
+    patExpires: 'PAT for {alias}: expires on {date}',
+    patExpired: 'PAT for {alias}: expired on {date}',
   },
   quotas: {
     emptyTitle: 'Metrics not collected yet',

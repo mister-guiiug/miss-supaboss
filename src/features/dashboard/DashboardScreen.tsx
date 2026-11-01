@@ -37,6 +37,8 @@ import { StatusBadge } from '../../shared/components/StatusBadge.tsx';
 import { usePolling } from '../../shared/hooks/usePolling.ts';
 import { useOnline } from '@mister-guiiug/dev-pwa-config/react/use-online';
 import { useI18n } from '../../i18n/index.ts';
+import { api, IS_MOCK } from '../../api/index.ts';
+import { daysUntilPatExpiry, PAT_EXPIRY_HORIZON_DAYS } from './patExpiry.ts';
 
 const LEVEL_BADGE: Record<QuotaLevel, string> = {
   ok: 'text-[var(--sb-ok)]',
@@ -66,6 +68,21 @@ export function DashboardScreen() {
     hasTransient ? 5_000 : settings.pollingSeconds * 1000,
     online && !fromCache && projects.length > 0
   );
+
+  const expiringPats = useMemo(() => {
+    if (!fleet) return [];
+    return fleet.accounts.flatMap(({ account }) => {
+      const days = daysUntilPatExpiry(account.patExpiresAt);
+      if (days === null || days > PAT_EXPIRY_HORIZON_DAYS) return [];
+      return [{ account, days }];
+    });
+  }, [fleet]);
+
+  const modeKey = IS_MOCK
+    ? 'dashboard.modeDemo'
+    : api.schedules?.runsInBackground
+      ? 'dashboard.modeServer'
+      : 'dashboard.modeLocal';
 
   const readyToStart = useMemo(
     () =>
@@ -117,6 +134,30 @@ export function DashboardScreen() {
 
   return (
     <div className="space-y-4">
+      <p className="px-1 text-xs text-[var(--sb-text-soft)]">{t(modeKey)}</p>
+      {expiringPats.length > 0 && (
+        <section aria-label={t('dashboard.patExpiryAria')} className="card p-4">
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-warn)]">
+            <TriangleAlert size={15} aria-hidden="true" />{' '}
+            {t('dashboard.patExpiryAria')}
+          </h2>
+          <ul className="mt-2 space-y-1 text-sm">
+            {expiringPats.map(({ account, days }) => (
+              <li key={account.id}>
+                <Link to="/accounts" className="underline">
+                  {t(
+                    days < 0 ? 'dashboard.patExpired' : 'dashboard.patExpires',
+                    {
+                      alias: account.alias,
+                      date: account.patExpiresAt ?? '',
+                    }
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {/* Comptes : slots actifs / limite Free + état de synchro. En-tête
           explicite (+ « Gérer ») pour que la section ne soit plus prise pour des
           projets et que l'accès à la gestion des comptes soit nommé. */}

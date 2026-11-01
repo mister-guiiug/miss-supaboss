@@ -54,11 +54,21 @@ export function AppHeader({ title }: { title: string }) {
               ? () => setConfirmExitDemo(true)
               : () => void setDemoSeed(false)
           }
-          aria-label={t('header.disableDemo')}
-          title={t('header.disableDemo')}
+          aria-label={
+            REAL_AVAILABLE && IS_MOCK
+              ? t('header.seeAccounts')
+              : t('header.disableDemo')
+          }
+          title={
+            REAL_AVAILABLE && IS_MOCK
+              ? t('header.seeAccounts')
+              : t('header.disableDemo')
+          }
           className="flex items-center gap-1 rounded-full border border-primary/40 bg-primary/15 px-2.5 py-1.5 text-xs font-semibold text-primary"
         >
-          {t('header.demoBadge')}
+          {REAL_AVAILABLE && IS_MOCK
+            ? t('header.seeAccounts')
+            : t('header.demoBadge')}
           <X size={12} aria-hidden="true" />
         </button>
       )}
