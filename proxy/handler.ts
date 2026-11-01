@@ -26,6 +26,11 @@ const SUPABASE_API = 'https://api.supabase.com';
 /** Chemins autorisés au relais : { méthode, motif }. `ref` = 20 lettres. */
 const ALLOWED: ReadonlyArray<{ method: string; pattern: RegExp }> = [
   { method: 'GET', pattern: /^\/v1\/organizations$/ },
+  // Inventaire paginé par organisation (slug = [\w-]+) ; query limit/offset.
+  {
+    method: 'GET',
+    pattern: /^\/v1\/organizations\/[\w-]+\/projects(?:\?.*)?$/,
+  },
   { method: 'GET', pattern: /^\/v1\/projects$/ },
   { method: 'POST', pattern: /^\/v1\/projects\/[a-z]{20}\/pause$/ },
   { method: 'POST', pattern: /^\/v1\/projects\/[a-z]{20}\/restore$/ },

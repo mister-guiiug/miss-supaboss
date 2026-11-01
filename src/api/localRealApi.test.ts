@@ -36,6 +36,31 @@ const PROJECTS = [
   },
 ];
 
+/** Réponse paginée de GET /v1/organizations/{slug}/projects. */
+function orgProjectsPage(
+  projects: ReadonlyArray<(typeof PROJECTS)[number]> = PROJECTS
+): {
+  projects: Array<{
+    ref: string;
+    name: string;
+    region: string;
+    status: string;
+    inserted_at: string;
+  }>;
+  pagination: { count: number; limit: number; offset: number };
+} {
+  return {
+    projects: projects.map(p => ({
+      ref: p.ref,
+      name: p.name,
+      region: p.region,
+      status: p.status,
+      inserted_at: p.created_at,
+    })),
+    pagination: { count: projects.length, limit: 100, offset: 0 },
+  };
+}
+
 function stubFetch(
   handler: (path: string | null, init?: RequestInit) => Response
 ): void {
@@ -55,6 +80,22 @@ const json = (data: unknown, status = 200): Response =>
     headers: { 'content-type': 'application/json' },
   });
 
+/** Relais Management : orgs + inventaire par org (+ repli /v1/projects). */
+function managementOk(
+  extra?: (path: string | null, init?: RequestInit) => Response | undefined
+): (path: string | null, init?: RequestInit) => Response {
+  return (path, init) => {
+    const override = extra?.(path, init);
+    if (override) return override;
+    if (path === '/v1/organizations') return json(ORGS);
+    if (path?.includes('/organizations/') && path.includes('/projects')) {
+      return json(orgProjectsPage());
+    }
+    if (path === '/v1/projects') return json(PROJECTS);
+    return json(null, 404);
+  };
+}
+
 beforeEach(() => {
   patVault.disable(); // clé mémoire + métadonnées du coffre remises à zéro
   localStorage.clear();
@@ -62,11 +103,7 @@ beforeEach(() => {
 
 describe('localRealApi — Supabase réel via proxy', () => {
   it('createAccount → testAccount/getFleet renvoient orgs + statuts des projets', async () => {
-    stubFetch(path => {
-      if (path === '/v1/organizations') return json(ORGS);
-      if (path === '/v1/projects') return json(PROJECTS);
-      return json(null, 404);
-    });
+    stubFetch(managementOk());
     const api = createLocalRealApi(PROXY);
     const acc = await api.createAccount({
       alias: 'Khelypso',
@@ -103,7 +140,10 @@ describe('localRealApi — Supabase réel via proxy', () => {
     const NEW_ORG = [{ id: 'o2', slug: 'beta-slug', name: 'Beta' }];
     stubFetch(path => {
       if (path === '/v1/organizations') return json(NEW_ORG);
-      if (path === '/v1/projects') return json([]); // projets pas encore répliqués
+      if (path?.includes('/organizations/') && path.includes('/projects')) {
+        return json(orgProjectsPage([])); // projets pas encore répliqués
+      }
+      if (path === '/v1/projects') return json([]);
       return json(null, 404);
     });
     const api = createLocalRealApi(PROXY);
@@ -133,9 +173,7 @@ describe('localRealApi — Supabase réel via proxy', () => {
   });
 
   it('persiste le compte localement (clé dédiée, séparée de la démo)', async () => {
-    stubFetch(path =>
-      path === '/v1/organizations' ? json(ORGS) : json(PROJECTS)
-    );
+    stubFetch(managementOk());
     const first = createLocalRealApi(PROXY);
     await first.createAccount({
       alias: 'Khelypso',
@@ -153,21 +191,21 @@ describe('localRealApi — Supabase réel via proxy', () => {
   });
 
   it('getFleetMetrics collecte les quotas par projet ACTIF (SQL via proxy)', async () => {
-    stubFetch((path, init) => {
-      if (path === '/v1/organizations') return json(ORGS);
-      if (path === '/v1/projects') return json(PROJECTS);
-      if (path?.endsWith('/database/query/read-only')) {
-        const body = JSON.parse(String(init?.body ?? '{}')) as {
-          query: string;
-        };
-        if (body.query.includes('pg_database_size'))
-          return json([{ v: 200 * 1024 * 1024 }]);
-        if (body.query.includes('storage.objects'))
-          return json([{ v: 30 * 1024 * 1024 }]);
-        if (body.query.includes('auth.users')) return json([{ v: 1200 }]);
-      }
-      return json(null, 404);
-    });
+    stubFetch(
+      managementOk((path, init) => {
+        if (path?.endsWith('/database/query/read-only')) {
+          const body = JSON.parse(String(init?.body ?? '{}')) as {
+            query: string;
+          };
+          if (body.query.includes('pg_database_size'))
+            return json([{ v: 200 * 1024 * 1024 }]);
+          if (body.query.includes('storage.objects'))
+            return json([{ v: 30 * 1024 * 1024 }]);
+          if (body.query.includes('auth.users')) return json([{ v: 1200 }]);
+        }
+        return undefined;
+      })
+    );
     const api = createLocalRealApi(PROXY);
     await api.createAccount({
       alias: 'Khelypso',
@@ -199,13 +237,13 @@ describe('localRealApi — Supabase réel via proxy', () => {
   it('getFleetMetrics signale les échecs DURS de collecte (refreshErrors)', async () => {
     // orgs/projets OK, mais la requête SQL échoue en 401 (PAT/proxy) :
     // distinct d'une métrique « non disponible » → refreshErrors compté.
-    stubFetch(path => {
-      if (path === '/v1/organizations') return json(ORGS);
-      if (path === '/v1/projects') return json(PROJECTS);
-      if (path?.endsWith('/database/query/read-only'))
-        return json({ message: 'Unauthorized' }, 401);
-      return json(null, 404);
-    });
+    stubFetch(
+      managementOk(path => {
+        if (path?.endsWith('/database/query/read-only'))
+          return json({ message: 'Unauthorized' }, 401);
+        return undefined;
+      })
+    );
     const api = createLocalRealApi(PROXY);
     await api.createAccount({
       alias: 'Khelypso',
@@ -223,9 +261,7 @@ describe('localRealApi — Supabase réel via proxy', () => {
   });
 
   it('favori (méta) conservé localement et fusionné à la flotte live', async () => {
-    stubFetch(path =>
-      path === '/v1/organizations' ? json(ORGS) : json(PROJECTS)
-    );
+    stubFetch(managementOk());
     const api = createLocalRealApi(PROXY);
     const acc = await api.createAccount({
       alias: 'Khelypso',
@@ -245,13 +281,13 @@ describe('localRealApi — Supabase réel via proxy', () => {
 
   it('coffre activé : PAT chiffré au repos, déverrouillage restaure la flotte', async () => {
     let lastAuth: string | null = null;
-    stubFetch((path, init) => {
-      const h = init?.headers as Record<string, string> | undefined;
-      if (h?.authorization) lastAuth = h.authorization;
-      if (path === '/v1/organizations') return json(ORGS);
-      if (path === '/v1/projects') return json(PROJECTS);
-      return json(null, 404);
-    });
+    stubFetch(
+      managementOk((_path, init) => {
+        const h = init?.headers as Record<string, string> | undefined;
+        if (h?.authorization) lastAuth = h.authorization;
+        return undefined;
+      })
+    );
     const first = createLocalRealApi(PROXY);
     await first.createAccount({
       alias: 'Khelypso',

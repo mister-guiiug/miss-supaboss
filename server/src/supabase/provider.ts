@@ -34,7 +34,12 @@ export interface SupabaseProvider {
     accountKey: string,
     pat: string
   ): Promise<RawOrganization[]>;
-  listProjects(accountKey: string, pat: string): Promise<RawProject[]>;
+  listProjects(
+    accountKey: string,
+    pat: string,
+    /** Orgs déjà chargées — évite un second GET /v1/organizations. */
+    organizations?: RawOrganization[]
+  ): Promise<RawProject[]>;
   pauseProject(accountKey: string, pat: string, ref: string): Promise<void>;
   restoreProject(accountKey: string, pat: string, ref: string): Promise<void>;
   /** Le projet doit être actif (les requêtes SQL échouent sinon). */
