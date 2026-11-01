@@ -308,11 +308,40 @@ describe('notification de test et statut de livraison', () => {
 
   it('aucun canal : rien ne part, et c’est dit', async () => {
     const { report } = (await sendTest()).json() as {
-      report: { webhook: string; detail: string };
+      report: { webhook: string; email: string; detail: string };
     };
     expect(report.webhook).toBe('skipped');
+    expect(report.email).toBe('skipped');
     expect(report.detail).toBe('aucun canal configuré');
     expect(t.net.sent).toHaveLength(0);
+  });
+
+  it('e-mail SMTP : canal déclaré et envoi via l’impl injectable', async () => {
+    const sent: { to: string; subject: string }[] = [];
+    const notifier = new NotificationService(t.store, t.masterKey, {
+      subject: 'mailto:a@b.test',
+      smtpUrl: 'smtp://u:p@mail.test:587',
+      smtpFrom: 'alerts@test',
+      sendSmtpImpl: async (_url, msg) => {
+        sent.push({ to: msg.to, subject: msg.subject });
+        return { ok: true };
+      },
+    });
+    const user = t.store.findUserByEmail('admin@test');
+    expect(user).not.toBeNull();
+    expect(notifier.settingsFor(user!).email).toEqual({
+      available: true,
+      to: 'admin@test',
+    });
+    const report = await notifier.sendTest(user!);
+    expect(report.email).toBe('sent');
+    expect(report.detail).toContain('email : admin@test');
+    expect(sent).toEqual([
+      {
+        to: 'admin@test',
+        subject: 'Miss Supaboss — notification de test',
+      },
+    ]);
   });
 
   it('pas de rafale : cinq tests par minute', async () => {

@@ -1,29 +1,12 @@
 /**
  * Provider réel — Supabase Management API v1 (https://api.supabase.com).
+ * Les chemins et le parsing sont ceux de `shared/management/ops` ; ce fichier
+ * branche le ResilientClient (budget, retry, circuit breaker) et l'identité
+ * de compte (`accountKey`).
  *
- * ENDPOINTS DOCUMENTÉS UNIQUEMENT (spec OpenAPI revérifiée le 2026-11-01) :
- *   GET  /v1/organizations
- *   GET  /v1/organizations/{slug}/projects   (paginé — inventaire par org)
- *   GET  /v1/projects                        (repli inventaire global)
- *   POST /v1/projects/{ref}/pause
- *   POST /v1/projects/{ref}/restore
- *   POST /v1/projects/{ref}/database/query/read-only   [Beta]
- *
- * Egress : AUCUN endpoint public documenté n'expose la consommation egress
- * du Free Plan (le dashboard utilise une API plateforme privée).
- * TODO(provider) : brancher ici une source légitime le jour où Supabase
- * documente un endpoint d'usage — en attendant, egressBytes = null et l'UI
- * affiche « non disponible » (jamais de valeur inventée).
+ * Egress : AUCUN endpoint public documenté — egressBytes = null.
  */
-import {
-  SQL_DB_SIZE,
-  SQL_MAU_ESTIMATE,
-  SQL_STORAGE_SIZE,
-  extractScalar,
-  parseOrganizationProjectsPage,
-  parseOrganizations,
-  parseProjects,
-} from '../../../shared/supabaseApi.ts';
+import { createManagementOps } from '../../../shared/management/ops.ts';
 import type {
   ProviderMetrics,
   RawOrganization,
@@ -33,7 +16,6 @@ import type {
 import type { ResilientClient } from './http.ts';
 
 const BASE_URL = 'https://api.supabase.com';
-const ORG_PROJECTS_PAGE_SIZE = 100;
 
 export class ManagementApiProvider implements SupabaseProvider {
   private readonly http: ResilientClient;
@@ -49,100 +31,50 @@ export class ManagementApiProvider implements SupabaseProvider {
     };
   }
 
-  async listOrganizations(
+  private ops(accountKey: string, pat: string) {
+    return createManagementOps(
+      async (path, init) => {
+        const method = init?.method ?? 'GET';
+        const idempotent = method === 'GET';
+        return this.http.request<unknown>(
+          accountKey,
+          `${BASE_URL}${path}`,
+          {
+            method,
+            headers: this.headers(pat),
+            ...(init?.body !== undefined ? { body: init.body } : {}),
+          },
+          idempotent
+        );
+      },
+      {
+        // Côté serveur : une métrique en échec → null, jamais « failed ».
+        isHardMetricsError: () => false,
+      }
+    );
+  }
+
+  listOrganizations(
     accountKey: string,
     pat: string
   ): Promise<RawOrganization[]> {
-    const data = await this.http.request<unknown>(
-      accountKey,
-      `${BASE_URL}/v1/organizations`,
-      { method: 'GET', headers: this.headers(pat) },
-      true
-    );
-    return parseOrganizations(data);
+    return this.ops(accountKey, pat).listOrganizations();
   }
 
-  async listProjects(
+  listProjects(
     accountKey: string,
     pat: string,
     organizations?: RawOrganization[]
   ): Promise<RawProject[]> {
-    const orgs =
-      organizations ?? (await this.listOrganizations(accountKey, pat));
-    if (orgs.length > 0) {
-      const pages = await Promise.allSettled(
-        orgs.map(org =>
-          this.listAllProjectsForOrganization(accountKey, pat, org.slug)
-        )
-      );
-      const fulfilled = pages.filter(
-        (r): r is PromiseFulfilledResult<RawProject[]> =>
-          r.status === 'fulfilled'
-      );
-      if (fulfilled.length > 0) return fulfilled.flatMap(r => r.value);
-    }
-    const data = await this.http.request<unknown>(
-      accountKey,
-      `${BASE_URL}/v1/projects`,
-      { method: 'GET', headers: this.headers(pat) },
-      true
-    );
-    return parseProjects(data);
+    return this.ops(accountKey, pat).listProjects(organizations);
   }
 
-  private async listAllProjectsForOrganization(
-    accountKey: string,
-    pat: string,
-    slug: string
-  ): Promise<RawProject[]> {
-    const out: RawProject[] = [];
-    let offset = 0;
-    for (;;) {
-      const data = await this.http.request<unknown>(
-        accountKey,
-        `${BASE_URL}/v1/organizations/${encodeURIComponent(slug)}/projects` +
-          `?limit=${ORG_PROJECTS_PAGE_SIZE}&offset=${offset}`,
-        { method: 'GET', headers: this.headers(pat) },
-        true
-      );
-      const page = parseOrganizationProjectsPage(data, slug);
-      out.push(...page.projects);
-      offset += page.projects.length;
-      if (
-        page.projects.length === 0 ||
-        (page.total !== null && offset >= page.total) ||
-        page.projects.length < ORG_PROJECTS_PAGE_SIZE
-      ) {
-        break;
-      }
-    }
-    return out;
+  pauseProject(accountKey: string, pat: string, ref: string): Promise<void> {
+    return this.ops(accountKey, pat).pause(ref);
   }
 
-  async pauseProject(
-    accountKey: string,
-    pat: string,
-    ref: string
-  ): Promise<void> {
-    await this.http.request<unknown>(
-      accountKey,
-      `${BASE_URL}/v1/projects/${encodeURIComponent(ref)}/pause`,
-      { method: 'POST', headers: this.headers(pat) },
-      false
-    );
-  }
-
-  async restoreProject(
-    accountKey: string,
-    pat: string,
-    ref: string
-  ): Promise<void> {
-    await this.http.request<unknown>(
-      accountKey,
-      `${BASE_URL}/v1/projects/${encodeURIComponent(ref)}/restore`,
-      { method: 'POST', headers: this.headers(pat) },
-      false
-    );
+  restoreProject(accountKey: string, pat: string, ref: string): Promise<void> {
+    return this.ops(accountKey, pat).restore(ref);
   }
 
   async collectMetrics(
@@ -150,45 +82,13 @@ export class ManagementApiProvider implements SupabaseProvider {
     pat: string,
     ref: string
   ): Promise<ProviderMetrics> {
-    const [dbSizeBytes, storageBytes, mau] = await Promise.all([
-      this.runScalar(accountKey, pat, ref, SQL_DB_SIZE),
-      this.runScalar(accountKey, pat, ref, SQL_STORAGE_SIZE),
-      this.runScalar(accountKey, pat, ref, SQL_MAU_ESTIMATE),
-    ]);
+    const m = await this.ops(accountKey, pat).collectMetrics(ref);
     return {
-      dbSizeBytes,
-      storageBytes,
-      mau,
-      egressBytes: null, // TODO(provider) : pas d'endpoint documenté (cf. en-tête)
+      dbSizeBytes: m.dbSizeBytes,
+      storageBytes: m.storageBytes,
+      mau: m.mau,
+      egressBytes: null,
       measuredAt: new Date().toISOString(),
     };
-  }
-
-  /**
-   * Exécute une requête SQL read-only et extrait le scalaire `v` de la
-   * première ligne. Le format de réponse de l'endpoint Beta n'étant pas
-   * contractuel, le parsing est défensif : toute forme inattendue → null.
-   */
-  private async runScalar(
-    accountKey: string,
-    pat: string,
-    ref: string,
-    query: string
-  ): Promise<number | null> {
-    try {
-      const data = await this.http.request<unknown>(
-        accountKey,
-        `${BASE_URL}/v1/projects/${encodeURIComponent(ref)}/database/query/read-only`,
-        {
-          method: 'POST',
-          headers: this.headers(pat),
-          body: JSON.stringify({ query }),
-        },
-        false
-      );
-      return extractScalar(data);
-    } catch {
-      return null; // métrique indisponible — l'appelant marque « unavailable »
-    }
   }
 }

@@ -1,7 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Search, SearchX, Star, type LucideIcon } from 'lucide-react';
 import { useFleetStore } from '../../store/useFleetStore.ts';
 import { statusGroup, type StatusGroup } from '../../../shared/status.ts';
+import {
+  ACTIVE_PROJECT_LIMIT,
+  activeProjects,
+} from '../../../shared/guards.ts';
 import type { ProjectDto } from '../../../shared/contracts.ts';
 import { ProjectCard } from '../../shared/components/ProjectCard.tsx';
 import { DemoModeBanner } from '../../shared/components/DemoModeBanner.tsx';
@@ -9,9 +13,15 @@ import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { ListSkeleton } from '../../shared/components/Skeleton.tsx';
 import { useI18n } from '../../i18n/index.ts';
 import type { Messages } from '../../i18n/messages.ts';
+import { toast } from '../../store/useUiStore.ts';
+import { ApiError } from '../../api/index.ts';
+import { isRestorable } from '../../../shared/status.ts';
+import { countsTowardActiveLimit } from '../../../shared/status.ts';
 
 type Filter = 'all' | StatusGroup | 'favorite';
 type Sort = 'name' | 'status' | 'activity';
+
+const FILTERS_KEY = 'miss-supaboss-projects-filters-v1';
 
 const FILTERS: {
   id: Filter;
@@ -26,14 +36,54 @@ const FILTERS: {
   { id: 'favorite', labelKey: 'favorite', icon: Star },
 ];
 
+function loadFilters(): {
+  filter: Filter;
+  sort: Sort;
+  orgFilter: string;
+} {
+  try {
+    const raw = sessionStorage.getItem(FILTERS_KEY);
+    if (!raw) return { filter: 'all', sort: 'status', orgFilter: 'all' };
+    const parsed = JSON.parse(raw) as {
+      filter?: Filter;
+      sort?: Sort;
+      orgFilter?: string;
+    };
+    return {
+      filter: parsed.filter ?? 'all',
+      sort: parsed.sort ?? 'status',
+      orgFilter: parsed.orgFilter ?? 'all',
+    };
+  } catch {
+    return { filter: 'all', sort: 'status', orgFilter: 'all' };
+  }
+}
+
 export function ProjectsScreen() {
   const { t } = useI18n();
   const fleet = useFleetStore(s => s.fleet);
   const loading = useFleetStore(s => s.loading);
+  const pause = useFleetStore(s => s.pause);
+  const restore = useFleetStore(s => s.restore);
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<Filter>('all');
-  const [sort, setSort] = useState<Sort>('status');
-  const [orgFilter, setOrgFilter] = useState<string>('all');
+  const initial = useMemo(() => loadFilters(), []);
+  const [filter, setFilter] = useState<Filter>(initial.filter);
+  const [sort, setSort] = useState<Sort>(initial.sort);
+  const [orgFilter, setOrgFilter] = useState<string>(initial.orgFilter);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        FILTERS_KEY,
+        JSON.stringify({ filter, sort, orgFilter })
+      );
+    } catch {
+      /* sessionStorage indisponible */
+    }
+  }, [filter, sort, orgFilter]);
 
   const orgOptions = useMemo(() => {
     if (!fleet) return [];
@@ -51,6 +101,30 @@ export function ProjectsScreen() {
     return [...seen.entries()]
       .map(([slug, name]) => ({ slug, name }))
       .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  }, [fleet]);
+
+  /** Synthèse Free : actifs / limite par org (tous comptes confondus). */
+  const orgQuotas = useMemo(() => {
+    if (!fleet) return [];
+    const map = new Map<
+      string,
+      { slug: string; name: string; active: number; total: number }
+    >();
+    for (const af of fleet.accounts) {
+      for (const p of af.projects) {
+        const key = p.organizationSlug || '_';
+        const cur = map.get(key) ?? {
+          slug: p.organizationSlug,
+          name: p.organizationName || p.organizationSlug || '—',
+          active: 0,
+          total: 0,
+        };
+        cur.total += 1;
+        if (countsTowardActiveLimit(p.status)) cur.active += 1;
+        map.set(key, cur);
+      }
+    }
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
   }, [fleet]);
 
   const groups = useMemo(() => {
@@ -86,7 +160,6 @@ export function ProjectsScreen() {
         a.name.localeCompare(b.name, 'fr')
       );
     };
-    // Compte → organisations → projets (quotas Free = par org).
     return fleet.accounts
       .map(af => {
         const projects = af.projects.filter(match).sort(compare);
@@ -115,6 +188,87 @@ export function ProjectsScreen() {
       .filter(g => g.projectCount > 0 || g.account.enabled);
   }, [fleet, query, filter, sort, orgFilter]);
 
+  const keyOf = (p: ProjectDto) => `${p.accountId}:${p.ref}`;
+
+  const toggleSelect = (p: ProjectDto) => {
+    const k = keyOf(p);
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      return next;
+    });
+  };
+
+  const selectedProjects = useMemo(() => {
+    if (!fleet) return [];
+    const out: ProjectDto[] = [];
+    for (const af of fleet.accounts) {
+      for (const p of af.projects) {
+        if (selected.has(keyOf(p))) out.push(p);
+      }
+    }
+    return out;
+  }, [fleet, selected]);
+
+  const runBulkPause = async (): Promise<void> => {
+    const targets = selectedProjects.filter(p =>
+      countsTowardActiveLimit(p.status)
+    );
+    if (targets.length === 0) {
+      toast.error(t('projects.bulkNoPause'));
+      return;
+    }
+    setBulkBusy(true);
+    let ok = 0;
+    let fail = 0;
+    for (const p of targets) {
+      try {
+        await pause(p.accountId, p.ref);
+        ok += 1;
+      } catch {
+        fail += 1;
+      }
+    }
+    setBulkBusy(false);
+    setSelected(new Set());
+    setSelectMode(false);
+    toast.success(t('projects.bulkPauseDone', { ok, fail }));
+  };
+
+  const runBulkRestore = async (): Promise<void> => {
+    const targets = selectedProjects.filter(p => isRestorable(p.status));
+    if (targets.length === 0) {
+      toast.error(t('projects.bulkNoRestore'));
+      return;
+    }
+    setBulkBusy(true);
+    let ok = 0;
+    let fail = 0;
+    for (const p of targets) {
+      const siblings =
+        fleet?.accounts.find(a => a.account.id === p.accountId)?.projects ?? [];
+      const actives = activeProjects(siblings);
+      if (actives.length >= ACTIVE_PROJECT_LIMIT) {
+        fail += 1;
+        continue;
+      }
+      try {
+        await restore(p.accountId, p.ref);
+        ok += 1;
+      } catch (e) {
+        fail += 1;
+        if (e instanceof ApiError && e.status === 409) {
+          toast.error(e.message);
+        }
+      }
+    }
+    setBulkBusy(false);
+    setSelected(new Set());
+    setSelectMode(false);
+    toast.success(t('projects.bulkRestoreDone', { ok, fail }));
+  };
+
   if (!fleet && loading) return <ListSkeleton count={4} />;
 
   const total = groups.reduce((n, g) => n + g.projectCount, 0);
@@ -122,6 +276,51 @@ export function ProjectsScreen() {
   return (
     <div className="space-y-4">
       <DemoModeBanner />
+
+      {orgQuotas.length > 0 && (
+        <div
+          className="flex gap-2 overflow-x-auto pb-1"
+          role="list"
+          aria-label={t('projects.orgQuotaAria')}
+        >
+          {orgQuotas.map(o => {
+            const hot = o.active >= ACTIVE_PROJECT_LIMIT;
+            return (
+              <button
+                key={o.slug || o.name}
+                type="button"
+                role="listitem"
+                onClick={() =>
+                  setOrgFilter(prev =>
+                    prev === o.slug && o.slug ? 'all' : o.slug || 'all'
+                  )
+                }
+                className={`shrink-0 rounded-xl border px-3 py-2 text-left text-xs ${
+                  orgFilter === o.slug
+                    ? 'border-primary bg-primary/10'
+                    : 'border-[var(--sb-border)]'
+                }`}
+              >
+                <span className="block font-medium">{o.name}</span>
+                <span
+                  className={
+                    hot
+                      ? 'font-semibold text-[var(--sb-critical)]'
+                      : 'text-[var(--sb-text-soft)]'
+                  }
+                >
+                  {t('projects.orgQuotaChip', {
+                    active: o.active,
+                    limit: ACTIVE_PROJECT_LIMIT,
+                    total: o.total,
+                  })}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="space-y-2">
         <label className="card flex items-center gap-2 px-3 py-2.5">
           <Search
@@ -184,8 +383,47 @@ export function ProjectsScreen() {
             <option value="name">{t('projects.sort.name')}</option>
             <option value="activity">{t('projects.sort.activity')}</option>
           </select>
+          <button
+            type="button"
+            aria-pressed={selectMode}
+            onClick={() => {
+              setSelectMode(m => !m);
+              setSelected(new Set());
+            }}
+            className={`inline-flex shrink-0 items-center rounded-full border px-3 py-1.5 text-xs font-medium ${
+              selectMode
+                ? 'border-primary bg-primary/15 text-primary'
+                : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
+            }`}
+          >
+            {t('projects.bulkToggle')}
+          </button>
         </div>
       </div>
+
+      {selectMode && selected.size > 0 && (
+        <div className="card flex flex-wrap gap-2 p-3">
+          <span className="w-full text-xs text-[var(--sb-text-soft)]">
+            {t('projects.bulkSelected', { count: selected.size })}
+          </span>
+          <button
+            type="button"
+            disabled={bulkBusy}
+            onClick={() => void runBulkPause()}
+            className="touch-target rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium disabled:opacity-50"
+          >
+            {t('projects.bulkPause')}
+          </button>
+          <button
+            type="button"
+            disabled={bulkBusy}
+            onClick={() => void runBulkRestore()}
+            className="touch-target rounded-xl border border-primary px-3 text-sm font-medium text-primary disabled:opacity-50"
+          >
+            {t('projects.bulkRestore')}
+          </button>
+        </div>
+      )}
 
       {total === 0 ? (
         <EmptyState
@@ -223,6 +461,9 @@ export function ProjectsScreen() {
                         project={p}
                         accountAlias={g.account.alias}
                         accountColor={g.account.color}
+                        selectMode={selectMode}
+                        selected={selected.has(keyOf(p))}
+                        onToggleSelect={() => toggleSelect(p)}
                       />
                     ))}
                   </div>

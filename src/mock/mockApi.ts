@@ -475,6 +475,8 @@ export function createMockApi(): Api {
       configured: state.webhookHint !== null,
       hint: state.webhookHint,
     },
+    email: { available: false, to: null },
+    backgroundMetrics: false,
     lastDelivery: null,
   });
 

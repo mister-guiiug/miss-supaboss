@@ -61,6 +61,8 @@ function settingsBody() {
         configured: server.webhookHint !== null,
         hint: server.webhookHint,
       },
+      email: { available: false, to: null },
+      backgroundMetrics: false,
       lastDelivery: null,
     },
   };
@@ -108,6 +110,7 @@ beforeEach(() => {
     report: {
       push: { sent: 1, failed: 0, removed: 0 },
       webhook: 'sent',
+      email: 'skipped',
       detail: 'push : 1 appareil atteint ; webhook : HTTP 200',
     },
   };
@@ -167,7 +170,14 @@ describe('NotificationsSection — serveur', () => {
       )
     ).toBeInTheDocument();
     expect(
-      screen.getByText('Pas d’e-mail : il faudrait un serveur SMTP.')
+      screen.getByText(
+        'Pas d’e-mail : posez SUPABOSS_SMTP_URL (smtp:// ou smtps://) sur le serveur.'
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Alertes de quota uniquement quand l’app synchronise. Pour le fond : SUPABOSS_SYNC_METRICS=1 (SQL sur les projets actifs).'
+      )
     ).toBeInTheDocument();
     expect(screen.queryByText(/^Démo :/)).not.toBeInTheDocument();
   });
@@ -276,6 +286,7 @@ describe('NotificationsSection — serveur', () => {
     server.report = {
       push: { sent: 0, failed: 0, removed: 1 },
       webhook: 'skipped',
+      email: 'skipped',
       detail: 'push : 0 appareil atteint, 1 abonnement expiré retiré',
     };
     await user.click(

@@ -461,6 +461,19 @@ export const notificationSettingsSchema = z.object({
     /** Indice non sensible (`https://hooks.slack.com/…a1b2`) : l'URL porte souvent un secret. */
     hint: z.string().nullable(),
   }),
+  /**
+   * Canal e-mail (SMTP serveur). `available` si `SUPABOSS_SMTP_URL` est posé ;
+   * les alertes partent alors à l'adresse du compte (`to`).
+   */
+  email: z.object({
+    available: z.boolean(),
+    to: z.string().nullable(),
+  }),
+  /**
+   * La synchro de fond collecte-t-elle aussi les quotas (SQL) ?
+   * Sinon les alertes de quota ne partent qu'aux synchros déclenchées par l'app.
+   */
+  backgroundMetrics: z.boolean(),
   /** Dernière remise (alerte ou test), telle que consignée dans l'historique. */
   lastDelivery: z
     .object({
@@ -482,6 +495,7 @@ export const deliveryReportSchema = z.object({
     removed: z.number().int().nonnegative(),
   }),
   webhook: z.enum(['sent', 'failed', 'skipped']),
+  email: z.enum(['sent', 'failed', 'skipped']),
   /** Résumé lisible, le même que dans l'historique. */
   detail: z.string(),
 });

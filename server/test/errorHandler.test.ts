@@ -38,6 +38,8 @@ const TEST_ENV: Env = {
   vapidSubject: 'mailto:admin@test',
   totpReset: undefined,
   webhookAllowPrivate: false,
+  smtpUrl: undefined,
+  smtpFrom: 'admin@test',
   production: false,
 };
 

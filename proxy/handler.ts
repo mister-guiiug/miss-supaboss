@@ -23,6 +23,28 @@
 
 const SUPABASE_API = 'https://api.supabase.com';
 
+/** Rate-limit mémoire par origine (fenêtre glissante 60 s). */
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = 90;
+const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+
+/** Remet les compteurs (tests). */
+export function resetProxyRateLimit(): void {
+  rateBuckets.clear();
+}
+
+function takeRateToken(origin: string): boolean {
+  const now = Date.now();
+  const cur = rateBuckets.get(origin);
+  if (!cur || now >= cur.resetAt) {
+    rateBuckets.set(origin, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  if (cur.count >= RATE_LIMIT_MAX) return false;
+  cur.count += 1;
+  return true;
+}
+
 /** Chemins autorisés au relais : { méthode, motif }. `ref` = 20 lettres. */
 const ALLOWED: ReadonlyArray<{ method: string; pattern: RegExp }> = [
   { method: 'GET', pattern: /^\/v1\/organizations$/ },
@@ -104,6 +126,20 @@ export async function handleProxy(
     return json(
       403,
       { error: 'origin-forbidden', message: 'Origine non autorisée' },
+      cors
+    );
+  }
+
+  // Budget par origine : un PAT volé + origine autorisée ne doit pas saturer
+  // le Worker / l'amont. Pas de journalisation de l'Authorization.
+  if (origin && !takeRateToken(origin)) {
+    return json(
+      429,
+      {
+        error: 'rate-limited',
+        message:
+          'Trop de requêtes depuis cette origine — réessayez dans une minute',
+      },
       cors
     );
   }

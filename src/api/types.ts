@@ -95,6 +95,11 @@ export interface Api {
     ref: string,
     options: { pauseFirst: string[]; force: boolean }
   ): Promise<void>;
+  /**
+   * Ping keep-alive (SQL read-only léger) — local-first uniquement.
+   * Maintient un projet Free « chaud » sans workflow externe.
+   */
+  pingKeepAlive?(accountId: string, ref: string): Promise<void>;
   updateProjectMeta(
     accountId: string,
     ref: string,

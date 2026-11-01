@@ -2,10 +2,18 @@
  * Proxy CORS Supabase (proxy/handler.ts) : on vérifie le garde-fou CORS, la
  * liste blanche de chemins et le relais vers api.supabase.com.
  */
-import { describe, expect, it, vi } from 'vitest';
-import { handleProxy, parseOrigins } from '../../proxy/handler.ts';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  handleProxy,
+  parseOrigins,
+  resetProxyRateLimit,
+} from '../../proxy/handler.ts';
 
 const ORIGIN = 'https://mister-guiiug.github.io';
+
+beforeEach(() => {
+  resetProxyRateLimit();
+});
 
 function makeReq(
   method: string,
@@ -227,5 +235,23 @@ describe('proxy management — CORS + liste blanche', () => {
     expect(parseOrigins('')).toEqual([]);
     expect(parseOrigins(undefined)).toEqual([]);
     expect(parseOrigins('a, b ,c')).toEqual(['a', 'b', 'c']);
+  });
+
+  it('rate-limit par origine → 429 après saturation', async () => {
+    const fetchImpl = vi.fn(async () => new Response('[]', { status: 200 }));
+    let last = 200;
+    for (let i = 0; i < 91; i++) {
+      const res = await handleProxy(
+        makeReq('GET', {
+          path: '/v1/projects',
+          origin: ORIGIN,
+          auth: 'Bearer sbp_x',
+        }),
+        [ORIGIN],
+        fetchImpl as unknown as typeof fetch
+      );
+      last = res.status;
+    }
+    expect(last).toBe(429);
   });
 });

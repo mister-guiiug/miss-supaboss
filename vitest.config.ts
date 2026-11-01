@@ -51,7 +51,14 @@ export default defineConfig({
         // échoue à l'import. À poser DANS le projet `app` — les projets inline
         // n'héritent pas du `resolve` racine. Le double du socle est PILOTABLE
         // (`swStub.needRefresh()`), là où la copie locale était muette.
+        //
+        // `VITE_SUPABASE_PROXY` est injecté en CI pour le *build* budget : on
+        // le force vide ici pour que `api` reste mock/HTTP selon `IS_MOCK`,
+        // sauf tests qui mockent explicitement `PROXY_BASE`.
         resolve: { alias: { ...pwaRegisterAlias } },
+        define: {
+          'import.meta.env.VITE_SUPABASE_PROXY': JSON.stringify(''),
+        },
         test: {
           ...uiTestBase,
           name: 'app',

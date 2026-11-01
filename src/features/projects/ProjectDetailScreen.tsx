@@ -79,8 +79,6 @@ function ProjectHealthCard({
     };
   }, [accountId, projectRef, t]);
 
-  if (!health && !healthError) return null;
-
   return (
     <section
       className="card space-y-2 p-4"
@@ -90,6 +88,11 @@ function ProjectHealthCard({
         <HeartPulse size={15} aria-hidden="true" />{' '}
         {t('projectDetail.healthTitle')}
       </h2>
+      {!health && !healthError && (
+        <p className="text-xs text-[var(--sb-text-soft)]">
+          {t('projectDetail.healthLoading')}
+        </p>
+      )}
       {healthError && (
         <p className="text-xs text-[var(--sb-warn)]">{healthError}</p>
       )}
@@ -436,6 +439,32 @@ export function ProjectDetailScreen() {
             />
           </button>
         </div>
+        {api.pingKeepAlive && (
+          <button
+            type="button"
+            disabled={busy || !metaGuard.allowed || !online}
+            onClick={() => {
+              void (async () => {
+                setBusy(true);
+                try {
+                  await api.pingKeepAlive?.(accountId, ref);
+                  toast.success(t('projectDetail.keepAlivePingOk'));
+                } catch (e) {
+                  toast.error(
+                    e instanceof ApiError
+                      ? e.message
+                      : t('projectDetail.keepAlivePingFail')
+                  );
+                } finally {
+                  setBusy(false);
+                }
+              })();
+            }}
+            className="touch-target w-full rounded-xl border border-primary px-3 text-sm font-medium text-primary disabled:opacity-50"
+          >
+            {t('projectDetail.keepAlivePing')}
+          </button>
+        )}
         <a
           href={KEEPALIVE_DOC}
           target="_blank"

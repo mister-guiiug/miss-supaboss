@@ -177,9 +177,12 @@ export function NotificationsSection() {
     try {
       const report = await controller.sendTest();
       const delivered =
-        (report.push.sent > 0 || report.webhook === 'sent') &&
+        (report.push.sent > 0 ||
+          report.webhook === 'sent' ||
+          report.email === 'sent') &&
         report.push.failed === 0 &&
-        report.webhook !== 'failed';
+        report.webhook !== 'failed' &&
+        report.email !== 'failed';
       setTestResult(
         delivered
           ? t('notify.testSent', { detail: report.detail })
@@ -220,6 +223,20 @@ export function NotificationsSection() {
         </p>
       )}
       <p className="text-xs text-[var(--sb-text-soft)]">{t('notify.what')}</p>
+      {settings && (
+        <p className="text-xs text-[var(--sb-text-soft)]">
+          {settings.email.available && settings.email.to
+            ? t('notify.emailReady', { to: settings.email.to })
+            : t('notify.noEmail')}
+        </p>
+      )}
+      {settings && (
+        <p className="text-xs text-[var(--sb-text-soft)]">
+          {settings.backgroundMetrics
+            ? t('notify.backgroundMetricsOn')
+            : t('notify.backgroundMetricsOff')}
+        </p>
+      )}
 
       {loadFailed ? (
         <p className="text-sm text-[var(--sb-warn)]">{t('notify.loadFail')}</p>
@@ -360,9 +377,6 @@ export function NotificationsSection() {
               </p>
             )}
           </div>
-          <p className="text-xs text-[var(--sb-text-soft)]">
-            {t('notify.noEmail')}
-          </p>
         </>
       )}
     </section>
