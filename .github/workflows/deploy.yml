@@ -1,7 +1,8 @@
 # GitHub Pages héberge la PWA en mode mock par défaut (VITE_MOCK=1, aucun
 # secret). Mode RÉEL local-first : définir la variable de dépôt
-# SUPABASE_PROXY_URL (URL du Worker, cf. proxy/) → injectée en VITE_SUPABASE_PROXY.
-# Vide = la PWA reste en démo (rien ne casse).
+# VITE_SUPABASE_PROXY (URL du Worker, cf. proxy/). Vide = la PWA reste en
+# démo (rien ne casse). Attention : depuis #135 le manifeste exige le même
+# nom côté GitHub Actions et côté Vite — `SUPABASE_PROXY_URL` ne suffit plus.
 name: Deploy
 
 on:

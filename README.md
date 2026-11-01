@@ -113,9 +113,9 @@ Métriques par requêtes SQL **read-only** (projet actif uniquement) :
    documentée : 60), réglable via `SUPABOSS_API_BUDGET_PER_MIN`.
 7. Build GitHub Pages : **démo par défaut** (données fictives persistées en
    localStorage, import de configuration volontairement désactivé). Il embarque
-   aussi le relais (`VITE_SUPABASE_PROXY`, variable de dépôt
-   `SUPABASE_PROXY_URL`), donc le mode réel local-first (point 8), ainsi que
-   Sentry et PostHog.
+   aussi le relais (variable de dépôt `VITE_SUPABASE_PROXY` → injectée au
+   build), donc le mode réel local-first (point 8), ainsi que Sentry et
+   PostHog.
 8. **Mode démo à chaud** : sur une instance réelle, Réglages → « Mode démo »
    bascule l'app sur les données fictives (et inversement) sans rebuild —
    badge « démo » dans l'en-tête, snapshot hors-ligne purgé à la bascule.
