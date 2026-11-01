@@ -14,6 +14,8 @@ import { toast } from '../../store/useUiStore.ts';
 import { ConfirmDialog } from '@mister-guiiug/dev-pwa-config/react/confirm-dialog';
 import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { useI18n } from '../../i18n/index.ts';
+import { DemoModeBanner } from '../../shared/components/DemoModeBanner.tsx';
+import { AccountSyncBanner } from '../../shared/components/AccountSyncBanner.tsx';
 import { AccountForm } from './AccountForm.tsx';
 
 export function AccountsScreen() {
@@ -91,6 +93,7 @@ export function AccountsScreen() {
 
   return (
     <div className="space-y-4">
+      <DemoModeBanner />
       {admin && (
         <button
           type="button"
@@ -134,9 +137,16 @@ export function AccountsScreen() {
                   {actives.length}/{ACTIVE_PROJECT_LIMIT}
                 </span>
               </div>
-              {account.lastError && (
-                <p className="rounded-lg bg-[var(--sb-critical)]/10 p-2 text-xs text-[var(--sb-critical)]">
-                  {account.lastError}
+              <AccountSyncBanner
+                account={account}
+                busy={busyId === account.id}
+                onRetest={() => void test(account)}
+              />
+              {account.patExpiresAt && (
+                <p className="text-xs text-[var(--sb-text-soft)]">
+                  {t('accounts.patExpiresLine', {
+                    date: account.patExpiresAt.slice(0, 10),
+                  })}
                 </p>
               )}
               <div className="flex flex-wrap items-center gap-2 text-sm">

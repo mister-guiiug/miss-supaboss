@@ -9,11 +9,16 @@ import { LoginScreen } from './LoginScreen.tsx';
 // de la démo Pages). `IS_MOCK` se calcule au chargement du module : sans ce
 // mock, l'app parle au mock intégral et jamais au `fetch` que ce fichier
 // intercepte. Vert en local, rouge en CI : c'est arrivé le 25/09/2026.
+//
+// `VITE_SUPABASE_PROXY` part aussi dans `build-env` (budget preload = prod).
+// Sans forcer `PROXY_BASE` vide, `api` prend `createLocalRealApi` — pas de
+// TOTP HTTP — et ce fichier ne voit jamais `/api/auth/login`.
 vi.mock('../../api/demoMode.ts', async importOriginal => ({
   ...(await importOriginal<typeof import('../../api/demoMode.ts')>()),
   FORCED_MOCK: false,
   REAL_AVAILABLE: true,
   IS_MOCK: false,
+  PROXY_BASE: '',
 }));
 
 /**

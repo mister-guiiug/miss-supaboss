@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { Hand, ShieldAlert, ShieldCheck, Sparkles } from 'lucide-react';
-import { IS_MOCK, PROXY_BASE } from '../../api/index.ts';
+import {
+  IS_MOCK,
+  PROXY_BASE,
+  REAL_AVAILABLE,
+  switchDemoMode,
+} from '../../api/index.ts';
 import { useFleetStore } from '../../store/useFleetStore.ts';
 import { canAdmin, useSessionStore } from '../../store/useSessionStore.ts';
 import { useI18n } from '../../i18n/index.ts';
@@ -81,13 +86,24 @@ export function OnboardingScreen() {
         {t(`onboarding.security.${securityNote.textKey}`)}
       </p>
       {canAdmin(user) ? (
-        <button
-          type="button"
-          onClick={() => setFormOpen(true)}
-          className="touch-target w-full rounded-xl bg-primary px-4 font-semibold text-[#06281a]"
-        >
-          {t('onboarding.addFirst')}
-        </button>
+        IS_MOCK && REAL_AVAILABLE ? (
+          <button
+            type="button"
+            onClick={() => void switchDemoMode(false)}
+            className="touch-target w-full rounded-xl bg-primary px-4 font-semibold text-[#06281a]"
+          >
+            {t('accounts.form.switchToReal')}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setFormOpen(true)}
+            disabled={IS_MOCK}
+            className="touch-target w-full rounded-xl bg-primary px-4 font-semibold text-[#06281a] disabled:opacity-50"
+          >
+            {t('onboarding.addFirst')}
+          </button>
+        )
       ) : (
         <p className="text-sm text-[var(--sb-text-soft)]">
           {t('onboarding.askAdmin')}

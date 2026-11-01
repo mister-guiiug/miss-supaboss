@@ -482,19 +482,20 @@ sortant.
   `e2e/entree.spec.ts` : bandeau de consentement et vue de page ;
   `e2e/a11y.spec.ts` : axe, WCAG A/AA.
 
-## 12. Évolutions envisagées
+## 12. Évolutions
 
-- Notifications par e-mail (demande un serveur SMTP) ; alertes de quota en
-  fond sans collecte SQL, le jour où Supabase dira si elle compte comme de
-  l'activité.
-- Egress réel le jour où un endpoint public existe (l'interface
-  `SupabaseProvider` est prête) ; lecture de
-  `GET /v1/projects/{ref}/restore` (versions de restauration) pour fiabiliser
-  la fenêtre — et donc les alertes J-7 / J-1.
-- Keep-alive anti-pause opt-in par projet (le reusable
-  `pwa-supabase-keepalive.yml` de dev-pwa-config existe déjà).
-- Métriques historisées + sparklines, branchement du health par service
-  (`GET /v1/projects/{ref}/health`).
+**Livré (P0–P2)** : blocage PAT en démo + bandeau ; garde `check-proxy-in-bundle`
+dans `npm run build` ; coffre PAT obligatoire en local-first ; regroupement /
+filtre org ; keep-alive mémo + lien workflow ; sondage `GET …/restore` pour
+affiner la fenêtre ; scopes documentés ; tags `démo:…` ; bannière sync
+actionnable ; rappel 401 / expiration PAT ; health services + sparklines
+locales ; doc multi-appareils sans BDD cloud ; CI build avec vars prod.
+
+**Reste ouvert** :
+
+- Notifications par e-mail (SMTP) ; alertes de quota en fond sans collecte SQL.
+- Egress réel le jour où un endpoint public existe (`SupabaseProvider` prêt).
+- Alignement miroir de `miss-supatool` sur le même piège `vars.VITE_*`.
 
 ---
 

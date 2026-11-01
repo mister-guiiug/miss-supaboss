@@ -14,12 +14,14 @@ export interface UserProjectMeta {
   favorite: boolean;
   demoFrequent: boolean;
   notes: string;
+  keepAliveOptIn?: boolean;
 }
 
 export interface ProjectMetaFields extends UserProjectMeta {
   lastSeenActiveAt: string | null;
   pausedAt: string | null;
   restoreDeadline: string | null;
+  restoreDeadlineSource?: 'estimate' | 'api-ok' | 'api-blocked';
 }
 
 /**
@@ -55,19 +57,48 @@ export function observeStatusTransition(
   return { lastSeenActiveAt, pausedAt, lastStatus: status };
 }
 
-/** Fusionne méta utilisateur + observations + échéance de restauration. */
+/**
+ * Fusionne méta utilisateur + observations + échéance de restauration.
+ * `apiDeadline` : si GET /restore a confirmé ou bloqué la fenêtre, on l'utilise
+ * à la place de (ou en complément de) l'estimation locale.
+ */
 export function buildProjectMeta(
   userMeta: UserProjectMeta,
   observation: Pick<ProjectObservation, 'lastSeenActiveAt' | 'pausedAt'>,
-  restoreWindowDays: number
+  restoreWindowDays: number,
+  apiDeadline?: {
+    deadline: string | null;
+    source: 'api-ok' | 'api-blocked';
+  } | null
 ): ProjectMetaFields {
+  const estimate = estimateRestoreDeadline(
+    observation.pausedAt,
+    restoreWindowDays
+  );
+  if (apiDeadline?.source === 'api-blocked') {
+    return {
+      ...userMeta,
+      lastSeenActiveAt: observation.lastSeenActiveAt,
+      pausedAt: observation.pausedAt,
+      // Échéance déjà passée → l'UI / les alertes J-7·J-1 voient la fenêtre close.
+      restoreDeadline: apiDeadline.deadline ?? new Date(0).toISOString(),
+      restoreDeadlineSource: 'api-blocked',
+    };
+  }
+  if (apiDeadline?.source === 'api-ok') {
+    return {
+      ...userMeta,
+      lastSeenActiveAt: observation.lastSeenActiveAt,
+      pausedAt: observation.pausedAt,
+      restoreDeadline: apiDeadline.deadline ?? estimate,
+      restoreDeadlineSource: 'api-ok',
+    };
+  }
   return {
     ...userMeta,
     lastSeenActiveAt: observation.lastSeenActiveAt,
     pausedAt: observation.pausedAt,
-    restoreDeadline: estimateRestoreDeadline(
-      observation.pausedAt,
-      restoreWindowDays
-    ),
+    restoreDeadline: estimate,
+    restoreDeadlineSource: estimate ? 'estimate' : undefined,
   };
 }

@@ -104,6 +104,11 @@ function stubManagementApi(): void {
         return Promise.resolve(body({}));
       }
       if (path?.endsWith('/restore')) {
+        if (!init?.method || init.method === 'GET') {
+          return Promise.resolve(
+            body({ available_versions: [{ version: '15.8.1.085' }] })
+          );
+        }
         const ref = path.split('/')[3];
         if (ref) restoring.add(ref);
         return Promise.resolve(body({}));
@@ -139,6 +144,7 @@ apiContractTests({
   name: 'local-first (proxy mocké)',
   createApi: () => createLocalRealApi(PROXY),
   prepare: async api => {
+    await api.vault?.enable('phrase-test-coffre');
     const acc = await api.createAccount({
       alias: 'Lab',
       color: '#3ecf8e',

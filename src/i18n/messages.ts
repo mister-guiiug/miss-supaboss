@@ -84,6 +84,19 @@ export const messages = {
       byProjectAria: 'Détail par projet',
       byProjectTitle: 'Détail par projet',
       noMeasure: 'Aucune mesure (projet jamais vu actif).',
+      hint: {
+        estimated: 'estimation',
+        stale: 'dernier état connu',
+        unavailable: 'non disponible via API',
+        egressUnavailable:
+          "Egress : non disponible via l'API Management (aucun endpoint public documenté)",
+      },
+    },
+    demoBanner: {
+      realAvailable:
+        'Mode démo actif — les comptes ajoutés ici créent des projets fictifs (API / Web / Staging), pas votre flotte Supabase.',
+      forced: 'Données d’exemple — ce build n’a pas de proxy réel configuré.',
+      switchReal: 'Passer en réel',
     },
     accounts: {
       add: 'Ajouter un compte Supabase',
@@ -91,8 +104,20 @@ export const messages = {
       emptyBody:
         'Ajoutez votre premier compte Supabase avec un PAT (Personal Access Token).',
       patLine: 'PAT {hint} · synchro {rel}',
+      patExpiresLine: 'Expiration PAT rappelée : {date}',
       test: 'Tester',
       testing: 'Test…',
+      retest: 'Retester',
+      verifyProxy: 'Vérifier le proxy',
+      proxyMissing: 'proxy non configuré',
+      scopesDoc: 'Scopes PAT',
+      patDoc: 'Régénérer un PAT',
+      syncKind: {
+        network: 'Réseau',
+        pat: 'PAT',
+        scope: 'Scopes',
+        unknown: 'Erreur',
+      },
       active: 'Actif',
       enableAria: 'Activer {alias}',
       renameAria: 'Renommer {alias}',
@@ -108,13 +133,28 @@ export const messages = {
       form: {
         editTitle: 'Modifier le compte',
         testAndAdd: 'Tester et ajouter',
+        blockedInDemo: 'Indisponible en démo',
+        demoWarning:
+          'Mode démo : un PAT réel produirait des projets fictifs. Passez en réel d’abord.',
+        demoBlocked:
+          'Ajout de PAT bloqué en mode démo — basculez en réel pour connecter votre flotte.',
+        demoForced:
+          'Ce build est en démo seule (pas de proxy). Impossible d’ajouter un vrai PAT ici.',
+        switchToReal: 'Basculer en mode réel',
         aliasLabel: 'Alias lisible',
         aliasPlaceholder: 'Ex. Lab POC interne',
         patLabel: 'Personal Access Token (sbp_…)',
         patHint:
           'Créé sur supabase.com → Account → Access Tokens. Stocké chiffré (AES-256-GCM) côté serveur, jamais dans ce navigateur.',
         patHintLocal:
-          'Créé sur supabase.com → Account → Access Tokens. Gardé dans ce navigateur, chiffrable par une phrase secrète (Réglages → Sécurité) ; les appels passent par un relais qui ne le conserve pas.',
+          'Créé sur supabase.com → Account → Access Tokens. Gardé dans ce navigateur, chiffré par une phrase secrète obligatoire ; les appels passent par un relais qui ne le conserve pas.',
+        patScopes:
+          'Scopes minimaux : lecture organisations + projets (organization_projects_read / projects_read). Pause/restore et health exigent project_admin. Fine-grained trop étroit → 403 « élargir le PAT ».',
+        patExpiresLabel: 'Expiration du PAT (rappel local, optionnel)',
+        patExpiresHint:
+          'Aide-mémoire uniquement — Supabase ne l’expose pas à l’API. Après plusieurs 401, régénérez le jeton.',
+        vaultRequired:
+          'Coffre obligatoire : choisissez une phrase secrète (min. 8) avant de stocker le PAT sur cet appareil.',
         colorAria: 'Couleur du compte',
         colorSwatchAria: 'Couleur {color}',
         invalid: 'Saisie invalide',
@@ -156,10 +196,12 @@ export const messages = {
       resetDone: 'Coffre réinitialisé.',
     },
     projects: {
-      searchPlaceholder: 'Rechercher nom, ref, tag…',
+      searchPlaceholder: 'Rechercher nom, ref, tag, org…',
       searchAria: 'Rechercher un projet',
       filtersAria: 'Filtres',
       sortAria: 'Trier',
+      orgFilterAria: 'Filtrer par organisation',
+      orgFilterAll: 'Toutes les orgs',
       disabledSuffix: ' (désactivé)',
       emptyTitle: 'Aucun projet ne correspond',
       emptyBody: 'Modifiez la recherche ou les filtres.',
@@ -193,6 +235,9 @@ export const messages = {
       pausedAt: 'Mis en pause',
       unknownDate: 'date inconnue',
       restorableUntil: "Restaurable jusqu'au (estimation)",
+      restorableUntilApiOk: 'Restauration API accessible (échéance estimée)',
+      restorableUntilApiBlocked:
+        'Restauration refusée par l’API — fenêtre probablement close',
       windowLikelyExpired: ' — fenêtre probablement dépassée',
       pause: 'Mettre en pause',
       readOnlyRole:
@@ -203,6 +248,22 @@ export const messages = {
       pauseTitle: 'Mettre « {name} » en pause ?',
       pauseBody:
         'Le projet sera arrêté côté Supabase (compte {alias}, {active}/{limit} actifs). Sa restauration prendra ensuite une à plusieurs minutes.',
+      keepAliveAria: 'Keep-alive anti-pause',
+      keepAliveTitle: 'Keep-alive (anti-pause Free)',
+      keepAliveBody:
+        'Mémo local : ce projet doit rester chaud via un workflow GitHub Actions externe. Miss Supaboss n’exécute rien ici.',
+      keepAliveToggle: 'Marquer pour keep-alive',
+      keepAliveLink: 'Voir le workflow pwa-supabase-keepalive.yml',
+      healthAria: 'Santé des services',
+      healthTitle: 'Santé des services',
+      healthFail: 'Santé indisponible',
+      healthEmpty: 'Aucun service renvoyé.',
+      healthOk: 'OK',
+      healthBad: 'En panne',
+    },
+    authFailures: {
+      toast:
+        'Plusieurs refus 401 — le PAT est peut-être expiré. Régénérez-le sur Supabase.',
     },
     demo: {
       prepare: 'Préparer la démo',
@@ -281,18 +342,18 @@ export const messages = {
       step1: {
         pre: 'Sur',
         mid: '→ Account → Access Tokens, créez un',
-        post: 'par compte gratuit.',
+        post: 'par compte gratuit (scopes orgs + projects).',
       },
       step2:
-        'Ajoutez chaque compte ici avec un alias parlant (« Lab POC », « Démos clients »…).',
+        'Choisissez le mode réel (pas la démo), activez le coffre, puis ajoutez le PAT — un résumé orgs/projets confirme avant commit.',
       step3:
-        'Visualisez les projets actifs/en pause, les quotas Free Plan, et préparez vos démos en un geste.',
+        'Visualisez les projets actifs/en pause par organisation, les quotas Free Plan, et préparez vos démos en un geste.',
       addFirst: 'Ajouter mon premier compte',
       askAdmin: "Demandez à un admin d'ajouter le premier compte.",
       security: {
         demo: "Mode démo : comptes et données simulés. Rien n'est envoyé à Supabase.",
         localFirst:
-          "Mode local-first : le PAT est stocké sur CET appareil (dans le navigateur) et n'est transmis qu'au proxy de relais, en HTTPS. À éviter sur un poste partagé ; supprimer le compte l'efface.",
+          "Mode local-first : le PAT est chiffré sur CET appareil (coffre obligatoire) et n'est transmis qu'au proxy de relais, en HTTPS. Pas de sync multi-appareils cloud — ré-ajoutez le PAT ailleurs ou exportez depuis une instance serveur.",
         server:
           "Les PAT sont chiffrés (AES-256-GCM) côté serveur et n'atteignent jamais ce navigateur. Chaque action est journalisée.",
       },
@@ -325,15 +386,21 @@ export const messages = {
       lock: 'Verrouiller',
       disable: 'Désactiver',
       vaultDisabledInfo:
-        'Par défaut, le PAT est stocké en clair sur cet appareil. Activez le chiffrement pour le protéger au repos par une phrase secrète (demandée au démarrage). Phrase oubliée = PAT à ressaisir (régénérables sur Supabase).',
+        'Le coffre est exigé à l’ajout d’un PAT. Activez-le ici pour chiffrer les jetons déjà présents, ou depuis le formulaire d’ajout. Phrase oubliée = PAT à ressaisir (régénérables sur Supabase).',
       vaultNewPlaceholder: 'Phrase secrète (min. 8 caractères)',
       vaultNewAria: 'Nouvelle phrase secrète',
       vaultConfirm: 'Confirmer la phrase secrète',
       enableEncryption: 'Activer le chiffrement',
+      multiDeviceAria: 'Multi-appareils',
+      multiDeviceHeading: 'Multi-appareils — pas de BDD cloud',
+      multiDeviceInfo:
+        'Pages = silo localStorage par appareil. Pas de projet Supabase « pour sync ». Sur une autre machine : phrase du coffre + ressaisie des PAT, ou instance auto-hébergée avec export/import chiffré ci-dessous.',
       exportAria: 'Export / import',
       exportHeading: 'Sauvegarde — Export / import chiffré des comptes',
       exportInfo:
-        "Blob AES-256-GCM dérivé d'une passphrase (scrypt) : portable vers une autre instance Miss Supaboss. Ne le stockez pas en clair.",
+        "Blob AES-256-GCM dérivé d'une passphrase (scrypt) : portable vers une autre instance Miss Supaboss (serveur). En local-first Pages, l’export n’est pas disponible — utilisez le coffre appareil par appareil.",
+      exportLocalUnavailable:
+        'Export/import réservé à l’instance serveur. Ici, chaque appareil a son coffre.',
       exportPassphrasePlaceholder: 'Passphrase (min. 8 caractères)',
       exportPassphraseAria: "Passphrase d'export",
       export: 'Exporter',
@@ -606,6 +673,19 @@ export const messages = {
       byProjectAria: 'Per-project detail',
       byProjectTitle: 'Per-project detail',
       noMeasure: 'No measurement (project never seen active).',
+      hint: {
+        estimated: 'estimate',
+        stale: 'last known state',
+        unavailable: 'unavailable via API',
+        egressUnavailable:
+          'Egress: unavailable via the Management API (no documented public endpoint)',
+      },
+    },
+    demoBanner: {
+      realAvailable:
+        'Demo mode on — accounts added here create fake projects (API / Web / Staging), not your Supabase fleet.',
+      forced: 'Sample data — this build has no real proxy configured.',
+      switchReal: 'Switch to real',
     },
     accounts: {
       add: 'Add a Supabase account',
@@ -613,8 +693,20 @@ export const messages = {
       emptyBody:
         'Add your first Supabase account with a PAT (Personal Access Token).',
       patLine: 'PAT {hint} · synced {rel}',
+      patExpiresLine: 'PAT expiry reminder: {date}',
       test: 'Test',
       testing: 'Testing…',
+      retest: 'Retest',
+      verifyProxy: 'Check proxy',
+      proxyMissing: 'proxy not configured',
+      scopesDoc: 'PAT scopes',
+      patDoc: 'Regenerate a PAT',
+      syncKind: {
+        network: 'Network',
+        pat: 'PAT',
+        scope: 'Scopes',
+        unknown: 'Error',
+      },
       active: 'Active',
       enableAria: 'Enable {alias}',
       renameAria: 'Rename {alias}',
@@ -630,13 +722,28 @@ export const messages = {
       form: {
         editTitle: 'Edit account',
         testAndAdd: 'Test and add',
+        blockedInDemo: 'Unavailable in demo',
+        demoWarning:
+          'Demo mode: a real PAT would create fake projects. Switch to real first.',
+        demoBlocked:
+          'PAT add blocked in demo mode — switch to real to connect your fleet.',
+        demoForced:
+          'This build is demo-only (no proxy). Cannot add a real PAT here.',
+        switchToReal: 'Switch to real mode',
         aliasLabel: 'Readable alias',
         aliasPlaceholder: 'e.g. Internal POC lab',
         patLabel: 'Personal Access Token (sbp_…)',
         patHint:
           'Created on supabase.com → Account → Access Tokens. Stored encrypted (AES-256-GCM) server-side, never in this browser.',
         patHintLocal:
-          'Created on supabase.com → Account → Access Tokens. Kept in this browser, and can be encrypted with a passphrase (Settings → Security); calls go through a relay that does not store it.',
+          'Created on supabase.com → Account → Access Tokens. Kept in this browser, encrypted with a required passphrase; calls go through a relay that does not store it.',
+        patScopes:
+          'Minimum scopes: organizations + projects read (organization_projects_read / projects_read). Pause/restore and health need project_admin. Too-narrow fine-grained → 403 “widen the PAT”.',
+        patExpiresLabel: 'PAT expiry (local reminder, optional)',
+        patExpiresHint:
+          'Reminder only — Supabase does not expose this via API. After repeated 401s, regenerate the token.',
+        vaultRequired:
+          'Vault required: choose a passphrase (min. 8) before storing the PAT on this device.',
         colorAria: 'Account color',
         colorSwatchAria: 'Color {color}',
         invalid: 'Invalid input',
@@ -677,10 +784,12 @@ export const messages = {
       resetDone: 'Vault reset.',
     },
     projects: {
-      searchPlaceholder: 'Search name, ref, tag…',
+      searchPlaceholder: 'Search name, ref, tag, org…',
       searchAria: 'Search a project',
       filtersAria: 'Filters',
       sortAria: 'Sort',
+      orgFilterAria: 'Filter by organization',
+      orgFilterAll: 'All orgs',
       disabledSuffix: ' (disabled)',
       emptyTitle: 'No matching project',
       emptyBody: 'Adjust the search or filters.',
@@ -714,6 +823,9 @@ export const messages = {
       pausedAt: 'Paused',
       unknownDate: 'unknown date',
       restorableUntil: 'Restorable until (estimate)',
+      restorableUntilApiOk: 'Restore API reachable (estimated deadline)',
+      restorableUntilApiBlocked:
+        'Restore refused by API — window likely closed',
       windowLikelyExpired: ' — window likely passed',
       pause: 'Pause',
       readOnlyRole: 'Read-only: your role ({role}) does not allow actions.',
@@ -723,6 +835,22 @@ export const messages = {
       pauseTitle: 'Pause “{name}”?',
       pauseBody:
         'The project will be stopped on Supabase (account {alias}, {active}/{limit} active). Restoring it will then take one to several minutes.',
+      keepAliveAria: 'Keep-alive anti-pause',
+      keepAliveTitle: 'Keep-alive (Free anti-pause)',
+      keepAliveBody:
+        'Local memo: this project should stay warm via an external GitHub Actions workflow. Miss Supaboss does not run it here.',
+      keepAliveToggle: 'Mark for keep-alive',
+      keepAliveLink: 'See workflow pwa-supabase-keepalive.yml',
+      healthAria: 'Services health',
+      healthTitle: 'Services health',
+      healthFail: 'Health unavailable',
+      healthEmpty: 'No services returned.',
+      healthOk: 'OK',
+      healthBad: 'Down',
+    },
+    authFailures: {
+      toast:
+        'Several 401 refusals — the PAT may be expired. Regenerate it on Supabase.',
     },
     demo: {
       prepare: 'Prepare the demo',
@@ -799,18 +927,18 @@ export const messages = {
       step1: {
         pre: 'On',
         mid: '→ Account → Access Tokens, create a',
-        post: 'per free account.',
+        post: 'per free account (orgs + projects scopes).',
       },
       step2:
-        'Add each account here with a meaningful alias (“POC lab”, “Client demos”…).',
+        'Pick real mode (not demo), enable the vault, then add the PAT — an orgs/projects summary confirms before commit.',
       step3:
-        'View active/paused projects, Free Plan quotas, and prepare your demos in one gesture.',
+        'View active/paused projects by organization, Free Plan quotas, and prepare your demos in one gesture.',
       addFirst: 'Add my first account',
       askAdmin: 'Ask an admin to add the first account.',
       security: {
         demo: 'Demo mode: simulated accounts and data. Nothing is sent to Supabase.',
         localFirst:
-          'Local-first mode: the PAT is stored on THIS device (in the browser) and is only forwarded to the relay proxy, over HTTPS. Avoid on a shared machine; deleting the account erases it.',
+          'Local-first mode: the PAT is encrypted on THIS device (required vault) and is only forwarded to the relay proxy, over HTTPS. No cloud multi-device sync — re-add the PAT elsewhere or export from a server instance.',
         server:
           'PATs are encrypted (AES-256-GCM) server-side and never reach this browser. Every action is logged.',
       },
@@ -843,15 +971,21 @@ export const messages = {
       lock: 'Lock',
       disable: 'Disable',
       vaultDisabledInfo:
-        'By default the PAT is stored in clear on this device. Enable encryption to protect it at rest with a passphrase (requested at startup). Forgotten passphrase = PATs to re-enter (regenerable on Supabase).',
+        'The vault is required when adding a PAT. Enable it here to encrypt existing tokens, or from the add form. Forgotten passphrase = PATs to re-enter (regenerable on Supabase).',
       vaultNewPlaceholder: 'Passphrase (min. 8 characters)',
       vaultNewAria: 'New passphrase',
       vaultConfirm: 'Confirm the passphrase',
       enableEncryption: 'Enable encryption',
+      multiDeviceAria: 'Multi-device',
+      multiDeviceHeading: 'Multi-device — no cloud DB',
+      multiDeviceInfo:
+        'Pages = localStorage silo per device. No Supabase project “for sync”. On another machine: vault passphrase + re-enter PATs, or a self-hosted instance with encrypted export/import below.',
       exportAria: 'Export / import',
       exportHeading: 'Backup — Encrypted account export / import',
       exportInfo:
-        'AES-256-GCM blob derived from a passphrase (scrypt): portable to another Miss Supaboss instance. Do not store it in clear.',
+        'AES-256-GCM blob derived from a passphrase (scrypt): portable to another Miss Supaboss instance (server). On local-first Pages, export is unavailable — use a per-device vault.',
+      exportLocalUnavailable:
+        'Export/import is for the server instance. Here each device has its own vault.',
       exportPassphrasePlaceholder: 'Passphrase (min. 8 characters)',
       exportPassphraseAria: 'Export passphrase',
       export: 'Export',

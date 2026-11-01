@@ -69,21 +69,28 @@ export function ProjectCard({
             )}
           </p>
           <p className="truncate text-xs text-[var(--sb-text-soft)]">
-            {project.ref} · {activity}
+            {project.ref} · {project.organizationSlug} · {activity}
           </p>
         </div>
         <StatusBadge status={project.status} />
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <AccountChip alias={accountAlias} color={accountColor} />
-        {meta.tags.map(tag => (
-          <span
-            key={tag}
-            className="rounded-full border border-[var(--sb-border)] px-2 py-0.5 text-xs text-[var(--sb-text-soft)]"
-          >
-            {tag}
-          </span>
-        ))}
+        {meta.tags.map(tag => {
+          const isDemoTag = tag.startsWith('démo:') || tag.startsWith('demo:');
+          return (
+            <span
+              key={tag}
+              className={`rounded-full border px-2 py-0.5 text-xs ${
+                isDemoTag
+                  ? 'border-primary/40 bg-primary/10 font-medium text-primary'
+                  : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
+              }`}
+            >
+              {tag}
+            </span>
+          );
+        })}
       </div>
     </Link>
   );

@@ -25,6 +25,9 @@ jobs:
     # à un workflow qui n'en attend aucun ici.
     with:
       use-base-path: true
+      # La garde « proxy in bundle » vit dans `npm run build`
+      # (scripts/check-proxy-in-bundle.mjs) : si VITE_SUPABASE_PROXY est non
+      # vide au build et absente du JS, le Deploy échoue avant Pages.
       build-env: |
         VITE_MOCK=1
         VITE_POSTHOG_KEY=${{ vars.VITE_POSTHOG_KEY }}

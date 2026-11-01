@@ -53,6 +53,7 @@ interface FleetState {
       favorite: boolean;
       demoFrequent: boolean;
       notes: string;
+      keepAliveOptIn: boolean;
     }>
   ) => Promise<void>;
 }

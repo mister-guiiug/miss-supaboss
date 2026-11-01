@@ -152,6 +152,68 @@ function numberish(value: unknown): number | null {
   return null;
 }
 
+/** Version disponible pour restore (GET /v1/projects/{ref}/restore). */
+export interface RestoreVersion {
+  version: string;
+  releaseChannel: string | null;
+  postgresEngine: string | null;
+}
+
+const restoreVersionsSchema = z.object({
+  available_versions: z
+    .array(
+      z.object({
+        version: z.string(),
+        release_channel: z.string().nullish(),
+        postgres_engine: z.string().nullish(),
+      })
+    )
+    .default([]),
+});
+
+/**
+ * Parse GET /v1/projects/{ref}/restore. L'API expose les versions Postgres
+ * restaurables — pas une date d'échéance Free Plan. Une réponse 200 avec au
+ * moins une version = restauration encore possible côté plateforme.
+ */
+export function parseRestoreVersions(data: unknown): RestoreVersion[] {
+  const parsed = restoreVersionsSchema.safeParse(data);
+  if (!parsed.success) return [];
+  return parsed.data.available_versions.map(v => ({
+    version: v.version,
+    releaseChannel: v.release_channel ?? null,
+    postgresEngine: v.postgres_engine ?? null,
+  }));
+}
+
+/** Santé d'un service (GET /v1/projects/{ref}/health). */
+export interface ServiceHealth {
+  name: string;
+  healthy: boolean;
+  status: string | null;
+  error: string | null;
+}
+
+const serviceHealthSchema = z.array(
+  z.object({
+    name: z.string(),
+    healthy: z.boolean(),
+    status: z.string().nullish(),
+    error: z.string().nullish(),
+  })
+);
+
+export function parseServiceHealth(data: unknown): ServiceHealth[] {
+  const parsed = serviceHealthSchema.safeParse(data);
+  if (!parsed.success) return [];
+  return parsed.data.map(s => ({
+    name: s.name,
+    healthy: s.healthy,
+    status: s.status ?? null,
+    error: s.error ?? null,
+  }));
+}
+
 /** Accepte [{v}], {result:[{v}]}, [[v]]… et retourne le premier nombre trouvé.
  *  Le format de l'endpoint Beta n'étant pas contractuel, le parsing est
  *  défensif : toute forme inattendue → null. */

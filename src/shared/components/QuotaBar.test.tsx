@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   getDefaultLocale,
   setDefaultLocale,
@@ -10,17 +10,25 @@ import {
   GB,
   MB,
 } from '../../../shared/quotas.ts';
+import { I18nProvider } from '../../i18n/index.ts';
 import { QuotaBar } from './QuotaBar.tsx';
 
-// Les unités attendues sont désormais celles de la LANGUE (« Mo » en français,
-// « MB » en anglais) : la copie locale rendait « MB » partout, avec une virgule
-// décimale française — donc « 1,5 kB » au milieu d'une interface anglaise.
+function renderBar(ui: React.ReactElement): ReturnType<typeof render> {
+  return render(<I18nProvider>{ui}</I18nProvider>);
+}
+
 const initial = getDefaultLocale();
-afterEach(() => setDefaultLocale(initial));
+beforeEach(() => {
+  localStorage.setItem('supaboss_locale', 'fr');
+});
+afterEach(() => {
+  setDefaultLocale(initial);
+  localStorage.removeItem('supaboss_locale');
+});
 
 describe('QuotaBar', () => {
   it('affiche « 31 Mo / 5 Go » et le pourcentage', () => {
-    render(
+    renderBar(
       <QuotaBar
         metric={{
           kind: 'egress',
@@ -41,7 +49,7 @@ describe('QuotaBar', () => {
   });
 
   it('métrique indisponible : « — / quota », pas de valeur inventée', () => {
-    render(
+    renderBar(
       <QuotaBar
         metric={{
           kind: 'egress',
@@ -54,14 +62,16 @@ describe('QuotaBar', () => {
       />
     );
     expect(screen.getByText(/^— \/ 5\s?Go$/)).toBeInTheDocument();
-    expect(screen.getByText('non disponible via API')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Egress : non disponible via l'API Management/i)
+    ).toBeInTheDocument();
     expect(screen.getByRole('progressbar')).not.toHaveAttribute(
       'aria-valuenow'
     );
   });
 
   it('niveau critique au-delà du seuil', () => {
-    render(
+    renderBar(
       <QuotaBar
         metric={{
           kind: 'dbSize',
@@ -80,7 +90,7 @@ describe('QuotaBar', () => {
   });
 
   it('mention « estimation » pour les MAU', () => {
-    render(
+    renderBar(
       <QuotaBar
         metric={{
           kind: 'mau',
@@ -97,8 +107,9 @@ describe('QuotaBar', () => {
   });
 
   it('en anglais, la jauge affiche « 31 MB / 5 GB »', () => {
+    localStorage.setItem('supaboss_locale', 'en');
     setDefaultLocale('en-GB');
-    render(
+    renderBar(
       <QuotaBar
         metric={{
           kind: 'egress',

@@ -25,6 +25,7 @@ import {
   api,
   ApiError,
   IS_MOCK,
+  PROXY_BASE,
   REAL_AVAILABLE,
   isDemoSeed,
   resetDemoData,
@@ -481,6 +482,20 @@ export function SettingsScreen() {
 
       <TotpSection />
 
+      {PROXY_BASE && (
+        <section
+          className="card space-y-2 p-4"
+          aria-label={t('settings.multiDeviceAria')}
+        >
+          <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
+            {t('settings.multiDeviceHeading')}
+          </h2>
+          <p className="text-xs text-[var(--sb-text-soft)]">
+            {t('settings.multiDeviceInfo')}
+          </p>
+        </section>
+      )}
+
       {canAdmin(user) && (
         <section
           className="card space-y-3 p-4"
@@ -492,41 +507,50 @@ export function SettingsScreen() {
           <p className="text-xs text-[var(--sb-text-soft)]">
             {t('settings.exportInfo')}
           </p>
-          <input
-            type="password"
-            value={passphrase}
-            onChange={e => setPassphrase(e.target.value)}
-            placeholder={t('settings.exportPassphrasePlaceholder')}
-            autoComplete="off"
-            aria-label={t('settings.exportPassphraseAria')}
-            className="w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 text-sm"
-          />
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void doExport()}
-              className="touch-target flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium disabled:opacity-50"
-            >
-              <Download size={16} aria-hidden="true" /> {t('settings.export')}
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void doImport()}
-              className="touch-target flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium disabled:opacity-50"
-            >
-              <Upload size={16} aria-hidden="true" /> {t('settings.import')}
-            </button>
-          </div>
-          <textarea
-            value={importBlob}
-            onChange={e => setImportBlob(e.target.value)}
-            placeholder={t('settings.importPlaceholder')}
-            aria-label={t('settings.importAria')}
-            rows={3}
-            className="w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 font-mono text-xs"
-          />
+          {PROXY_BASE ? (
+            <p className="text-xs text-[var(--sb-warn)]">
+              {t('settings.exportLocalUnavailable')}
+            </p>
+          ) : (
+            <>
+              <input
+                type="password"
+                value={passphrase}
+                onChange={e => setPassphrase(e.target.value)}
+                placeholder={t('settings.exportPassphrasePlaceholder')}
+                autoComplete="off"
+                aria-label={t('settings.exportPassphraseAria')}
+                className="w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 text-sm"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void doExport()}
+                  className="touch-target flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium disabled:opacity-50"
+                >
+                  <Download size={16} aria-hidden="true" />{' '}
+                  {t('settings.export')}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void doImport()}
+                  className="touch-target flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium disabled:opacity-50"
+                >
+                  <Upload size={16} aria-hidden="true" /> {t('settings.import')}
+                </button>
+              </div>
+              <textarea
+                value={importBlob}
+                onChange={e => setImportBlob(e.target.value)}
+                placeholder={t('settings.importPlaceholder')}
+                aria-label={t('settings.importAria')}
+                rows={3}
+                className="w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 font-mono text-xs"
+              />
+            </>
+          )}
         </section>
       )}
 

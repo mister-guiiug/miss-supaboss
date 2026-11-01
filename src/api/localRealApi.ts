@@ -5,10 +5,9 @@
  * métadonnées (tags/favoris/notes/observations) sont stockés EN LOCAL
  * (localStorage) sur l'appareil — le PAT n'est transmis qu'au proxy.
  *
- * Différences avec le serveur Fastify : pas de chiffrement au repos (le PAT
- * vit en clair dans localStorage, comme tout dashboard client-side), pas de
- * RBAC (l'utilisateur est admin de sa propre instance), et les métriques de
- * quota ne sont pas (encore) collectées → « non disponible ».
+ * Différences avec le serveur Fastify : chiffrement au repos OBLIGATOIRE via
+ * le coffre (phrase secrète) avant tout PAT, pas de RBAC (l'utilisateur est
+ * admin de sa propre instance). Egress reste « non disponible » (pas d'endpoint).
  */
 import {
   DEFAULT_SETTINGS,
@@ -47,6 +46,11 @@ import type { RawProject } from '../../shared/supabaseApi.ts';
 import { ApiError, type Api } from './types.ts';
 import { BrowserManagementClient } from './management/browserClient.ts';
 import { patVault } from './crypto/patVault.ts';
+import { metricHistory } from './metricHistory.ts';
+import { classifySyncError } from './syncError.ts';
+
+/** TTL du sondage GET /restore (ms) — 6 h, la fenêtre Free ne bouge pas vite. */
+const RESTORE_API_TTL_MS = 6 * 60 * 60 * 1000;
 
 const LOCAL_USER: UserDto = {
   id: 'local',
@@ -73,6 +77,8 @@ interface RealAccount {
   createdAt: string;
   lastSyncAt: string | null;
   lastError: string | null;
+  /** Rappel local YYYY-MM-DD — expiration PAT saisie à la main. */
+  patExpiresAt?: string | null;
 }
 
 interface RealMeta {
@@ -83,6 +89,9 @@ interface RealMeta {
   lastSeenActiveAt: string | null;
   pausedAt: string | null;
   lastStatus?: SupabaseProjectStatus;
+  keepAliveOptIn?: boolean;
+  /** Cache du dernier sondage GET /restore (évite de re-frapper à chaque sync). */
+  restoreApi?: { at: number; source: 'api-ok' | 'api-blocked' };
 }
 
 /**
@@ -155,6 +164,7 @@ function toAccountDto(a: RealAccount): AccountDto {
     createdAt: a.createdAt,
     lastSyncAt: a.lastSyncAt,
     lastError: a.lastError,
+    patExpiresAt: a.patExpiresAt ?? null,
   };
 }
 
@@ -235,17 +245,50 @@ export function createLocalRealApi(proxyBase: string): Api {
       lastSeenActiveAt: observed.lastSeenActiveAt,
       pausedAt: observed.pausedAt,
       lastStatus: observed.lastStatus,
+      keepAliveOptIn: existing?.keepAliveOptIn,
+      restoreApi: existing?.restoreApi,
     };
     state.meta[key] = meta;
     return meta;
   };
 
-  const toDto = (
+  const toDto = async (
     accountId: string,
     raw: RawProject,
-    orgName: string
-  ): ProjectDto => {
+    orgName: string,
+    pat: string
+  ): Promise<ProjectDto> => {
     const meta = observe(accountId, raw);
+    let apiDeadline: {
+      deadline: string | null;
+      source: 'api-ok' | 'api-blocked';
+    } | null = null;
+    if (raw.status === 'INACTIVE') {
+      const cached = meta.restoreApi;
+      if (cached && Date.now() - cached.at < RESTORE_API_TTL_MS) {
+        apiDeadline = {
+          source: cached.source,
+          deadline:
+            cached.source === 'api-blocked' ? new Date(0).toISOString() : null,
+        };
+      } else {
+        try {
+          // GET /restore : 200 = encore restaurable ; 400/404/410 = fenêtre close.
+          // Pas d'échéance Free Plan dans la réponse — on affine seulement le statut.
+          const result = await client.listRestoreVersions(pat, raw.ref);
+          const source = result.ok ? 'api-ok' : 'api-blocked';
+          meta.restoreApi = { at: Date.now(), source };
+          state.meta[metaKey(accountId, raw.ref)] = meta;
+          apiDeadline = {
+            source,
+            deadline:
+              source === 'api-blocked' ? new Date(0).toISOString() : null,
+          };
+        } catch {
+          // 401/403/réseau : on garde l'estimation, sans polluer restoreApi.
+        }
+      }
+    }
     return {
       accountId,
       ref: raw.ref,
@@ -261,9 +304,11 @@ export function createLocalRealApi(proxyBase: string): Api {
           favorite: meta.favorite,
           demoFrequent: meta.demoFrequent,
           notes: meta.notes,
+          keepAliveOptIn: meta.keepAliveOptIn,
         },
         meta,
-        state.settings.restoreWindowDays
+        state.settings.restoreWindowDays,
+        apiDeadline
       ),
     };
   };
@@ -298,11 +343,14 @@ export function createLocalRealApi(proxyBase: string): Api {
     const organizations = await client.listOrganizations(acc.pat);
     const rawProjects = await client.listProjects(acc.pat, organizations);
     const orgNames = new Map(organizations.map(o => [o.slug, o.name]));
-    const projects = rawProjects.map(raw =>
-      toDto(
-        acc.id,
-        raw,
-        orgNames.get(raw.organizationSlug) ?? raw.organizationSlug
+    const projects = await Promise.all(
+      rawProjects.map(raw =>
+        toDto(
+          acc.id,
+          raw,
+          orgNames.get(raw.organizationSlug) ?? raw.organizationSlug,
+          acc.pat
+        )
       )
     );
     const orgs = organizations.map(o => o.name);
@@ -372,15 +420,16 @@ export function createLocalRealApi(proxyBase: string): Api {
           refreshFailed = true;
         } else {
           const at = new Date().toISOString();
-          metricsCache.set(key, {
-            at: Date.now(),
-            metrics: [
-              unavailableMetric('egress'),
-              buildMetric('dbSize', m.dbSizeBytes, 'measured', at),
-              buildMetric('mau', m.mau, 'estimated', at),
-              buildMetric('storage', m.storageBytes, 'measured', at),
-            ],
-          });
+          const metrics = [
+            unavailableMetric('egress'),
+            buildMetric('dbSize', m.dbSizeBytes, 'measured', at),
+            buildMetric('mau', m.mau, 'estimated', at),
+            buildMetric('storage', m.storageBytes, 'measured', at),
+          ];
+          metricsCache.set(key, { at: Date.now(), metrics });
+          for (const mv of metrics) {
+            metricHistory.record(acc.id, project.ref, mv.kind, mv.value);
+          }
         }
       } catch {
         refreshFailed = true;
@@ -434,12 +483,20 @@ export function createLocalRealApi(proxyBase: string): Api {
       return state.accounts.map(toAccountDto);
     },
     async createAccount(input) {
+      // P0 sécurité : pas de PAT en clair — le coffre doit être actif.
+      if (!patVault.isEnabled() || !patVault.isUnlocked()) {
+        throw new ApiError(
+          400,
+          'vault-required',
+          'Activez le coffre (phrase secrète) avant d’ajouter un PAT'
+        );
+      }
       // Valide le PAT en interrogeant les organisations (échoue si invalide).
       let organizations;
       try {
         organizations = await client.listOrganizations(input.pat);
       } catch (e) {
-        const message = e instanceof ApiError ? e.message : 'PAT invalide';
+        const { message } = classifySyncError(e, 'PAT invalide');
         recordOp({
           action: 'account.create',
           accountId: null,
@@ -464,9 +521,9 @@ export function createLocalRealApi(proxyBase: string): Api {
         createdAt: new Date().toISOString(),
         lastSyncAt: new Date().toISOString(),
         lastError: null,
+        patExpiresAt: input.patExpiresAt ?? null,
       };
-      // Coffre activé : on chiffre tout de suite (la session est déverrouillée).
-      if (patVault.isEnabled()) acc.patEnc = await patVault.encrypt(input.pat);
+      acc.patEnc = await patVault.encrypt(input.pat);
       state.accounts.push(acc);
       recordOp({
         action: 'account.create',
@@ -485,12 +542,19 @@ export function createLocalRealApi(proxyBase: string): Api {
       if (fields.alias !== undefined) acc.alias = fields.alias;
       if (fields.color !== undefined) acc.color = fields.color;
       if (fields.enabled !== undefined) acc.enabled = fields.enabled;
+      if (fields.patExpiresAt !== undefined)
+        acc.patExpiresAt = fields.patExpiresAt;
       if (fields.pat !== undefined) {
+        if (!patVault.isEnabled() || !patVault.isUnlocked()) {
+          throw new ApiError(
+            400,
+            'vault-required',
+            'Coffre verrouillé : déverrouillez avant de changer le PAT'
+          );
+        }
         acc.pat = fields.pat;
         acc.patHint = `sbp_…${fields.pat.slice(-4)}`;
-        acc.patEnc = patVault.isEnabled()
-          ? await patVault.encrypt(fields.pat)
-          : undefined;
+        acc.patEnc = await patVault.encrypt(fields.pat);
       }
       cache.delete(id);
       recordOp({
@@ -648,6 +712,13 @@ export function createLocalRealApi(proxyBase: string): Api {
         );
       return p;
     },
+    async getProjectHealth(accountId, ref) {
+      const acc = getAccount(accountId);
+      if (!acc.pat) {
+        throw new ApiError(401, 'vault-locked', 'Coffre verrouillé');
+      }
+      return client.getProjectHealth(acc.pat, ref);
+    },
     async assessRestore(accountId, ref) {
       const lite = toLite(await projectsOf(accountId, false));
       return toRestoreAssessmentDto(assessRestore(lite, ref));
@@ -738,6 +809,8 @@ export function createLocalRealApi(proxyBase: string): Api {
       if (fields.demoFrequent !== undefined)
         meta.demoFrequent = fields.demoFrequent;
       if (fields.notes !== undefined) meta.notes = fields.notes;
+      if (fields.keepAliveOptIn !== undefined)
+        meta.keepAliveOptIn = fields.keepAliveOptIn;
       state.meta[key] = meta;
       // Réécrit le cache courant pour refléter la méta sans re-fetch.
       cache.delete(accountId);
