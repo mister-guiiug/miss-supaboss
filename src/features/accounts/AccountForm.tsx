@@ -220,59 +220,80 @@ export function AccountForm({
                   : 'accounts.form.patHint'
               )}
             </span>
-            <fieldset className="mt-2 space-y-1.5">
-              <legend className="text-xs font-medium text-[var(--sb-text-soft)]">
-                {t('accounts.form.scopePresetLegend')}
-              </legend>
-              <div className="flex gap-2">
-                {(
-                  [
-                    ['read', 'accounts.form.scopeRead'],
-                    ['admin', 'accounts.form.scopeAdmin'],
-                  ] as const
-                ).map(([id, labelKey]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    aria-pressed={scopePreset === id}
-                    onClick={() => setScopePreset(id)}
-                    disabled={IS_MOCK}
-                    className={`flex-1 rounded-xl border px-2 py-2 text-xs font-medium disabled:opacity-50 ${
-                      scopePreset === id
-                        ? 'border-primary bg-primary/15 text-primary'
-                        : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
-                    }`}
-                  >
-                    {t(labelKey)}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-[var(--sb-text-soft)]">
-                {t(
-                  scopePreset === 'read'
-                    ? 'accounts.form.scopeReadHint'
-                    : 'accounts.form.scopeAdminHint'
-                )}
-              </p>
-            </fieldset>
+            <details className="mt-2">
+              <summary className="cursor-pointer text-xs font-medium text-[var(--sb-text-soft)]">
+                {t('accounts.form.more')}
+              </summary>
+              <fieldset className="mt-2 space-y-1.5">
+                <legend className="text-xs font-medium text-[var(--sb-text-soft)]">
+                  {t('accounts.form.scopePresetLegend')}
+                </legend>
+                <div className="flex gap-2">
+                  {(
+                    [
+                      ['read', 'accounts.form.scopeRead'],
+                      ['admin', 'accounts.form.scopeAdmin'],
+                    ] as const
+                  ).map(([id, labelKey]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      aria-pressed={scopePreset === id}
+                      onClick={() => setScopePreset(id)}
+                      disabled={IS_MOCK}
+                      className={`flex-1 rounded-xl border px-2 py-2 text-xs font-medium disabled:opacity-50 ${
+                        scopePreset === id
+                          ? 'border-primary bg-primary/15 text-primary'
+                          : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
+                      }`}
+                    >
+                      {t(labelKey)}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-[var(--sb-text-soft)]">
+                  {t(
+                    scopePreset === 'read'
+                      ? 'accounts.form.scopeReadHint'
+                      : 'accounts.form.scopeAdminHint'
+                  )}
+                </p>
+              </fieldset>
+              <label className="mt-2 block">
+                <span className="text-xs font-medium text-[var(--sb-text-soft)]">
+                  {t('accounts.form.patExpiresLabel')}
+                </span>
+                <input
+                  type="date"
+                  value={patExpiresAt}
+                  onChange={e => setPatExpiresAt(e.target.value)}
+                  disabled={IS_MOCK}
+                  className="mt-1 w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 text-sm disabled:opacity-50"
+                />
+                <span className="mt-1 block text-xs text-[var(--sb-text-soft)]">
+                  {t('accounts.form.patExpiresHint')}
+                </span>
+              </label>
+            </details>
           </label>
         )}
 
-        <label className="block">
-          <span className="text-xs font-medium text-[var(--sb-text-soft)]">
-            {t('accounts.form.patExpiresLabel')}
-          </span>
-          <input
-            type="date"
-            value={patExpiresAt}
-            onChange={e => setPatExpiresAt(e.target.value)}
-            disabled={!isEdit && IS_MOCK}
-            className="mt-1 w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 text-sm disabled:opacity-50"
-          />
-          <span className="mt-1 block text-xs text-[var(--sb-text-soft)]">
-            {t('accounts.form.patExpiresHint')}
-          </span>
-        </label>
+        {isEdit && (
+          <label className="block">
+            <span className="text-xs font-medium text-[var(--sb-text-soft)]">
+              {t('accounts.form.patExpiresLabel')}
+            </span>
+            <input
+              type="date"
+              value={patExpiresAt}
+              onChange={e => setPatExpiresAt(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-[var(--sb-border)] bg-transparent px-3 py-2.5 text-sm"
+            />
+            <span className="mt-1 block text-xs text-[var(--sb-text-soft)]">
+              {t('accounts.form.patExpiresHint')}
+            </span>
+          </label>
+        )}
 
         {canOfferVault && !IS_MOCK && (
           <div className="space-y-2 rounded-xl border border-primary/30 bg-primary/5 p-3">

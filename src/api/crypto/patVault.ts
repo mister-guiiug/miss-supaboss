@@ -23,7 +23,8 @@ import {
 
 const VAULT_META_KEY = 'miss-supaboss-vault-v1';
 const VAULT_LOCKOUT_KEY = 'miss-supaboss-vault-lockout-v1';
-const PBKDF2_ITERATIONS = 210_000;
+/** OWASP 2023 pour PBKDF2-SHA-256. Les coffres déjà créés gardent leur compte. */
+const PBKDF2_ITERATIONS = 600_000;
 const SALT_BYTES = 16;
 const IV_BYTES = 12;
 /** Texte témoin chiffré à l'activation : son déchiffrement valide la phrase. */

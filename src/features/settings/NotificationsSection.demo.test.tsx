@@ -63,11 +63,11 @@ describe('Réglages en démo', () => {
     ).toBeInTheDocument();
   });
 
-  it('double authentification : sans objet, et dit pourquoi', async () => {
+  it('double authentification : absente tant que le serveur ne l’expose pas', () => {
     renderAll();
     expect(
-      await screen.findByText(/La double authentification protège la connexion/)
-    ).toBeInTheDocument();
+      screen.queryByRole('heading', { name: /double authentification/i })
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', {
         name: 'Activer la double authentification',

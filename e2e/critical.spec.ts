@@ -41,5 +41,7 @@ test('@critical les quotas affichent egress non disponible', async ({
   page,
 }) => {
   await page.goto('/#/quotas');
-  await expect(page.getByText('non disponible via API').first()).toBeVisible();
+  await expect(
+    page.getByText(/non disponible via l'API/i).first()
+  ).toBeVisible();
 });

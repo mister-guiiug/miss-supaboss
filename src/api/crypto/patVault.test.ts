@@ -32,7 +32,10 @@ describe('patVault — coffre AES-GCM/PBKDF2', () => {
     const blob = await patVault.encrypt('sbp_secrettoken');
     expect(blob).not.toContain('sbp_secrettoken');
     expect(await patVault.decrypt(blob)).toBe('sbp_secrettoken');
-    expect(localStorage.getItem(VAULT_META_KEY)).toBeTruthy();
+    const meta = JSON.parse(localStorage.getItem(VAULT_META_KEY) ?? '{}') as {
+      iterations?: number;
+    };
+    expect(meta.iterations).toBe(600_000);
   });
 
   it('unlock : bonne phrase OK, mauvaise phrase rejetée', async () => {

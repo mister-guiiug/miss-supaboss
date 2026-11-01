@@ -200,26 +200,9 @@ export function SettingsScreen() {
 
   return (
     <div className="space-y-4">
-      {/* Historique des opérations — relogé ici depuis le bottom nav (consultatif,
-          non quotidien) ; la route /history est inchangée. */}
-      <Link to="/history" className="card flex items-center gap-3 p-4">
-        <History
-          size={18}
-          aria-hidden="true"
-          className="text-[var(--sb-text-soft)]"
-        />
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold">{t('settings.historyTitle')}</p>
-          <p className="text-xs text-[var(--sb-text-soft)]">
-            {t('settings.historySubtitle')}
-          </p>
-        </div>
-        <ChevronRight
-          size={16}
-          aria-hidden="true"
-          className="text-[var(--sb-text-soft)]"
-        />
-      </Link>
+      <h2 className="px-1 text-sm font-semibold">
+        {t('settings.groupDevice')}
+      </h2>
 
       <section
         className="card space-y-3 p-4"
@@ -343,73 +326,6 @@ export function SettingsScreen() {
         )}
       </section>
 
-      <section
-        className="card space-y-3 p-4"
-        aria-label={t('settings.alertsAria')}
-      >
-        <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
-          {t('settings.alertsTitle')}
-        </h2>
-        {numberField(
-          <>
-            <TriangleAlert
-              size={14}
-              aria-hidden="true"
-              className="text-[var(--sb-warn)]"
-            />{' '}
-            {t('settings.thresholdWarn')}
-          </>,
-          draft.thresholds.warn,
-          v =>
-            setDraft(d => ({ ...d, thresholds: { ...d.thresholds, warn: v } }))
-        )}
-        {numberField(
-          <>
-            <Flame
-              size={14}
-              aria-hidden="true"
-              className="text-[var(--sb-high)]"
-            />{' '}
-            {t('settings.thresholdHigh')}
-          </>,
-          draft.thresholds.high,
-          v =>
-            setDraft(d => ({ ...d, thresholds: { ...d.thresholds, high: v } }))
-        )}
-        {numberField(
-          <>
-            <OctagonAlert
-              size={14}
-              aria-hidden="true"
-              className="text-[var(--sb-critical)]"
-            />{' '}
-            {t('settings.thresholdCritical')}
-          </>,
-          draft.thresholds.critical,
-          v =>
-            setDraft(d => ({
-              ...d,
-              thresholds: { ...d.thresholds, critical: v },
-            }))
-        )}
-        {numberField(t('settings.polling'), draft.pollingSeconds, v =>
-          setDraft(d => ({ ...d, pollingSeconds: v }))
-        )}
-        {numberField(t('settings.restoreWindow'), draft.restoreWindowDays, v =>
-          setDraft(d => ({ ...d, restoreWindowDays: v }))
-        )}
-        <button
-          type="button"
-          onClick={() => void save()}
-          className="touch-target w-full rounded-xl bg-primary px-4 font-semibold text-[#06281a]"
-        >
-          {t('settings.saveSettings')}
-        </button>
-      </section>
-
-      {/* Juste sous les seuils : ce sont eux qui déclenchent les alertes. */}
-      <NotificationsSection />
-
       {api.vault && canAdmin(user) && (
         <section
           className="card space-y-3 p-4"
@@ -505,8 +421,6 @@ export function SettingsScreen() {
         </section>
       )}
 
-      <TotpSection />
-
       {PROXY_BASE && (
         <section
           className="card space-y-2 p-4"
@@ -520,6 +434,127 @@ export function SettingsScreen() {
           </p>
         </section>
       )}
+
+      <section
+        className="card space-y-2 p-4"
+        aria-label={t('settings.storageAria')}
+      >
+        <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
+          {t('settings.storageHeading')}
+        </h2>
+        <p className="text-xs text-[var(--sb-text-soft)]">
+          {t('settings.storageInfo')}
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            void clearSnapshot();
+            toast.success(t('settings.cacheCleared'));
+          }}
+          className="touch-target rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium"
+        >
+          {t('settings.clearCache')}
+        </button>
+      </section>
+
+      {/* Revenir sur son choix de mesure d’audience : le retrait se fait ici, en
+          un clic (RGPD, art. 7.3). Mêmes clé et chargeur que le bandeau. */}
+      <ConsentSection
+        posthogKey={import.meta.env.VITE_POSTHOG_KEY}
+        loader={() => import('posthog-js/dist/module.slim.js')}
+        className="card gap-3 p-4"
+        titleClassName="text-sm font-semibold text-[var(--sb-text-soft)]"
+        actionClassName="touch-target rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium"
+      />
+
+      <h2 className="px-1 pt-2 text-sm font-semibold">
+        {t('settings.groupFleet')}
+      </h2>
+
+      {/* Historique des opérations — relogé ici depuis le bottom nav (consultatif,
+          non quotidien) ; la route /history est inchangée. */}
+      <Link to="/history" className="card flex items-center gap-3 p-4">
+        <History
+          size={18}
+          aria-hidden="true"
+          className="text-[var(--sb-text-soft)]"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold">{t('settings.historyTitle')}</p>
+          <p className="text-xs text-[var(--sb-text-soft)]">
+            {t('settings.historySubtitle')}
+          </p>
+        </div>
+        <ChevronRight
+          size={16}
+          aria-hidden="true"
+          className="text-[var(--sb-text-soft)]"
+        />
+      </Link>
+
+      <section
+        className="card space-y-3 p-4"
+        aria-label={t('settings.alertsAria')}
+      >
+        <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
+          {t('settings.alertsTitle')}
+        </h2>
+        {numberField(
+          <>
+            <TriangleAlert
+              size={14}
+              aria-hidden="true"
+              className="text-[var(--sb-warn)]"
+            />{' '}
+            {t('settings.thresholdWarn')}
+          </>,
+          draft.thresholds.warn,
+          v =>
+            setDraft(d => ({ ...d, thresholds: { ...d.thresholds, warn: v } }))
+        )}
+        {numberField(
+          <>
+            <Flame
+              size={14}
+              aria-hidden="true"
+              className="text-[var(--sb-high)]"
+            />{' '}
+            {t('settings.thresholdHigh')}
+          </>,
+          draft.thresholds.high,
+          v =>
+            setDraft(d => ({ ...d, thresholds: { ...d.thresholds, high: v } }))
+        )}
+        {numberField(
+          <>
+            <OctagonAlert
+              size={14}
+              aria-hidden="true"
+              className="text-[var(--sb-critical)]"
+            />{' '}
+            {t('settings.thresholdCritical')}
+          </>,
+          draft.thresholds.critical,
+          v =>
+            setDraft(d => ({
+              ...d,
+              thresholds: { ...d.thresholds, critical: v },
+            }))
+        )}
+        {numberField(t('settings.polling'), draft.pollingSeconds, v =>
+          setDraft(d => ({ ...d, pollingSeconds: v }))
+        )}
+        {numberField(t('settings.restoreWindow'), draft.restoreWindowDays, v =>
+          setDraft(d => ({ ...d, restoreWindowDays: v }))
+        )}
+        <button
+          type="button"
+          onClick={() => void save()}
+          className="touch-target w-full rounded-xl bg-primary px-4 font-semibold text-[#06281a]"
+        >
+          {t('settings.saveSettings')}
+        </button>
+      </section>
 
       {canAdmin(user) && (
         <section
@@ -575,27 +610,14 @@ export function SettingsScreen() {
         </section>
       )}
 
-      <section
-        className="card space-y-2 p-4"
-        aria-label={t('settings.storageAria')}
-      >
-        <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
-          {t('settings.storageHeading')}
-        </h2>
-        <p className="text-xs text-[var(--sb-text-soft)]">
-          {t('settings.storageInfo')}
-        </p>
-        <button
-          type="button"
-          onClick={() => {
-            void clearSnapshot();
-            toast.success(t('settings.cacheCleared'));
-          }}
-          className="touch-target rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium"
-        >
-          {t('settings.clearCache')}
-        </button>
-      </section>
+      <h2 className="px-1 pt-2 text-sm font-semibold">
+        {t('settings.groupServer')}
+      </h2>
+
+      {/* Juste sous les seuils : ce sont eux qui déclenchent les alertes. */}
+      <NotificationsSection />
+
+      {api.totp ? <TotpSection /> : null}
 
       {/* Session : identité + déconnexion. Descendue du haut vers le bas (action
           rare et sensible). Mode réel uniquement (la PWA locale n'a pas de session). */}
@@ -622,16 +644,6 @@ export function SettingsScreen() {
           </button>
         </section>
       )}
-
-      {/* Revenir sur son choix de mesure d’audience : le retrait se fait ici, en
-          un clic (RGPD, art. 7.3). Mêmes clé et chargeur que le bandeau. */}
-      <ConsentSection
-        posthogKey={import.meta.env.VITE_POSTHOG_KEY}
-        loader={() => import('posthog-js/dist/module.slim.js')}
-        className="card gap-3 p-4"
-        titleClassName="text-sm font-semibold text-[var(--sb-text-soft)]"
-        actionClassName="touch-target rounded-xl border border-[var(--sb-border)] px-3 text-sm font-medium"
-      />
 
       <section className="card p-4" aria-label={t('settings.aboutAria')}>
         <FamilyApps

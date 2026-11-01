@@ -42,7 +42,7 @@ export const accountsFr = {
         'Ajout de PAT bloqué en mode démo — basculez en réel pour connecter votre flotte.',
       demoForced:
         'Ce build est en démo seule (pas de proxy). Impossible d’ajouter un vrai PAT ici.',
-      switchToReal: 'Basculer en mode réel',
+      switchToReal: 'Voir mes comptes',
       aliasLabel: 'Alias lisible',
       aliasPlaceholder: 'Ex. Lab POC interne',
       patLabel: 'Personal Access Token (sbp_…)',
@@ -59,6 +59,7 @@ export const accountsFr = {
         'Inventaire et quotas : organization_projects_read + projects_read. Pas de pause/restore.',
       scopeAdminHint:
         'Lecture + project_admin pour pause, restore et health. Moins privilégié que le PAT « full ».',
+      more: 'Scopes et expiration (optionnel)',
       patExpiresLabel: 'Expiration du PAT (rappel local, optionnel)',
       patExpiresHint:
         'Aide-mémoire uniquement — Supabase ne l’expose pas à l’API. Après plusieurs 401, régénérez le jeton.',
@@ -123,7 +124,7 @@ export const accountsEn = {
         'PAT add blocked in demo mode — switch to real to connect your fleet.',
       demoForced:
         'This build is demo-only (no proxy). Cannot add a real PAT here.',
-      switchToReal: 'Switch to real mode',
+      switchToReal: 'See my accounts',
       aliasLabel: 'Readable alias',
       aliasPlaceholder: 'e.g. Internal POC lab',
       patLabel: 'Personal Access Token (sbp_…)',
@@ -140,6 +141,7 @@ export const accountsEn = {
         'Inventory and quotas: organization_projects_read + projects_read. No pause/restore.',
       scopeAdminHint:
         'Read + project_admin for pause, restore and health. Less privileged than a full PAT.',
+      more: 'Scopes and expiry (optional)',
       patExpiresLabel: 'PAT expiry (local reminder, optional)',
       patExpiresHint:
         'Reminder only — Supabase does not expose this via API. After repeated 401s, regenerate the token.',

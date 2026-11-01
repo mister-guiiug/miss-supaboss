@@ -3,6 +3,9 @@ export const settingsFr = {
   settings: {
     historyTitle: 'Historique des opérations',
     historySubtitle: 'Journal des pauses, restaurations et tests',
+    groupDevice: 'Cet appareil',
+    groupFleet: 'Cette flotte',
+    groupServer: 'Ce serveur',
     appearance: 'Apparence',
     themeAria: 'Thème',
     demoTitle: 'Mode démo',
@@ -202,6 +205,9 @@ export const settingsEn = {
   settings: {
     historyTitle: 'Operations history',
     historySubtitle: 'Log of pauses, restores and tests',
+    groupDevice: 'This device',
+    groupFleet: 'This fleet',
+    groupServer: 'This server',
     appearance: 'Appearance',
     themeAria: 'Theme',
     demoTitle: 'Demo mode',

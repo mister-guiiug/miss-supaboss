@@ -43,6 +43,7 @@ import { DashboardScreen } from './features/dashboard/DashboardScreen.tsx';
 import { ProjectsScreen } from './features/projects/ProjectsScreen.tsx';
 import { getQueryClient } from './shared/queries/client.ts';
 import { useI18n } from './i18n/index.ts';
+import { SentryConsent } from './observability/SentryConsent.tsx';
 
 const ProjectDetailScreen = lazy(() =>
   import('./features/projects/ProjectDetailScreen.tsx').then(m => ({
@@ -364,6 +365,7 @@ export function App() {
           onReset={() => window.location.reload()}
         >
           <Inner />
+          <SentryConsent />
           <ToastViewport />
         </ObservabilityBoundary>
       </IconsProvider>
