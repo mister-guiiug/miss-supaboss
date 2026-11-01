@@ -68,18 +68,27 @@ describe('les lectures', () => {
     expect(appels[0]?.init.method).toBe('GET');
   });
 
-  it('listProjects appelle /v1/projects et se rejoue', async () => {
-    const { http, appels } = clientEspion(() => [
-      {
-        id: 'p1',
-        ref: 'abc',
-        name: 'Projet',
-        region: 'eu-west-3',
-        organization_slug: 'poc-lab',
-        status: 'ACTIVE_HEALTHY',
-        created_at: '2026-01-15T09:00:00.000Z',
-      },
-    ]);
+  it('listProjects inventorie via /v1/organizations/{slug}/projects et se rejoue', async () => {
+    const { http, appels } = clientEspion(url => {
+      if (url.endsWith('/v1/organizations')) {
+        return [{ id: 'o1', slug: 'poc-lab', name: 'POC Lab' }];
+      }
+      if (url.includes('/v1/organizations/poc-lab/projects')) {
+        return {
+          projects: [
+            {
+              ref: 'abcdefghijklmnopqrst',
+              name: 'Projet',
+              region: 'eu-west-3',
+              status: 'ACTIVE_HEALTHY',
+              inserted_at: '2026-01-15T09:00:00.000Z',
+            },
+          ],
+          pagination: { count: 1, limit: 100, offset: 0 },
+        };
+      }
+      return [];
+    });
 
     const projets = await new ManagementApiProvider(http).listProjects(
       CLE,
@@ -87,14 +96,25 @@ describe('les lectures', () => {
     );
 
     expect(projets).toHaveLength(1);
-    expect(appels[0]).toMatchObject({
-      url: 'https://api.supabase.com/v1/projects',
-      retryable: true,
-    });
+    expect(projets[0]?.organizationSlug).toBe('poc-lab');
+    expect(
+      appels.some(a => a.url.includes('/organizations/poc-lab/projects'))
+    ).toBe(true);
+    expect(
+      appels.find(a => a.url.includes('/organizations/poc-lab/projects'))
+        ?.retryable
+    ).toBe(true);
   });
 
   it('le PAT part en Bearer, et nulle part ailleurs', async () => {
-    const { http, appels } = clientEspion(() => []);
+    const { http, appels } = clientEspion(url =>
+      url.endsWith('/v1/organizations')
+        ? [{ id: 'o1', slug: 'poc-lab', name: 'POC Lab' }]
+        : {
+            projects: [],
+            pagination: { count: 0, limit: 100, offset: 0 },
+          }
+    );
 
     await new ManagementApiProvider(http).listProjects(CLE, PAT);
 

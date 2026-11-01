@@ -164,10 +164,18 @@ export class FleetService {
     }
     try {
       const pat = openSecret(account.patCipher, this.masterKey);
-      const [organizations, rawProjects] = await Promise.all([
-        this.provider.listOrganizations(account.id, pat),
-        this.provider.listProjects(account.id, pat),
-      ]);
+      // Orgs d'abord : listProjects les reparcours pour l'inventaire paginé
+      // par organisation (évite de perdre les projets d'une org absente du
+      // GET /v1/projects global, notamment avec un PAT fine-grained).
+      const organizations = await this.provider.listOrganizations(
+        account.id,
+        pat
+      );
+      const rawProjects = await this.provider.listProjects(
+        account.id,
+        pat,
+        organizations
+      );
       const orgNames = new Map(organizations.map(o => [o.slug, o.name]));
       const projects: ProjectDto[] = rawProjects.map(raw => {
         const meta = this.store.observeProject(account.id, raw.ref, raw.status);
@@ -353,10 +361,8 @@ export class FleetService {
     accountKey: string,
     pat: string
   ): Promise<{ organizations: string[]; projects: number }> {
-    const [orgs, projects] = await Promise.all([
-      this.provider.listOrganizations(accountKey, pat),
-      this.provider.listProjects(accountKey, pat),
-    ]);
+    const orgs = await this.provider.listOrganizations(accountKey, pat);
+    const projects = await this.provider.listProjects(accountKey, pat, orgs);
     return { organizations: orgs.map(o => o.name), projects: projects.length };
   }
 

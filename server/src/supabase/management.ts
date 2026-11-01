@@ -1,9 +1,10 @@
 /**
  * Provider réel — Supabase Management API v1 (https://api.supabase.com).
  *
- * ENDPOINTS DOCUMENTÉS UNIQUEMENT (spec OpenAPI vérifiée le 2026-06-10) :
+ * ENDPOINTS DOCUMENTÉS UNIQUEMENT (spec OpenAPI revérifiée le 2026-11-01) :
  *   GET  /v1/organizations
- *   GET  /v1/projects
+ *   GET  /v1/organizations/{slug}/projects   (paginé — inventaire par org)
+ *   GET  /v1/projects                        (repli inventaire global)
  *   POST /v1/projects/{ref}/pause
  *   POST /v1/projects/{ref}/restore
  *   POST /v1/projects/{ref}/database/query/read-only   [Beta]
@@ -19,6 +20,7 @@ import {
   SQL_MAU_ESTIMATE,
   SQL_STORAGE_SIZE,
   extractScalar,
+  parseOrganizationProjectsPage,
   parseOrganizations,
   parseProjects,
 } from '../../../shared/supabaseApi.ts';
@@ -31,6 +33,7 @@ import type {
 import type { ResilientClient } from './http.ts';
 
 const BASE_URL = 'https://api.supabase.com';
+const ORG_PROJECTS_PAGE_SIZE = 100;
 
 export class ManagementApiProvider implements SupabaseProvider {
   private readonly http: ResilientClient;
@@ -59,7 +62,25 @@ export class ManagementApiProvider implements SupabaseProvider {
     return parseOrganizations(data);
   }
 
-  async listProjects(accountKey: string, pat: string): Promise<RawProject[]> {
+  async listProjects(
+    accountKey: string,
+    pat: string,
+    organizations?: RawOrganization[]
+  ): Promise<RawProject[]> {
+    const orgs =
+      organizations ?? (await this.listOrganizations(accountKey, pat));
+    if (orgs.length > 0) {
+      const pages = await Promise.allSettled(
+        orgs.map(org =>
+          this.listAllProjectsForOrganization(accountKey, pat, org.slug)
+        )
+      );
+      const fulfilled = pages.filter(
+        (r): r is PromiseFulfilledResult<RawProject[]> =>
+          r.status === 'fulfilled'
+      );
+      if (fulfilled.length > 0) return fulfilled.flatMap(r => r.value);
+    }
     const data = await this.http.request<unknown>(
       accountKey,
       `${BASE_URL}/v1/projects`,
@@ -67,6 +88,35 @@ export class ManagementApiProvider implements SupabaseProvider {
       true
     );
     return parseProjects(data);
+  }
+
+  private async listAllProjectsForOrganization(
+    accountKey: string,
+    pat: string,
+    slug: string
+  ): Promise<RawProject[]> {
+    const out: RawProject[] = [];
+    let offset = 0;
+    for (;;) {
+      const data = await this.http.request<unknown>(
+        accountKey,
+        `${BASE_URL}/v1/organizations/${encodeURIComponent(slug)}/projects` +
+          `?limit=${ORG_PROJECTS_PAGE_SIZE}&offset=${offset}`,
+        { method: 'GET', headers: this.headers(pat) },
+        true
+      );
+      const page = parseOrganizationProjectsPage(data, slug);
+      out.push(...page.projects);
+      offset += page.projects.length;
+      if (
+        page.projects.length === 0 ||
+        (page.total !== null && offset >= page.total) ||
+        page.projects.length < ORG_PROJECTS_PAGE_SIZE
+      ) {
+        break;
+      }
+    }
+    return out;
   }
 
   async pauseProject(

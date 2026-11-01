@@ -19,7 +19,8 @@ local sur l'appareil de l'utilisateur (localStorage), jamais côté serveur.
 
 - **Cible verrouillée** sur `https://api.supabase.com` (aucun autre hôte).
 - **Liste blanche** de chemins + méthodes : `GET /v1/organizations`,
-  `GET /v1/projects`, `POST /v1/projects/{ref}/pause|restore|database/query/read-only`.
+  `GET /v1/organizations/{slug}/projects`, `GET /v1/projects`,
+  `POST /v1/projects/{ref}/pause|restore|database/query/read-only`.
 - **CORS restreint** aux origines de `ALLOWED_ORIGINS` (sinon `403`).
 - `Authorization` obligatoire (`401` sinon).
 

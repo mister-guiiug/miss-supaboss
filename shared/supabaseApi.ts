@@ -4,11 +4,16 @@
  * navigateur local-first (`src/api/management/browserClient.ts`), pour qu'une
  * seule définition de schéma/mapping fasse foi.
  *
- * Spec OpenAPI : https://api.supabase.com/api/v1-json (vérifiée le 2026-06-12).
+ * Spec OpenAPI : https://api.supabase.com/api/v1-json (revérifiée le 2026-11-01).
  *   - GET /v1/organizations → [{ id (déprécié), slug, name }]
  *   - GET /v1/projects      → [{ ref, organization_slug, status, … }]
+ *     (inventaire global ; insuffisant pour les PAT fine-grained scoped
+ *     à une org, et susceptible de renvoyer une vue incomplète)
+ *   - GET /v1/organizations/{slug}/projects → { projects, pagination }
+ *     (inventaire PAGINÉ par organisation — chemin que le Studio a adopté ;
+ *     c'est celui qui garantit que chaque org a bien ses projets)
  *   `id`/`organization_id` sont marqués DÉPRÉCIÉS au profit de `slug`/
- *   `organization_slug` : on ne lit donc que les `slug` (clés de jointure).
+ *   `organization_slug` : on joint sur les `slug`, avec repli sur `organization_id`.
  */
 import { z } from 'zod';
 import {
@@ -22,7 +27,7 @@ export interface RawOrganization {
   name: string;
 }
 
-/** Projet tel que consommé (GET /v1/projects). */
+/** Projet tel que consommé (GET /v1/projects ou /v1/organizations/{slug}/projects). */
 export interface RawProject {
   ref: string;
   name: string;
@@ -36,16 +41,43 @@ export const organizationsSchema = z.array(
   z.object({ slug: z.string(), name: z.string() })
 );
 
-export const projectsSchema = z.array(
-  z.object({
-    ref: z.string(),
-    name: z.string(),
-    region: z.string(),
-    organization_slug: z.string(),
-    status: z.string(),
-    created_at: z.string(),
-  })
-);
+/** Une ligne de GET /v1/projects — `organization_slug` préféré, `organization_id` en repli. */
+const globalProjectSchema = z.object({
+  ref: z.string(),
+  name: z.string(),
+  region: z.string().nullish(),
+  organization_slug: z.string().nullish(),
+  organization_id: z.string().nullish(),
+  status: z.string(),
+  created_at: z.string().nullish(),
+});
+
+export const projectsSchema = z.array(globalProjectSchema);
+
+/**
+ * Page de GET /v1/organizations/{slug}/projects. Pas d'`organization_slug` dans
+ * la réponse : le slug d'URL est la clé de rattachement. `inserted_at` tient
+ * lieu de `created_at`.
+ */
+const orgProjectRowSchema = z.object({
+  ref: z.string(),
+  name: z.string(),
+  region: z.string().nullish(),
+  status: z.string(),
+  inserted_at: z.string().nullish(),
+});
+
+export const organizationProjectsPageSchema = z.object({
+  projects: z.array(orgProjectRowSchema),
+  pagination: z
+    .object({
+      count: z.number(),
+      limit: z.number(),
+      offset: z.number(),
+    })
+    .partial()
+    .optional(),
+});
 
 /** Statut brut → statut typé (toute valeur hors enum spec → 'UNKNOWN'). */
 export function toStatus(raw: string): SupabaseProjectStatus {
@@ -61,14 +93,42 @@ export function parseOrganizations(data: unknown): RawOrganization[] {
 
 /** Parse + normalise la réponse de GET /v1/projects (snake_case → camelCase). */
 export function parseProjects(data: unknown): RawProject[] {
-  return projectsSchema.parse(data).map(p => ({
+  return projectsSchema.parse(data).flatMap(p => {
+    const organizationSlug = p.organization_slug ?? p.organization_id;
+    if (!organizationSlug) return [];
+    return [
+      {
+        ref: p.ref,
+        name: p.name,
+        region: p.region ?? '',
+        organizationSlug,
+        status: toStatus(p.status),
+        createdAt: p.created_at ?? '',
+      },
+    ];
+  });
+}
+
+/**
+ * Parse une page de GET /v1/organizations/{slug}/projects et rattache le slug
+ * d'organisation (absent du corps de réponse).
+ */
+export function parseOrganizationProjectsPage(
+  data: unknown,
+  organizationSlug: string
+): { projects: RawProject[]; total: number | null; pageSize: number } {
+  const page = organizationProjectsPageSchema.parse(data);
+  const projects = page.projects.map(p => ({
     ref: p.ref,
     name: p.name,
-    region: p.region,
-    organizationSlug: p.organization_slug,
+    region: p.region ?? '',
+    organizationSlug,
     status: toStatus(p.status),
-    createdAt: p.created_at,
+    createdAt: p.inserted_at ?? '',
   }));
+  const total = page.pagination?.count ?? null;
+  const pageSize = page.pagination?.limit ?? projects.length;
+  return { projects, total, pageSize };
 }
 
 /* ── Métriques de quota via SQL read-only (endpoint Beta documenté) ───────

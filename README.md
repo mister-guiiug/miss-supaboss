@@ -73,13 +73,13 @@ https://api.supabase.com (Management API v1)   services push │ URL https
 
 ### Endpoints Supabase utilisés (vérifiés dans l'OpenAPI officiel)
 
-| Usage                    | Endpoint                                                  |
-| ------------------------ | --------------------------------------------------------- |
-| Organisations            | `GET /v1/organizations`                                   |
-| Inventaire projets       | `GET /v1/projects` (statuts : 15 valeurs d'enum)          |
-| Pause                    | `POST /v1/projects/{ref}/pause`                           |
-| Restauration             | `POST /v1/projects/{ref}/restore`                         |
-| Métriques DB/Storage/MAU | `POST /v1/projects/{ref}/database/query/read-only` [Beta] |
+| Usage                    | Endpoint                                                                    |
+| ------------------------ | --------------------------------------------------------------------------- |
+| Organisations            | `GET /v1/organizations`                                                     |
+| Inventaire projets       | `GET /v1/organizations/{slug}/projects` (paginé ; repli `GET /v1/projects`) |
+| Pause                    | `POST /v1/projects/{ref}/pause`                                             |
+| Restauration             | `POST /v1/projects/{ref}/restore`                                           |
+| Métriques DB/Storage/MAU | `POST /v1/projects/{ref}/database/query/read-only` [Beta]                   |
 
 Métriques par requêtes SQL **read-only** (projet actif uniquement) :
 `pg_database_size(current_database())`, `sum(storage.objects.metadata->>'size')`,

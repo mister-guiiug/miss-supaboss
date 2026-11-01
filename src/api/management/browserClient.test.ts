@@ -37,24 +37,40 @@ describe('BrowserManagementClient — anti-cache HTTP (isolation par PAT)', () =
     vi.unstubAllGlobals();
   });
 
-  it('listProjects interroge le proxy avec cache:"no-store"', async () => {
-    const fetchImpl = stubFetch(
-      okJson([
-        {
-          ref: 'abcdefghijklmnopqrst',
-          name: 'P',
-          region: 'eu-west-3',
-          organization_slug: 'beta',
-          status: 'ACTIVE_HEALTHY',
-          created_at: '2026-01-01T00:00:00.000Z',
-        },
-      ])
+  it('listProjects interroge le proxy avec cache:"no-store" (inventaire par org)', async () => {
+    const fetchImpl = vi.fn(
+      async (input: string | URL | Request, _init?: RequestInit) => {
+        const raw = typeof input === 'string' ? input : input.toString();
+        const path = new URL(raw).searchParams.get('path') ?? '';
+        if (path === '/v1/organizations') {
+          return okJson([{ slug: 'beta', name: 'Beta' }]);
+        }
+        if (path.startsWith('/v1/organizations/beta/projects')) {
+          return okJson({
+            projects: [
+              {
+                ref: 'abcdefghijklmnopqrst',
+                name: 'P',
+                region: 'eu-west-3',
+                status: 'ACTIVE_HEALTHY',
+                inserted_at: '2026-01-01T00:00:00.000Z',
+              },
+            ],
+            pagination: { count: 1, limit: 100, offset: 0 },
+          });
+        }
+        return new Response('null', { status: 404 });
+      }
     );
-    await new BrowserManagementClient('https://proxy.test').listProjects(
-      'sbp_B'
-    );
-    const init = fetchImpl.mock.calls[0]?.[1];
-    expect(init?.cache).toBe('no-store');
+    vi.stubGlobal('fetch', fetchImpl);
+    const projects = await new BrowserManagementClient(
+      'https://proxy.test'
+    ).listProjects('sbp_B');
+    expect(projects).toHaveLength(1);
+    expect(projects[0]?.organizationSlug).toBe('beta');
+    for (const call of fetchImpl.mock.calls) {
+      expect(call[1]?.cache).toBe('no-store');
+    }
     vi.unstubAllGlobals();
   });
 });

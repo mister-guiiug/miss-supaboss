@@ -63,8 +63,8 @@ function stubManagementApi(): void {
 
       if (path === '/v1/organizations') return Promise.resolve(body(ORGS));
 
-      if (path === '/v1/projects') {
-        const projects = PROJECTS_BASE.map(p => {
+      const liveProjects = () =>
+        PROJECTS_BASE.map(p => {
           if (restoring.has(p.ref)) {
             return { ...p, status: 'RESTORING' };
           }
@@ -73,7 +73,29 @@ function stubManagementApi(): void {
           }
           return p;
         });
-        return Promise.resolve(body(projects));
+
+      if (path?.includes('/organizations/') && path.includes('/projects')) {
+        const projects = liveProjects();
+        return Promise.resolve(
+          body({
+            projects: projects.map(p => ({
+              ref: p.ref,
+              name: p.name,
+              region: p.region,
+              status: p.status,
+              inserted_at: p.created_at,
+            })),
+            pagination: {
+              count: projects.length,
+              limit: 100,
+              offset: 0,
+            },
+          })
+        );
+      }
+
+      if (path === '/v1/projects') {
+        return Promise.resolve(body(liveProjects()));
       }
 
       if (path?.endsWith('/pause')) {

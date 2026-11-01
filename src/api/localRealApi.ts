@@ -293,10 +293,10 @@ export function createLocalRealApi(proxyBase: string): Api {
       FLEET_TTL_MS
     );
     if (hit) return hit;
-    const [organizations, rawProjects] = await Promise.all([
-      client.listOrganizations(acc.pat),
-      client.listProjects(acc.pat),
-    ]);
+    // Orgs d'abord : listProjects s'appuie sur leur slug pour l'inventaire
+    // paginé /v1/organizations/{slug}/projects (et évite un second GET orgs).
+    const organizations = await client.listOrganizations(acc.pat);
+    const rawProjects = await client.listProjects(acc.pat, organizations);
     const orgNames = new Map(organizations.map(o => [o.slug, o.name]));
     const projects = rawProjects.map(raw =>
       toDto(

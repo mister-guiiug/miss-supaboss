@@ -10,12 +10,16 @@ import {
   SQL_MAU_ESTIMATE,
   SQL_STORAGE_SIZE,
   extractScalar,
+  parseOrganizationProjectsPage,
   parseOrganizations,
   parseProjects,
   type RawOrganization,
   type RawProject,
 } from '../../../shared/supabaseApi.ts';
 import { ApiError } from '../types.ts';
+
+/** Taille de page max documentée pour GET /v1/organizations/{slug}/projects. */
+const ORG_PROJECTS_PAGE_SIZE = 100;
 
 export class BrowserManagementClient {
   private readonly proxyBase: string;
@@ -91,8 +95,57 @@ export class BrowserManagementClient {
     return parseOrganizations(await this.call(pat, '/v1/organizations'));
   }
 
-  async listProjects(pat: string): Promise<RawProject[]> {
+  /**
+   * Inventaire des projets : d'abord par organisation (paginé — le chemin
+   * fiable pour les PAT fine-grained et pour ne pas « perdre » une org),
+   * avec repli sur GET /v1/projects si l'endpoint org est indisponible.
+   *
+   * `organizations` déjà chargées évite un second GET /v1/organizations.
+   */
+  async listProjects(
+    pat: string,
+    organizations?: RawOrganization[]
+  ): Promise<RawProject[]> {
+    const orgs = organizations ?? (await this.listOrganizations(pat));
+    if (orgs.length > 0) {
+      const pages = await Promise.allSettled(
+        orgs.map(org => this.listAllProjectsForOrganization(pat, org.slug))
+      );
+      const fulfilled = pages.filter(
+        (r): r is PromiseFulfilledResult<RawProject[]> =>
+          r.status === 'fulfilled'
+      );
+      if (fulfilled.length > 0) return fulfilled.flatMap(r => r.value);
+    }
     return parseProjects(await this.call(pat, '/v1/projects'));
+  }
+
+  /** Toutes les pages de GET /v1/organizations/{slug}/projects. */
+  private async listAllProjectsForOrganization(
+    pat: string,
+    slug: string
+  ): Promise<RawProject[]> {
+    const out: RawProject[] = [];
+    let offset = 0;
+    for (;;) {
+      const path =
+        `/v1/organizations/${encodeURIComponent(slug)}/projects` +
+        `?limit=${ORG_PROJECTS_PAGE_SIZE}&offset=${offset}`;
+      const page = parseOrganizationProjectsPage(
+        await this.call(pat, path),
+        slug
+      );
+      out.push(...page.projects);
+      offset += page.projects.length;
+      if (
+        page.projects.length === 0 ||
+        (page.total !== null && offset >= page.total) ||
+        page.projects.length < ORG_PROJECTS_PAGE_SIZE
+      ) {
+        break;
+      }
+    }
+    return out;
   }
 
   async pause(pat: string, ref: string): Promise<void> {
