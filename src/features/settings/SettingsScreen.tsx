@@ -40,6 +40,7 @@ import { ConfirmDialog } from '@mister-guiiug/dev-pwa-config/react/confirm-dialo
 import { repoUrl } from '@mister-guiiug/dev-pwa-config/apps-catalog';
 import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
 import { ConsentSection } from '@mister-guiiug/dev-pwa-config/react/consent-section';
+import { PrivacyNotice } from '@mister-guiiug/dev-pwa-config/react/privacy-notice';
 import { clearSnapshot } from '../../offline/lastKnown.ts';
 import { APP_ID } from '../../appId.ts';
 import { useI18n } from '../../i18n/index.ts';
@@ -457,6 +458,11 @@ export function SettingsScreen() {
         </button>
       </section>
 
+      <PrivacyNotice
+        env={import.meta.env}
+        className="card gap-3 p-4"
+        titleClassName="text-sm font-semibold text-[var(--sb-text-soft)]"
+      />
       {/* Revenir sur son choix de mesure d’audience : le retrait se fait ici, en
           un clic (RGPD, art. 7.3). Mêmes clé et chargeur que le bandeau. */}
       <ConsentSection
