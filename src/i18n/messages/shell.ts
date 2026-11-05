@@ -37,6 +37,8 @@ export const shellFr = {
   header: {
     offlineState: 'hors ligne — état {rel}',
     synced: 'synchro {rel}',
+    syncPartial: 'synchro {rel} · {count} compte(s) en échec',
+    syncFailed: 'synchro impossible — état {rel}',
     demoBadge: 'démo',
     seeAccounts: 'Voir mes comptes',
     disableDemo: 'Désactiver les données de démo',
@@ -60,6 +62,8 @@ export const shellFr = {
   },
   fleet: {
     syncFail: 'Synchronisation impossible',
+    stateUnreadable:
+      'Données locales illisibles : elles ont été mises de côté sous « {key} », rien n’est effacé. Les comptes sont à rajouter.',
     metricsPartial:
       'Métriques indisponibles pour {count} projet(s) — proxy ou PAT à vérifier.',
     metricsFail: 'Collecte des métriques impossible.',
@@ -107,6 +111,8 @@ export const shellEn = {
   header: {
     offlineState: 'offline — state {rel}',
     synced: 'synced {rel}',
+    syncPartial: 'synced {rel} · {count} account(s) failed',
+    syncFailed: 'sync failed — state {rel}',
     demoBadge: 'demo',
     seeAccounts: 'See my accounts',
     disableDemo: 'Disable demo data',
@@ -130,6 +136,8 @@ export const shellEn = {
   },
   fleet: {
     syncFail: 'Synchronization failed',
+    stateUnreadable:
+      'Unreadable local data: it was set aside under “{key}”, nothing was erased. Accounts must be added again.',
     metricsPartial:
       'Metrics unavailable for {count} project(s) — check proxy or PAT.',
     metricsFail: 'Metrics collection failed.',

@@ -1,15 +1,43 @@
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../api/index.ts';
-import { saveSnapshot } from '../../offline/lastKnown.ts';
+import {
+  loadSnapshot,
+  mergeSnapshot,
+  saveSnapshot,
+} from '../../offline/lastKnown.ts';
 import { useFleetStore } from '../../store/useFleetStore.ts';
 import { FLEET_TTL_MS, METRICS_TTL_MS } from '../../../shared/fleet/index.ts';
 import { getQueryClient } from './client.ts';
 import { queryKeys } from './keys.ts';
 
-function syncFleetToStore(
-  fleet: Awaited<ReturnType<typeof api.getFleet>>
-): void {
+type Fleet = Awaited<ReturnType<typeof api.getFleet>>;
+type FleetMetrics = Awaited<ReturnType<typeof api.getFleetMetrics>>;
+
+/** La dernière écriture de l'instantané : les suivantes l'attendent. */
+let lastKnownWrite: Promise<void> = Promise.resolve();
+
+/**
+ * Le DERNIER ÉTAT CONNU, fusionné avec le précédent (`mergeSnapshot`) : un
+ * compte que la synchro n'a pas lu garde ses projets au lieu de passer à zéro.
+ *
+ * EN FILE, ET NON EN PARALLÈLE. Flotte et métriques arrivent presque ensemble ;
+ * deux « lire, fusionner, écrire » entrelacés liraient le même précédent, et
+ * le plus lent écraserait l'autre.
+ */
+function persistLastKnown(fleet: Fleet, metrics: FleetMetrics | null): void {
+  const savedAt = new Date().toISOString();
+  lastKnownWrite = lastKnownWrite
+    .then(async () => {
+      const previous = await loadSnapshot();
+      await saveSnapshot(mergeSnapshot(previous, { fleet, metrics, savedAt }));
+    })
+    .catch(() => {
+      // l'instantané est un bonus hors ligne : il ne bloque jamais la file
+    });
+}
+
+function syncFleetToStore(fleet: Fleet): void {
   const metrics = useFleetStore.getState().metrics;
   useFleetStore.setState({
     fleet,
@@ -17,25 +45,13 @@ function syncFleetToStore(
     loading: false,
     error: null,
   });
-  void saveSnapshot({
-    fleet,
-    metrics,
-    savedAt: new Date().toISOString(),
-  });
+  persistLastKnown(fleet, metrics);
 }
 
-function syncMetricsToStore(
-  metrics: Awaited<ReturnType<typeof api.getFleetMetrics>>
-): void {
+function syncMetricsToStore(metrics: FleetMetrics): void {
   useFleetStore.setState({ metrics, metricsLoading: false });
   const fleet = useFleetStore.getState().fleet;
-  if (fleet) {
-    void saveSnapshot({
-      fleet,
-      metrics,
-      savedAt: new Date().toISOString(),
-    });
-  }
+  if (fleet) persistLastKnown(fleet, metrics);
 }
 
 /** Réglages — synchronisés vers le store Zustand. */

@@ -80,11 +80,58 @@ export function emptyRealState(): RealState {
   };
 }
 
-export function loadRealState(): RealState {
+/** Où l'on met de côté un état illisible avant de repartir vide. */
+const UNREADABLE_PREFIX = `${REAL_STORAGE_KEY}.illisible.`;
+
+/** La clé de la dernière mise de côté, pas encore signalée à l'écran. */
+let unreadableNotice: string | null = null;
+
+/** La mise de côté a échoué : l'illisible reste sous sa clé, intouché. */
+let keepUnreadable = false;
+
+/**
+ * La clé où un état illisible vient d'être mis de côté, UNE fois : l'écran
+ * le dit au démarrage, puis la note est consommée.
+ */
+export function takeUnreadableStateNotice(): string | null {
+  const key = unreadableNotice;
+  unreadableNotice = null;
+  return key;
+}
+
+/**
+ * UN ÉTAT ILLISIBLE N'EST PAS UN ÉTAT VIDE. Repartir de zéro est la seule
+ * suite possible — mais la sauvegarde suivante réécrivait la clé, et les
+ * comptes (PAT compris) disparaissaient sans un mot, alors qu'une accolade
+ * manquante se répare à la main. Le texte est donc copié tel quel sous une
+ * clé datée, jamais réécrite, et l'écran le signale.
+ */
+function setAside(raw: string): void {
+  const key = `${UNREADABLE_PREFIX}${new Date().toISOString()}`;
   try {
-    const raw = localStorage.getItem(REAL_STORAGE_KEY);
+    localStorage.setItem(key, raw);
+    unreadableNotice = key;
+  } catch {
+    // Stockage plein ou refusé : la copie n'existe pas, donc l'original ne
+    // doit pas être réécrit — l'app tourne en mémoire jusqu'au rechargement.
+    keepUnreadable = true;
+  }
+}
+
+function isStoredState(value: unknown): value is Partial<RealState> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    return false;
+  const { accounts } = value as { accounts?: unknown };
+  return accounts === undefined || Array.isArray(accounts);
+}
+
+export function loadRealState(): RealState {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(REAL_STORAGE_KEY);
     if (raw) {
-      const stored = JSON.parse(raw) as Partial<RealState>;
+      const stored: unknown = JSON.parse(raw);
+      if (!isStoredState(stored)) throw new Error('état local illisible');
       const parsed = { ...emptyRealState(), ...stored };
       // Coffre activé : le PAT en clair n'est pas persisté → `pat` absent
       // jusqu'au déverrouillage. On garantit une chaîne (jamais undefined).
@@ -105,7 +152,8 @@ export function loadRealState(): RealState {
       return parsed;
     }
   } catch {
-    // état corrompu → repart vide
+    // État corrompu → repart vide, mais le texte est gardé de côté.
+    if (raw) setAside(raw);
   }
   return emptyRealState();
 }
@@ -115,6 +163,7 @@ export const metaKey = (accountId: string, ref: string): string =>
 
 /** Écrit l'état. Le PAT clair ne part au disque que si le coffre est éteint. */
 export function saveRealState(state: RealState): void {
+  if (keepUnreadable) return;
   try {
     const encrypted = patVault.isEnabled();
     const accounts = state.accounts.map(({ pat, patEnc, ...rest }) =>

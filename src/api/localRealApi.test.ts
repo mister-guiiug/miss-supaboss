@@ -390,6 +390,127 @@ describe('localRealApi — Supabase réel via proxy', () => {
   });
 });
 
+/**
+ * HORS LIGNE, « RIEN LU » N'EST PAS « RIEN À LIRE ». Le cache de flotte vit en
+ * mémoire : après un redémarrage, il est vide. Rendre alors une flotte à zéro
+ * projet faisait passer la panne pour une réponse — l'en-tête disait
+ * « synchro », et l'instantané hors ligne était écrasé par du vide.
+ */
+describe('localRealApi — flotte sans réseau', () => {
+  /** Le proxy injoignable : `fetch` lève, comme hors ligne ou CSP refusée. */
+  const coupure = () =>
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(new TypeError('Failed to fetch')))
+    );
+
+  /** Un compte enregistré lors d'une visite précédente, en ligne. */
+  async function compteEnregistre(alias = 'Khelypso'): Promise<string> {
+    stubFetch(managementOk());
+    const api = createLocalRealApi(PROXY);
+    const acc = await api.createAccount({
+      alias,
+      color: '#3ecf8e',
+      pat: 'sbp_DEMOFAKEtoken',
+    });
+    vi.unstubAllGlobals();
+    return acc.id;
+  }
+
+  it('redémarrée hors ligne, sans rien de périmé : la lecture ÉCHOUE au lieu de rendre 0 projet', async () => {
+    await compteEnregistre();
+    coupure();
+    // Une instance neuve : le cache mémoire de la visite précédente n'existe plus.
+    const api = createLocalRealApi(PROXY);
+    await expect(api.getFleet(false)).rejects.toMatchObject({
+      status: 0,
+      code: 'network',
+    });
+    vi.unstubAllGlobals();
+  });
+
+  it('la coupure en cours de visite rend le périmé, compte marqué en échec', async () => {
+    await compteEnregistre();
+    stubFetch(managementOk());
+    const api = createLocalRealApi(PROXY);
+    await api.getFleet(true);
+    vi.unstubAllGlobals();
+
+    coupure();
+    const fleet = await api.getFleet(true);
+    const entry = fleet.accounts[0];
+    expect(entry?.projects).toHaveLength(2);
+    expect(entry?.account.lastError).toMatch(/injoignable/);
+    vi.unstubAllGlobals();
+  });
+
+  it('un refus du serveur (PAT expiré) reste affiché compte par compte', async () => {
+    // Pas une panne de réseau : l'écran hors ligne prendrait la place de
+    // « Comptes », là où l'on corrige le PAT.
+    await compteEnregistre();
+    stubFetch(() => json({ message: 'Unauthorized' }, 401));
+    const api = createLocalRealApi(PROXY);
+    const fleet = await api.getFleet(false);
+    expect(fleet.accounts[0]?.syncedAt).toBeNull();
+    expect(fleet.accounts[0]?.account.lastError).toBeTruthy();
+    vi.unstubAllGlobals();
+  });
+
+  it('un compte désactivé ne compte pas : seul l’activé décide', async () => {
+    await compteEnregistre('Actif');
+    const etat = JSON.parse(localStorage.getItem(REAL_STORAGE_KEY) ?? '{}');
+    etat.accounts.push({ ...etat.accounts[0], id: 'acc-off', enabled: false });
+    localStorage.setItem(REAL_STORAGE_KEY, JSON.stringify(etat));
+    coupure();
+    const api = createLocalRealApi(PROXY);
+    await expect(api.getFleet(false)).rejects.toMatchObject({ status: 0 });
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('localRealApi — état local illisible', () => {
+  it('l’état corrompu est mis de côté, pas écrasé par la sauvegarde suivante', async () => {
+    localStorage.setItem(REAL_STORAGE_KEY, '{"accounts": [ tronqué');
+    stubFetch(managementOk());
+    const api = createLocalRealApi(PROXY);
+    expect(await api.listAccounts()).toHaveLength(0);
+
+    // La sauvegarde suivante écrit l'état neuf…
+    await api.putSettings({ ...(await api.getSettings()), pollingSeconds: 90 });
+    // … mais l'illisible a été gardé sous une autre clé, intact.
+    const cotes = Object.keys(localStorage).filter(k =>
+      k.startsWith(`${REAL_STORAGE_KEY}.illisible.`)
+    );
+    expect(cotes).toHaveLength(1);
+    expect(localStorage.getItem(cotes[0]!)).toBe('{"accounts": [ tronqué');
+    vi.unstubAllGlobals();
+  });
+
+  it('le signale une fois, avec la clé où le retrouver', async () => {
+    const { takeUnreadableStateNotice } = await import('./localRealStore.ts');
+    takeUnreadableStateNotice();
+    localStorage.setItem(REAL_STORAGE_KEY, '{"accounts": null}');
+    createLocalRealApi(PROXY);
+    const cle = takeUnreadableStateNotice();
+    expect(cle).toMatch(/^miss-supaboss-real-v1\.illisible\./);
+    expect(takeUnreadableStateNotice()).toBeNull();
+  });
+
+  it('un état lisible ne déclenche rien', async () => {
+    const { takeUnreadableStateNotice } = await import('./localRealStore.ts');
+    takeUnreadableStateNotice();
+    localStorage.setItem(
+      REAL_STORAGE_KEY,
+      JSON.stringify({ accounts: [], meta: {}, operations: [], opSeq: 0 })
+    );
+    createLocalRealApi(PROXY);
+    expect(takeUnreadableStateNotice()).toBeNull();
+    expect(Object.keys(localStorage).some(k => k.includes('.illisible.'))).toBe(
+      false
+    );
+  });
+});
+
 describe('localRealApi — fenêtre de restauration d’un an', () => {
   /** Un état local tel qu'enregistré, avec une fenêtre donnée. */
   const etat = (jours: number, revision?: number) =>
