@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { RefreshCw, WifiOff, X } from 'lucide-react';
+import type { FleetDto } from '../../../shared/contracts.ts';
 import { formatRelative } from '../../../shared/format.ts';
 import {
   IS_MOCK,
@@ -12,6 +13,23 @@ import { useFleetStore } from '../../store/useFleetStore.ts';
 import { useI18n } from '../../i18n/index.ts';
 import { useOnline } from '@mister-guiiug/dev-pwa-config/react/use-online';
 import { ConfirmDialog } from '@mister-guiiug/dev-pwa-config/react/confirm-dialog';
+
+/**
+ * « SYNCHRO » NE SE DIT QUE DE CE QUI L'A ÉTÉ. `generatedAt` date la réponse,
+ * pas les données : un compte que la dernière lecture n'a pas atteint porte
+ * `lastError`, et ce qu'il montre est périmé. Tous en échec, l'en-tête date
+ * le plus ancien des états montrés ; une partie, il compte les manquants.
+ */
+function syncSummary(fleet: FleetDto) {
+  const enabled = fleet.accounts.filter(a => a.account.enabled);
+  const failed = enabled.filter(a => a.account.lastError);
+  const oldestSyncedAt =
+    failed
+      .map(a => a.syncedAt)
+      .filter((at): at is string => at !== null)
+      .sort()[0] ?? null;
+  return { enabled: enabled.length, failed: failed.length, oldestSyncedAt };
+}
 
 export function AppHeader({ title }: { title: string }) {
   const { t } = useI18n();
@@ -28,13 +46,25 @@ export function AppHeader({ title }: { title: string }) {
   const demoOn = REAL_AVAILABLE ? IS_MOCK : isDemoSeed();
 
   const never = t('common.never');
-  const syncLabel = fromCache
-    ? t('header.offlineState', { rel: formatRelative(cacheSavedAt, { never }) })
-    : fleet
-      ? t('header.synced', {
-          rel: formatRelative(fleet.generatedAt, { never }),
+  const syncLabel = (() => {
+    if (fromCache) {
+      return t('header.offlineState', {
+        rel: formatRelative(cacheSavedAt, { never }),
+      });
+    }
+    if (!fleet) return '';
+    const rel = formatRelative(fleet.generatedAt, { never });
+    const sync = syncSummary(fleet);
+    if (sync.failed === 0) return t('header.synced', { rel });
+    if (sync.failed < sync.enabled) {
+      return t('header.syncPartial', { rel, count: sync.failed });
+    }
+    return sync.oldestSyncedAt
+      ? t('header.syncFailed', {
+          rel: formatRelative(sync.oldestSyncedAt, { never }),
         })
-      : '';
+      : t('fleet.syncFail');
+  })();
 
   return (
     <header className="card sticky top-0 z-30 flex items-center gap-3 rounded-none border-x-0 border-t-0 px-4 pt-safe pb-2">

@@ -30,6 +30,8 @@ import { useSessionStore } from './store/useSessionStore.ts';
 import { useFleetStore } from './store/useFleetStore.ts';
 import { api, IS_MOCK } from './api/index.ts';
 import { disarmAutoLock, patVault } from './api/crypto/patVault.ts';
+import { takeUnreadableStateNotice } from './api/localRealStore.ts';
+import { toast } from './store/useUiStore.ts';
 import { useFleetBootstrap } from './shared/queries/fleet.ts';
 import { AppHeader } from './shared/components/AppHeader.tsx';
 import { ToastViewport } from './shared/components/ToastViewport.tsx';
@@ -42,7 +44,7 @@ import { OnboardingScreen } from './features/onboarding/OnboardingScreen.tsx';
 import { DashboardScreen } from './features/dashboard/DashboardScreen.tsx';
 import { ProjectsScreen } from './features/projects/ProjectsScreen.tsx';
 import { getQueryClient } from './shared/queries/client.ts';
-import { useI18n } from './i18n/index.ts';
+import { translate, useI18n } from './i18n/index.ts';
 import { SentryConsent } from './observability/SentryConsent.tsx';
 
 const ProjectDetailScreen = lazy(() =>
@@ -300,6 +302,12 @@ function Inner() {
   const [vaultUnlocked, setVaultUnlocked] = useState(false);
 
   useEffect(() => {
+    // L'état local illisible a été mis de côté au chargement de l'API : le
+    // dire, sans quoi des comptes disparus n'auraient aucune explication.
+    const setAside = takeUnreadableStateNotice();
+    if (setAside) {
+      toast.error(translate('fleet.stateUnreadable', { key: setAside }));
+    }
     void (async () => {
       await bootstrap();
       // Session indéterminée (serveur injoignable) : tente le cache local.

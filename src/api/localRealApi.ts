@@ -66,6 +66,11 @@ const LOCAL_USER: UserDto = {
   role: 'admin',
 };
 
+/** Le proxy n'a pas répondu — hors ligne, CSP, DNS — par opposition à un refus. */
+function isNetworkFailure(e: unknown): boolean {
+  return e instanceof ApiError && (e.status === 0 || e.code === 'network');
+}
+
 function toAccountDto(a: RealAccount): AccountDto {
   return {
     id: a.id,
@@ -592,14 +597,17 @@ export function createLocalRealApi(proxyBase: string): Api {
     },
 
     async getFleet(refresh) {
-      const accounts = await Promise.all(
+      const reads = await Promise.all(
         state.accounts.map(async acc => {
           if (!acc.enabled) {
             return {
-              account: toAccountDto(acc),
-              organizations: [],
-              projects: [],
-              syncedAt: null,
+              entry: {
+                account: toAccountDto(acc),
+                organizations: [],
+                projects: [],
+                syncedAt: null,
+              },
+              unread: null,
             };
           }
           try {
@@ -608,26 +616,52 @@ export function createLocalRealApi(proxyBase: string): Api {
               refresh
             );
             return {
-              account: toAccountDto(acc),
-              organizations,
-              projects,
-              syncedAt: acc.lastSyncAt,
+              entry: {
+                account: toAccountDto(acc),
+                organizations,
+                projects,
+                syncedAt: acc.lastSyncAt,
+              },
+              unread: null,
             };
           } catch (e) {
             acc.lastError =
               e instanceof ApiError ? e.message : 'Synchro échouée';
             const stale = cache.get(acc.id);
             return {
-              account: toAccountDto(acc),
-              organizations: [],
-              projects: stale?.fleet ?? [],
-              syncedAt: stale ? new Date(stale.at).toISOString() : null,
+              entry: {
+                account: toAccountDto(acc),
+                organizations: [],
+                projects: stale?.fleet ?? [],
+                syncedAt: stale ? new Date(stale.at).toISOString() : null,
+              },
+              // Rien de périmé à rendre : ce compte n'a AUCUN état à montrer.
+              unread: stale ? null : e,
             };
           }
         })
       );
       save();
-      return { accounts, generatedAt: new Date().toISOString() };
+      // RIEN LU, RIEN DE PÉRIMÉ, FAUTE DE RÉSEAU : C'EST UNE PANNE, PAS UNE
+      // FLOTTE VIDE. Le cache ci-dessus vit en mémoire, il est vide après un
+      // redémarrage ; rendre zéro projet faisait « réussir » la requête — en-
+      // tête « synchro », instantané hors ligne écrasé, et le repli sur cet
+      // instantané, branché sur l'échec, ne partait jamais. L'erreur remonte.
+      //
+      // UN REFUS, LUI, SE MONTRE. Un PAT expiré n'est pas une coupure : la
+      // flotte rend le compte avec son erreur, et l'écran « hors ligne » ne
+      // vient pas cacher l'écran Comptes, où l'on corrige le PAT.
+      const failures = reads
+        .filter(r => r.entry.account.enabled)
+        .map(r => r.unread);
+      const [first] = failures;
+      if (first instanceof ApiError && failures.every(isNetworkFailure)) {
+        throw first;
+      }
+      return {
+        accounts: reads.map(r => r.entry),
+        generatedAt: new Date().toISOString(),
+      };
     },
     async getFleetMetrics(refresh) {
       // Collecte parallèle : tous les comptes activés de front, et tous les
