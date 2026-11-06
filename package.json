@@ -86,6 +86,8 @@
     },
     "@rolldown/plugin-babel": {
       "@babel/plugin-transform-runtime": "^7.29.0"
-    }
+    },
+    "minimatch@>=7.0.0 <11.0.1": "^11.0.4",
+    "glob@>=11.0.0 <14.0.0": "^14.0.3"
   }
 }
