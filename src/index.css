@@ -128,6 +128,17 @@ body {
   border-radius: 0.5rem;
 }
 
+/* LE TEXTE VERT DE L'APP ÉCRIT AVEC `--sb-ring`, pas avec le vert de marque.
+   `text-primary` (39 emplois : filtres actifs, « Pause », bouton « démo »)
+   peignait #3ecf8e, soit 1,6 à 2:1 sur les fonds clairs et les pastilles
+   `bg-primary/15`. L'audit axe des écrans Projets, Quotas et Démo l'a relevé
+   le 07/11/2026. `--sb-ring` vaut #066a44 en clair (4,6:1 au pire) et reste
+   #3ecf8e en sombre : rien ne change dans le thème sombre. Règle hors couche,
+   donc elle l'emporte sur l'utilitaire de Tailwind. */
+.text-primary {
+  color: var(--sb-ring);
+}
+
 /* Chiffres tabulaires pour les quotas. */
 .tnum {
   font-variant-numeric: tabular-nums;
