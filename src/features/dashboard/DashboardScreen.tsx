@@ -4,33 +4,22 @@ import { PwaInstallPrompt } from '@mister-guiiug/dev-pwa-config/react/pwa-instal
 import { AppFooter } from '@mister-guiiug/dev-pwa-config/react/app-footer';
 import { repoUrl } from '@mister-guiiug/dev-pwa-config/apps-catalog';
 import { APP_ID } from '../../appId.ts';
-import {
-  ChevronRight,
-  Clapperboard,
-  PlayCircle,
-  SatelliteDish,
-  Siren,
-  TriangleAlert,
-  UsersRound,
-} from 'lucide-react';
+import { SatelliteDish, TriangleAlert } from 'lucide-react';
 import {
   allProjects,
   metricsOf,
   useFleetStore,
 } from '../../store/useFleetStore.ts';
+import { isTransient, statusGroup } from '../../../shared/status.ts';
 import {
-  ACTIVE_PROJECT_LIMIT,
-  activeProjects,
-} from '../../../shared/guards.ts';
-import { isRestorable, isTransient } from '../../../shared/status.ts';
-import {
+  isByteMetric,
+  METRIC_LABELS,
   quotaLevel,
   type MetricValue,
   type QuotaLevel,
 } from '../../../shared/quotas.ts';
 import { formatUsage } from '@mister-guiiug/dev-pwa-config/format';
 import { formatRelative } from '../../../shared/format.ts';
-import { isByteMetric, METRIC_LABELS } from '../../../shared/quotas.ts';
 import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { ListSkeleton } from '../../shared/components/Skeleton.tsx';
 import { StatusBadge } from '../../shared/components/StatusBadge.tsx';
@@ -84,18 +73,32 @@ export function DashboardScreen() {
       ? 'dashboard.modeServer'
       : 'dashboard.modeLocal';
 
-  const readyToStart = useMemo(
+  const running = useMemo(
     () =>
-      projects.filter(
-        p => isRestorable(p.status) && (p.meta.favorite || p.meta.demoFrequent)
-      ),
+      projects
+        .filter(p => statusGroup(p.status) === 'active')
+        .sort((a, b) =>
+          (b.meta.lastSeenActiveAt ?? '').localeCompare(
+            a.meta.lastSeenActiveAt ?? ''
+          )
+        ),
+    [projects]
+  );
+  const attention = useMemo(
+    () =>
+      projects.filter(p => {
+        const group = statusGroup(p.status);
+        return group === 'transition' || group === 'error';
+      }),
     [projects]
   );
 
   const alerts = useMemo(() => {
     const out: {
       key: string;
-      label: string;
+      accountId: string;
+      ref: string;
+      name: string;
       metric: MetricValue;
       level: QuotaLevel;
     }[] = [];
@@ -105,7 +108,9 @@ export function DashboardScreen() {
         if (level && level !== 'ok') {
           out.push({
             key: `${p.accountId}/${p.ref}/${m.kind}`,
-            label: `${p.name} — ${METRIC_LABELS[m.kind]}`,
+            accountId: p.accountId,
+            ref: p.ref,
+            name: p.name,
             metric: m,
             level,
           });
@@ -158,141 +163,90 @@ export function DashboardScreen() {
           </ul>
         </section>
       )}
-      {/* Comptes : slots actifs / limite Free + état de synchro. En-tête
-          explicite (+ « Gérer ») pour que la section ne soit plus prise pour des
-          projets et que l'accès à la gestion des comptes soit nommé. */}
-      <section aria-label={t('dashboard.accounts')} className="space-y-2">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
-            <UsersRound size={15} aria-hidden="true" />{' '}
-            {t('dashboard.accounts')}
+      {attention.length > 0 && (
+        <section
+          aria-label={t('dashboard.attentionTitle')}
+          className="space-y-2"
+        >
+          <h2 className="px-1 text-sm font-semibold text-[var(--sb-text-soft)]">
+            {t('dashboard.attentionTitle')}
           </h2>
-          <Link to="/accounts" className="text-sm font-medium text-primary">
-            {t('common.manage')} →
-          </Link>
-        </div>
-        {fleet.accounts.map(
-          ({ account, projects: accountProjects, syncedAt }) => {
-            const actives = activeProjects(accountProjects);
-            const full = actives.length >= ACTIVE_PROJECT_LIMIT;
+          {attention.map(p => (
+            <Link
+              key={`state-${p.accountId}/${p.ref}`}
+              to={`/projects/${p.accountId}/${p.ref}`}
+              className="card flex items-center justify-between gap-3 px-3 py-2.5"
+            >
+              <span className="min-w-0 truncate font-semibold">{p.name}</span>
+              <StatusBadge status={p.status} />
+            </Link>
+          ))}
+        </section>
+      )}
+      {alerts.length > 0 && (
+        <section aria-label={t('dashboard.alertsAria')} className="space-y-2">
+          <h2 className="px-1 text-sm font-semibold text-[var(--sb-text-soft)]">
+            {t('dashboard.alertsTitle')}
+          </h2>
+          {alerts.map(a => (
+            <Link
+              key={a.key}
+              to={`/projects/${a.accountId}/${a.ref}`}
+              className="card block px-3 py-2.5"
+            >
+              <span className="block truncate font-semibold">{a.name}</span>
+              <span
+                className={`block truncate text-xs ${LEVEL_BADGE[a.level]}`}
+              >
+                {METRIC_LABELS[a.metric.kind]}{' '}
+                {formatUsage(a.metric.value, a.metric.quota, {
+                  bytes: isByteMetric(a.metric.kind),
+                })}
+              </span>
+            </Link>
+          ))}
+        </section>
+      )}
+      <section aria-label={t('dashboard.activesAria')} className="space-y-2">
+        {running.length === 0 ? (
+          <p className="px-1 text-sm text-[var(--sb-text-soft)]">
+            {t('dashboard.noActive')}
+          </p>
+        ) : (
+          running.map(p => {
+            const alias =
+              fleet.accounts.find(a => a.account.id === p.accountId)?.account
+                .alias ?? '';
             return (
               <Link
-                key={account.id}
-                to="/accounts"
-                className="card flex items-center gap-3 p-4"
+                key={`${p.accountId}/${p.ref}`}
+                to={`/projects/${p.accountId}/${p.ref}`}
+                className="card flex items-center justify-between gap-3 px-3 py-2.5"
               >
-                <span
-                  aria-hidden="true"
-                  className="size-3 shrink-0 rounded-full"
-                  style={{ background: account.color }}
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{account.alias}</p>
-                  {!account.enabled ? (
-                    <p className="truncate text-xs text-[var(--sb-text-soft)]">
-                      {t('dashboard.accountDisabled')}
-                    </p>
-                  ) : account.lastError ? (
-                    <p className="flex items-center gap-1 text-xs text-[var(--sb-critical)]">
-                      <TriangleAlert
-                        size={12}
-                        aria-hidden="true"
-                        className="shrink-0"
-                      />
-                      <span className="truncate">{account.lastError}</span>
-                    </p>
-                  ) : (
-                    <p className="truncate text-xs text-[var(--sb-text-soft)]">
-                      {t('dashboard.accountSynced', {
-                        rel: formatRelative(syncedAt, {
-                          never: t('common.never'),
-                        }),
-                      })}
-                    </p>
+                <span className="min-w-0">
+                  <span className="block truncate font-semibold">{p.name}</span>
+                  {fleet.accounts.length > 1 && (
+                    <span className="block truncate text-xs text-[var(--sb-text-soft)]">
+                      {alias}
+                    </span>
                   )}
-                </div>
-                <span
-                  className={`tnum rounded-full px-2.5 py-1 text-sm font-bold ${
-                    full
-                      ? 'bg-[var(--sb-warn)]/15 text-[var(--sb-warn)]'
-                      : 'bg-[var(--sb-ok)]/15 text-[var(--sb-ok)]'
-                  }`}
-                >
-                  {t('dashboard.activeSlots', {
-                    active: actives.length,
-                    limit: ACTIVE_PROJECT_LIMIT,
+                </span>
+                <span className="shrink-0 text-xs text-[var(--sb-text-soft)]">
+                  {formatRelative(p.meta.lastSeenActiveAt, {
+                    never: t('common.never'),
                   })}
                 </span>
-                <ChevronRight
-                  size={16}
-                  aria-hidden="true"
-                  className="text-[var(--sb-text-soft)]"
-                />
               </Link>
             );
-          }
+          })
         )}
       </section>
-
-      {/* Ce que je peux démarrer maintenant. */}
-      {readyToStart.length > 0 && (
-        <section aria-label={t('dashboard.readyAria')} className="card p-4">
-          <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
-            <Clapperboard size={15} aria-hidden="true" />{' '}
-            {t('dashboard.readyTitle')}
-          </h2>
-          <ul className="mt-2 space-y-2">
-            {readyToStart.map(p => (
-              <li key={`${p.accountId}/${p.ref}`}>
-                <Link
-                  to={`/projects/${p.accountId}/${p.ref}/demo`}
-                  className="flex items-center gap-2 rounded-xl border border-[var(--sb-border)] p-3"
-                >
-                  <PlayCircle
-                    size={20}
-                    aria-hidden="true"
-                    className="text-primary"
-                  />
-                  <span className="min-w-0 flex-1 truncate font-medium">
-                    {p.name}
-                  </span>
-                  <StatusBadge status={p.status} />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {/* Quotas proches du seuil. */}
-      {alerts.length > 0 && (
-        <section aria-label={t('dashboard.alertsAria')} className="card p-4">
-          <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
-            <Siren size={15} aria-hidden="true" /> {t('dashboard.alertsTitle')}
-          </h2>
-          <ul className="mt-2 space-y-1.5 text-sm">
-            {alerts.map(a => (
-              <li
-                key={a.key}
-                className="flex items-center justify-between gap-2"
-              >
-                <span className="min-w-0 truncate">{a.label}</span>
-                <span className={`tnum font-semibold ${LEVEL_BADGE[a.level]}`}>
-                  {formatUsage(a.metric.value, a.metric.quota, {
-                    bytes: isByteMetric(a.metric.kind),
-                  })}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <Link
-            to="/quotas"
-            className="mt-2 inline-block text-sm font-medium text-primary"
-          >
-            {t('dashboard.seeAllQuotas')} →
-          </Link>
-        </section>
-      )}
+      <Link
+        to="/quotas"
+        className="inline-block text-sm font-semibold text-primary"
+      >
+        {t('dashboard.seeAllQuotas')}
+      </Link>
 
       {/* SUR LE TABLEAU DE BORD, ET PAS DANS LA COQUILLE : un bandeau global
           paraîtrait par-dessus une pause ou une restauration de projet en

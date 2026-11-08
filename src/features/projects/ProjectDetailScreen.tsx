@@ -231,70 +231,14 @@ export function ProjectDetailScreen() {
         <ArrowLeft size={16} aria-hidden="true" /> {t('common.back')}
       </button>
 
-      <section className="card space-y-3 p-4">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h1 className="truncate text-xl font-bold">{project.name}</h1>
-            <p className="truncate text-xs text-[var(--sb-text-soft)]">
-              {project.ref} · {project.organizationName} · {project.region}
-            </p>
-          </div>
-          <StatusBadge status={project.status} />
+      <section className="space-y-3">
+        <div className="min-w-0">
+          <h1 className="truncate text-xl font-bold">{project.name}</h1>
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[var(--sb-text-soft)]">
+            <StatusBadge status={project.status} />
+            <span className="truncate">{account.alias}</span>
+          </p>
         </div>
-
-        <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-          <div>
-            <dt className="text-xs text-[var(--sb-text-soft)]">
-              {t('projectDetail.account')}
-            </dt>
-            <dd className="font-medium">{account.alias}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-[var(--sb-text-soft)]">
-              {t('projectDetail.createdAt')}
-            </dt>
-            <dd className="font-medium">{formatDateTime(project.createdAt)}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-[var(--sb-text-soft)]">
-              {t('projectDetail.lastActivity')}
-            </dt>
-            <dd className="font-medium">
-              {formatRelative(project.meta.lastSeenActiveAt, {
-                never: t('common.never'),
-              })}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs text-[var(--sb-text-soft)]">
-              {t('projectDetail.pausedAt')}
-            </dt>
-            <dd className="font-medium">
-              {project.meta.pausedAt
-                ? formatDateTime(project.meta.pausedAt)
-                : statusGroup(project.status) === 'paused'
-                  ? t('projectDetail.unknownDate')
-                  : '—'}
-            </dd>
-          </div>
-          {project.meta.restoreDeadline && (
-            <div className="col-span-2">
-              <dt className="text-xs text-[var(--sb-text-soft)]">
-                {deadlineSource === 'api-ok'
-                  ? t('projectDetail.restorableUntilApiOk')
-                  : deadlineSource === 'api-blocked'
-                    ? t('projectDetail.restorableUntilApiBlocked')
-                    : t('projectDetail.restorableUntil')}
-              </dt>
-              <dd
-                className={`font-medium ${windowExpired ? 'text-[var(--sb-critical)]' : ''}`}
-              >
-                {formatDateTime(project.meta.restoreDeadline)}
-                {windowExpired && t('projectDetail.windowLikelyExpired')}
-              </dd>
-            </div>
-          )}
-        </dl>
 
         <div className="flex gap-2">
           {isPausable(project.status) && (
@@ -302,7 +246,7 @@ export function ProjectDetailScreen() {
               type="button"
               disabled={!actionGuard.allowed || busy}
               onClick={() => setConfirmPause(true)}
-              className="touch-target flex flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--sb-border)] px-4 font-semibold disabled:opacity-50"
+              className="touch-target flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 font-semibold text-[#06281a] disabled:opacity-50"
             >
               <PauseCircle size={18} aria-hidden="true" />{' '}
               {t('projectDetail.pause')}
@@ -330,155 +274,6 @@ export function ProjectDetailScreen() {
         )}
       </section>
 
-      <section
-        className="card space-y-3 p-4"
-        aria-label={t('projectDetail.markersAria')}
-      >
-        <div className="flex gap-2">
-          <button
-            type="button"
-            aria-pressed={project.meta.favorite}
-            disabled={!metaGuard.allowed}
-            onClick={() =>
-              void toggleMeta({ favorite: !project.meta.favorite })
-            }
-            className={`touch-target flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 text-sm font-medium disabled:opacity-50 ${
-              project.meta.favorite
-                ? 'border-[var(--sb-warn)] text-[var(--sb-warn)]'
-                : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
-            }`}
-          >
-            <Star size={16} aria-hidden="true" /> {t('common.favorite')}
-          </button>
-          <button
-            type="button"
-            aria-pressed={project.meta.demoFrequent}
-            disabled={!metaGuard.allowed}
-            onClick={() =>
-              void toggleMeta({ demoFrequent: !project.meta.demoFrequent })
-            }
-            className={`touch-target flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 text-sm font-medium disabled:opacity-50 ${
-              project.meta.demoFrequent
-                ? 'border-primary text-primary'
-                : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
-            }`}
-          >
-            <Zap size={16} aria-hidden="true" /> {t('common.demoFrequent')}
-          </button>
-        </div>
-        <div
-          className="flex flex-wrap gap-1.5"
-          role="group"
-          aria-label={t('projectDetail.tagsAria')}
-        >
-          {SUGGESTED_TAGS.map(tag => {
-            const active = project.meta.tags.includes(tag);
-            return (
-              <button
-                key={tag}
-                type="button"
-                aria-pressed={active}
-                disabled={!metaGuard.allowed}
-                onClick={() =>
-                  void toggleMeta({
-                    tags: active
-                      ? project.meta.tags.filter(t => t !== tag)
-                      : [...project.meta.tags, tag],
-                  })
-                }
-                className={`rounded-full border px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
-                  active
-                    ? 'border-primary bg-primary/15 text-primary'
-                    : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
-                }`}
-              >
-                {tag}
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* « Mettre en pause vendredi soir » : une pause, différée. */}
-      <SchedulesSection accountId={accountId} projectRef={ref} />
-
-      <section
-        className="card space-y-3 p-4"
-        aria-label={t('projectDetail.keepAliveAria')}
-      >
-        <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
-          {t('projectDetail.keepAliveTitle')}
-        </h2>
-        <p className="text-xs text-[var(--sb-text-soft)]">
-          {t('projectDetail.keepAliveBody')}
-        </p>
-        <div className="flex items-center justify-between gap-3 text-sm">
-          <span id="keepalive-label">{t('projectDetail.keepAliveToggle')}</span>
-          <button
-            type="button"
-            role="switch"
-            aria-labelledby="keepalive-label"
-            aria-checked={Boolean(project.meta.keepAliveOptIn)}
-            disabled={!metaGuard.allowed}
-            onClick={() =>
-              void toggleMeta({
-                keepAliveOptIn: !project.meta.keepAliveOptIn,
-              })
-            }
-            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
-              project.meta.keepAliveOptIn
-                ? 'bg-primary'
-                : 'bg-[var(--sb-surface-2)]'
-            }`}
-          >
-            <span
-              aria-hidden="true"
-              className={`inline-block size-5 rounded-full bg-white shadow transition-transform ${
-                project.meta.keepAliveOptIn ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
-        </div>
-        {api.pingKeepAlive && (
-          <button
-            type="button"
-            disabled={busy || !metaGuard.allowed || !online}
-            onClick={() => {
-              void (async () => {
-                setBusy(true);
-                try {
-                  await api.pingKeepAlive?.(accountId, ref);
-                  toast.success(t('projectDetail.keepAlivePingOk'));
-                } catch (e) {
-                  toast.error(
-                    e instanceof ApiError
-                      ? e.message
-                      : t('projectDetail.keepAlivePingFail')
-                  );
-                } finally {
-                  setBusy(false);
-                }
-              })();
-            }}
-            className="touch-target w-full rounded-xl border border-primary px-3 text-sm font-medium text-primary disabled:opacity-50"
-          >
-            {t('projectDetail.keepAlivePing')}
-          </button>
-        )}
-        <a
-          href={KEEPALIVE_DOC}
-          target="_blank"
-          rel="noreferrer"
-          className="text-xs font-medium text-primary underline underline-offset-2"
-        >
-          {t('projectDetail.keepAliveLink')}
-        </a>
-      </section>
-
-      {showHealth && (
-        <ProjectHealthCard accountId={accountId} projectRef={ref} />
-      )}
-
       <section className="card space-y-3 p-4" aria-label={t('titles.quotas')}>
         <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
           {t('titles.quotas')}
@@ -499,6 +294,226 @@ export function ProjectDetailScreen() {
           ))
         )}
       </section>
+
+      <details>
+        <summary className="cursor-pointer text-sm font-semibold text-primary">
+          {t('projectDetail.details')}
+        </summary>
+        <div className="mt-3 space-y-4">
+          <section className="card p-4">
+            <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+              <div className="col-span-2">
+                <dt className="text-xs text-[var(--sb-text-soft)]">
+                  {project.ref}
+                </dt>
+                <dd className="font-medium">
+                  {project.organizationName} · {project.region}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-[var(--sb-text-soft)]">
+                  {t('projectDetail.createdAt')}
+                </dt>
+                <dd className="font-medium">
+                  {formatDateTime(project.createdAt)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-[var(--sb-text-soft)]">
+                  {t('projectDetail.lastActivity')}
+                </dt>
+                <dd className="font-medium">
+                  {formatRelative(project.meta.lastSeenActiveAt, {
+                    never: t('common.never'),
+                  })}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs text-[var(--sb-text-soft)]">
+                  {t('projectDetail.pausedAt')}
+                </dt>
+                <dd className="font-medium">
+                  {project.meta.pausedAt
+                    ? formatDateTime(project.meta.pausedAt)
+                    : statusGroup(project.status) === 'paused'
+                      ? t('projectDetail.unknownDate')
+                      : '—'}
+                </dd>
+              </div>
+              {project.meta.restoreDeadline && (
+                <div className="col-span-2">
+                  <dt className="text-xs text-[var(--sb-text-soft)]">
+                    {deadlineSource === 'api-ok'
+                      ? t('projectDetail.restorableUntilApiOk')
+                      : deadlineSource === 'api-blocked'
+                        ? t('projectDetail.restorableUntilApiBlocked')
+                        : t('projectDetail.restorableUntil')}
+                  </dt>
+                  <dd
+                    className={`font-medium ${windowExpired ? 'text-[var(--sb-critical)]' : ''}`}
+                  >
+                    {formatDateTime(project.meta.restoreDeadline)}
+                    {windowExpired && t('projectDetail.windowLikelyExpired')}
+                  </dd>
+                </div>
+              )}
+            </dl>
+          </section>
+
+          <section
+            className="card space-y-3 p-4"
+            aria-label={t('projectDetail.markersAria')}
+          >
+            <div className="flex gap-2">
+              <button
+                type="button"
+                aria-pressed={project.meta.favorite}
+                disabled={!metaGuard.allowed}
+                onClick={() =>
+                  void toggleMeta({ favorite: !project.meta.favorite })
+                }
+                className={`touch-target flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 text-sm font-medium disabled:opacity-50 ${
+                  project.meta.favorite
+                    ? 'border-[var(--sb-warn)] text-[var(--sb-warn)]'
+                    : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
+                }`}
+              >
+                <Star size={16} aria-hidden="true" /> {t('common.favorite')}
+              </button>
+              <button
+                type="button"
+                aria-pressed={project.meta.demoFrequent}
+                disabled={!metaGuard.allowed}
+                onClick={() =>
+                  void toggleMeta({ demoFrequent: !project.meta.demoFrequent })
+                }
+                className={`touch-target flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 text-sm font-medium disabled:opacity-50 ${
+                  project.meta.demoFrequent
+                    ? 'border-primary text-primary'
+                    : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
+                }`}
+              >
+                <Zap size={16} aria-hidden="true" /> {t('common.demoFrequent')}
+              </button>
+            </div>
+            <div
+              className="flex flex-wrap gap-1.5"
+              role="group"
+              aria-label={t('projectDetail.tagsAria')}
+            >
+              {SUGGESTED_TAGS.map(tag => {
+                const active = project.meta.tags.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    aria-pressed={active}
+                    disabled={!metaGuard.allowed}
+                    onClick={() =>
+                      void toggleMeta({
+                        tags: active
+                          ? project.meta.tags.filter(t => t !== tag)
+                          : [...project.meta.tags, tag],
+                      })
+                    }
+                    className={`rounded-full border px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
+                      active
+                        ? 'border-primary bg-primary/15 text-primary'
+                        : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* « Mettre en pause vendredi soir » : une pause, différée. */}
+          <SchedulesSection accountId={accountId} projectRef={ref} />
+
+          <section
+            className="card space-y-3 p-4"
+            aria-label={t('projectDetail.keepAliveAria')}
+          >
+            <h2 className="text-sm font-semibold text-[var(--sb-text-soft)]">
+              {t('projectDetail.keepAliveTitle')}
+            </h2>
+            <p className="text-xs text-[var(--sb-text-soft)]">
+              {t('projectDetail.keepAliveBody')}
+            </p>
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span id="keepalive-label">
+                {t('projectDetail.keepAliveToggle')}
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-labelledby="keepalive-label"
+                aria-checked={Boolean(project.meta.keepAliveOptIn)}
+                disabled={!metaGuard.allowed}
+                onClick={() =>
+                  void toggleMeta({
+                    keepAliveOptIn: !project.meta.keepAliveOptIn,
+                  })
+                }
+                className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
+                  project.meta.keepAliveOptIn
+                    ? 'bg-primary'
+                    : 'bg-[var(--sb-surface-2)]'
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`inline-block size-5 rounded-full bg-white shadow transition-transform ${
+                    project.meta.keepAliveOptIn
+                      ? 'translate-x-6'
+                      : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+            {api.pingKeepAlive && (
+              <button
+                type="button"
+                disabled={busy || !metaGuard.allowed || !online}
+                onClick={() => {
+                  void (async () => {
+                    setBusy(true);
+                    try {
+                      await api.pingKeepAlive?.(accountId, ref);
+                      toast.success(t('projectDetail.keepAlivePingOk'));
+                    } catch (e) {
+                      toast.error(
+                        e instanceof ApiError
+                          ? e.message
+                          : t('projectDetail.keepAlivePingFail')
+                      );
+                    } finally {
+                      setBusy(false);
+                    }
+                  })();
+                }}
+                className="touch-target w-full rounded-xl border border-primary px-3 text-sm font-medium text-primary disabled:opacity-50"
+              >
+                {t('projectDetail.keepAlivePing')}
+              </button>
+            )}
+            <a
+              href={KEEPALIVE_DOC}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs font-medium text-primary underline underline-offset-2"
+            >
+              {t('projectDetail.keepAliveLink')}
+            </a>
+          </section>
+
+          {showHealth && (
+            <ProjectHealthCard accountId={accountId} projectRef={ref} />
+          )}
+        </div>
+      </details>
 
       <ConfirmDialog
         open={confirmPause}
