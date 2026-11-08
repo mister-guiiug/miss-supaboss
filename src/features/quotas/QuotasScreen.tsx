@@ -1,19 +1,23 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Gauge, Globe } from 'lucide-react';
+import { Gauge } from 'lucide-react';
 import { useFleetStore } from '../../store/useFleetStore.ts';
 import {
+  isByteMetric,
   METRIC_KINDS,
+  METRIC_LABELS,
+  quotaLevel,
   sumMetrics,
-  type MetricValue,
+  type QuotaLevel,
 } from '../../../shared/quotas.ts';
+import { formatUsage } from '@mister-guiiug/dev-pwa-config/format';
 import { formatRelative } from '../../../shared/format.ts';
 import { QuotaBar } from '../../shared/components/QuotaBar.tsx';
 import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { ListSkeleton } from '../../shared/components/Skeleton.tsx';
 import { useI18n } from '../../i18n/index.ts';
 
-/** Synthèse globale → détail par compte → détail par projet. */
+/** Mesures au-dessus du seuil, puis les barres de chaque compte. */
 export function QuotasScreen() {
   const { t } = useI18n();
   const fleet = useFleetStore(s => s.fleet);
@@ -37,17 +41,6 @@ export function QuotasScreen() {
     );
   }, [fleet, metrics]);
 
-  const globalSummary: MetricValue[] = useMemo(
-    () =>
-      METRIC_KINDS.map(kind =>
-        sumMetrics(
-          kind,
-          byProject.flatMap(p => p.metrics)
-        )
-      ),
-    [byProject]
-  );
-
   const byAccount = useMemo(() => {
     if (!fleet) return [];
     return fleet.accounts.map(af => ({
@@ -62,6 +55,24 @@ export function QuotasScreen() {
       ),
     }));
   }, [fleet, byProject]);
+
+  const hot = useMemo(() => {
+    const order: Record<QuotaLevel, number> = {
+      critical: 0,
+      high: 1,
+      warn: 2,
+      ok: 3,
+    };
+    return byProject
+      .flatMap(({ project, metrics: pm }) =>
+        pm.flatMap(metric => {
+          const level = quotaLevel(metric, settings.thresholds);
+          if (!level || level === 'ok') return [];
+          return [{ project, metric, level }];
+        })
+      )
+      .sort((a, b) => order[a.level] - order[b.level]);
+  }, [byProject, settings.thresholds]);
 
   if (!fleet) return <ListSkeleton count={3} />;
   if (!metrics && metricsLoading) return <ListSkeleton count={3} />;
@@ -103,20 +114,30 @@ export function QuotasScreen() {
         </button>
       </div>
 
-      <section
-        className="card space-y-3 p-4"
-        aria-label={t('quotas.globalAria')}
-      >
-        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-text-soft)]">
-          <Globe size={15} aria-hidden="true" /> {t('quotas.globalTitle')}
-        </h2>
-        {globalSummary.map(m => (
-          <QuotaBar key={m.kind} metric={m} thresholds={settings.thresholds} />
-        ))}
-        <p className="text-xs text-[var(--sb-text-soft)]">
-          {t('quotas.globalNote')}
-        </p>
-      </section>
+      {hot.length > 0 && (
+        <section className="space-y-2" aria-label={t('quotas.watchAria')}>
+          <h2 className="px-1 text-sm font-semibold text-[var(--sb-text-soft)]">
+            {t('quotas.watchTitle')}
+          </h2>
+          {hot.map(row => (
+            <Link
+              key={`${row.project.accountId}/${row.project.ref}/${row.metric.kind}`}
+              to={`/projects/${row.project.accountId}/${row.project.ref}`}
+              className="card block px-3 py-2.5"
+            >
+              <span className="block truncate text-sm font-semibold">
+                {row.project.name}
+              </span>
+              <span className="block truncate text-xs text-[var(--sb-text-soft)]">
+                {METRIC_LABELS[row.metric.kind]}{' '}
+                {formatUsage(row.metric.value, row.metric.quota, {
+                  bytes: isByteMetric(row.metric.kind),
+                })}
+              </span>
+            </Link>
+          ))}
+        </section>
+      )}
 
       {byAccount.map(({ account, summary }) => (
         <section
@@ -141,39 +162,6 @@ export function QuotasScreen() {
           ))}
         </section>
       ))}
-
-      <section className="space-y-2" aria-label={t('quotas.byProjectAria')}>
-        <h2 className="px-1 text-sm font-semibold text-[var(--sb-text-soft)]">
-          {t('quotas.byProjectTitle')}
-        </h2>
-        {byProject.map(({ account, project, metrics: pm }) => (
-          <Link
-            key={`${project.accountId}/${project.ref}`}
-            to={`/projects/${project.accountId}/${project.ref}`}
-            className="card block space-y-2.5 p-4"
-          >
-            <p className="flex items-center justify-between gap-2 text-sm font-semibold">
-              <span className="truncate">{project.name}</span>
-              <span className="shrink-0 text-xs font-normal text-[var(--sb-text-soft)]">
-                {account.alias}
-              </span>
-            </p>
-            {pm.length === 0 ? (
-              <p className="text-xs text-[var(--sb-text-soft)]">
-                {t('quotas.noMeasure')}
-              </p>
-            ) : (
-              pm.map(m => (
-                <QuotaBar
-                  key={m.kind}
-                  metric={m}
-                  thresholds={settings.thresholds}
-                />
-              ))
-            )}
-          </Link>
-        ))}
-      </section>
     </div>
   );
 }
