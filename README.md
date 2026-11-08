@@ -25,18 +25,18 @@ environnements critiques.
 
 ## 1. Cadrage fonctionnel
 
-| Besoin                              | Réponse                                                                                                                                                                                |
-| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Plusieurs comptes Supabase gratuits | Comptes ajoutés avec un alias + PAT (chiffré sur le serveur ; en local-first, gardé sur l'appareil, chiffrement optionnel), activables/désactivables, testables, import/export chiffré |
-| Voir actifs / en pause              | Vue consolidée multi-comptes, statuts temps réel (15 statuts Management API regroupés en 5 familles UI), recherche / tri / filtres / groupes                                           |
-| Pause / restore à la demande        | Actions confirmées, états transitoires suivis (polling resserré à 5 s), erreurs exploitables, historique d'audit                                                                       |
-| Limite « 2 projets actifs »         | Garde-fou : compteur x/2 par compte, restauration bloquée à la limite (409 + suggestions), proposition automatique des projets à suspendre                                             |
-| Quotas Free Plan                    | Egress · Database size · MAU · File storage en « consommé / quota » (`31 MB / 5 GB`), jauges + seuils configurables (70/85/95 %), synthèse → détail                                    |
-| Démos                               | « Préparer la démo » : workflow guidé en 5 étapes, favoris, « démo fréquente », « ce que je peux démarrer maintenant »                                                                 |
-| « Pause vendredi soir »             | Plannings par projet (ponctuel ou hebdomadaire, fuseau Europe/Paris par défaut), exécutés par le serveur à travers les MÊMES garde-fous qu'un clic                                     |
-| Être prévenu                        | Alertes au franchissement d'un seuil (une par niveau et par mois) et à J-7 / J-1 de la fin de fenêtre de restauration — Web Push et/ou webhook                                         |
-| Connexion                           | Double authentification TOTP (RFC 6238) optionnelle par utilisateur, codes de secours à usage unique                                                                                   |
-| Mobile + offline                    | PWA installable, standalone, dernier état connu consultable hors ligne (IndexedDB), **aucune action destructive hors ligne**                                                           |
+| Besoin                              | Réponse                                                                                                                                                                                     |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plusieurs comptes Supabase gratuits | Comptes ajoutés avec un alias + PAT (chiffré sur le serveur ; en local-first, gardé sur l'appareil, chiffrement optionnel), activables/désactivables, testables, import/export chiffré      |
+| Voir actifs / en pause              | Vue consolidée multi-comptes, statuts temps réel (15 statuts Management API regroupés en 5 familles UI), recherche / tri / filtres / groupes                                                |
+| Pause / restore à la demande        | Actions confirmées, états transitoires suivis (polling resserré à 5 s), erreurs exploitables, historique d'audit                                                                            |
+| Limite « 2 projets actifs »         | Garde-fou : compteur x/2 par compte, restauration bloquée à la limite (409 + suggestions), proposition automatique des projets à suspendre                                                  |
+| Quotas Free Plan                    | Egress · Database size · MAU · File storage en « consommé / quota » (`31 MB / 5 GB`), jauges par compte, seuils configurables (70/85/95 %) et accès direct aux projets au-dessus d'un seuil |
+| Démos                               | « Préparer la démo » : workflow guidé en 5 étapes, favoris et « démo fréquente »                                                                                                            |
+| « Pause vendredi soir »             | Plannings par projet (ponctuel ou hebdomadaire, fuseau Europe/Paris par défaut), exécutés par le serveur à travers les MÊMES garde-fous qu'un clic                                          |
+| Être prévenu                        | Alertes au franchissement d'un seuil (une par niveau et par mois) et à J-7 / J-1 de la fin de fenêtre de restauration — Web Push et/ou webhook                                              |
+| Connexion                           | Double authentification TOTP (RFC 6238) optionnelle par utilisateur, codes de secours à usage unique                                                                                        |
+| Mobile + offline                    | PWA installable, standalone, dernier état connu consultable hors ligne (IndexedDB), **aucune action destructive hors ligne**                                                                |
 
 ## 2. Architecture
 
@@ -107,7 +107,7 @@ Métriques par requêtes SQL **read-only** (projet actif uniquement) :
    J-7 / J-1 utilisent ce réglage (défaut 365 j). L'ancien défaut de 90 j, figé dans les réglages
    enregistrés, est porté à un an une fois (migration v3 du serveur, révision 2
    de l'état local).
-5. **Quotas Free** (5 GB / 500 MB / 50k / 1 GB) : constantes produit (juin 2026) ; la synthèse multi-comptes est une somme indicative (les quotas
+5. **Quotas Free** (5 GB / 500 MB / 50k / 1 GB) : constantes produit (juin 2026) ; les totaux par compte sont indicatifs (les quotas
    réels s'appliquent par organisation).
 6. **Rate limit Management API** : budget local de 50 req/min/compte (limite
    documentée : 60), réglable via `SUPABOSS_API_BUDGET_PER_MIN`.
@@ -352,18 +352,19 @@ ou abonnement push visant le réseau interne du serveur).
 
 ## 8. Écrans
 
-1. **Dashboard** — slots actifs x/2 par compte, prêts à démarrer, alertes
-   quotas, dernière synchro.
+1. **Dashboard** — projets actifs, projets en transition ou en erreur, alertes
+   quotas avec accès aux projets concernés.
 2. **Comptes** — ajout (test avant enregistrement), test, activer/désactiver,
    suppression confirmée.
 3. **Projets** — consolidé, recherche, filtres par statut/favoris, tri,
    regroupé par compte.
 4. **Détail projet** — statut, dates observées, fenêtre de restauration,
-   pause/démo, tags/favori/démo fréquente, **plannings** (liste, prochaine
-   exécution, dernière issue, ajout/suppression), jauges quotas.
+   pause et jauges quotas ; dates, tags, favoris, keep-alive et **plannings**
+   (liste, prochaine exécution, dernière issue, ajout/suppression) dans les
+   détails repliables.
 5. **Préparer la démo** — 5 étapes guidées avec suggestions de pause.
-6. **Quotas** — synthèse globale → par compte → par projet, rafraîchissement
-   manuel, date de synchro.
+6. **Quotas** — mesures au-dessus des seuils avec accès aux projets concernés,
+   totaux indicatifs par compte, rafraîchissement manuel et date de synchro.
 7. **Historique** — journal d'audit complet.
 8. **Réglages** — thème, seuils, **notifications** (Web Push de l'appareil,
    webhook, test, dernière remise), polling, **double authentification**
