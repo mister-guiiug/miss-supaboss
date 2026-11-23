@@ -23,6 +23,11 @@ environnements critiques.
 
 ---
 
+## Guides
+
+- [Limites du plan gratuit Supabase](https://mister-guiiug.github.io/miss-supaboss/limites-plan-gratuit-supabase.html)
+- [Projet Supabase en pause](https://mister-guiiug.github.io/miss-supaboss/projet-supabase-en-pause.html)
+
 ## 1. Cadrage fonctionnel
 
 | Besoin                              | Réponse                                                                                                                                                                                     |
