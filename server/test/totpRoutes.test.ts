@@ -34,10 +34,18 @@ afterEach(async () => {
 const codeFor = (secret: string, steps = 0): string =>
   totpCode(secret, Date.now() + steps * 30_000);
 
-/** Enrôle et active la 2FA ; rend le secret et les codes de secours. */
-async function enableTotp(
-  cookie: string
-): Promise<{ secret: string; recoveryCodes: string[] }> {
+/**
+ * Enrôle et active la 2FA ; rend le secret, les codes de secours et le code
+ * qui a servi à l'activation. Un test de rejeu doit reprendre CE code, pas en
+ * recalculer un : si le pas de 30 s change entre les deux appels, le code
+ * recalculé est celui du pas suivant, que le serveur accepte à raison (rouge
+ * sur main le 24/11/2026, 200 au lieu de 401).
+ */
+async function enableTotp(cookie: string): Promise<{
+  secret: string;
+  recoveryCodes: string[];
+  activationCode: string;
+}> {
   const enroll = await t.app.inject({
     method: 'POST',
     url: '/api/auth/totp/enroll',
@@ -46,15 +54,16 @@ async function enableTotp(
   });
   expect(enroll.statusCode).toBe(201);
   const { secret } = enroll.json() as { secret: string };
+  const activationCode = codeFor(secret);
   const activate = await t.app.inject({
     method: 'POST',
     url: '/api/auth/totp/activate',
     headers: { cookie, ...CSRF },
-    payload: { code: codeFor(secret) },
+    payload: { code: activationCode },
   });
   expect(activate.statusCode).toBe(200);
   const { recoveryCodes } = activate.json() as { recoveryCodes: string[] };
-  return { secret, recoveryCodes };
+  return { secret, recoveryCodes, activationCode };
 }
 
 /** Première étape du login : rend l'en-tête `cookie` du jeton d'étape. */
@@ -250,9 +259,9 @@ describe('connexion en deux temps', () => {
   });
 
   it('REJEU : le code qui a servi à l’activation est refusé au login', async () => {
-    const { secret } = await enableTotp(await t.login());
+    const { activationCode } = await enableTotp(await t.login());
     const replay = await secondStep(await passwordStep(), {
-      code: codeFor(secret),
+      code: activationCode,
     });
     expect(replay.statusCode).toBe(401);
     expect(replay.json()).toMatchObject({ error: 'bad-totp' });
