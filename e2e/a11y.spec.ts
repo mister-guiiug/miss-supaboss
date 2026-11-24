@@ -34,6 +34,15 @@ test.describe('@a11y accessibilité', () => {
         },
       },
       {
+        name: 'vue d’ensemble « Tous »',
+        setup: async p => {
+          await p.getByRole('button', { name: 'Tous', exact: true }).click();
+          await expect(
+            p.getByRole('region', { name: "Vue d'ensemble de la flotte" })
+          ).toBeVisible();
+        },
+      },
+      {
         name: 'quotas',
         path: '/#/quotas',
         setup: voir(/non disponible via l'API/i),

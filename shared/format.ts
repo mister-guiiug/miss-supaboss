@@ -7,7 +7,7 @@
  * leurs chaînes à la main avec une virgule décimale française FIGÉE : l'app se
  * traduit pourtant en anglais, où « 1,5 kB » et « 1,2k » sont faux.
  *
- * CE QUI RESTE ICI, ET POURQUOI. Trois adaptateurs minces. Chacun garde une
+ * CE QUI RESTE ICI, ET POURQUOI. Quatre adaptateurs minces. Chacun garde une
  * règle que le socle n'a pas, et délègue le rendu du nombre ou de la date :
  *
  * - `formatPercent` : décimales VARIABLES (une sous 10 %, aucune au-dessus) —
@@ -15,12 +15,15 @@
  * - `formatRelative` : un libellé pour « jamais mesuré », qui n'est pas
  *   « il y a 0 seconde » ;
  * - `formatDateTime` : un tiret pour l'absence de date, et le format court
- *   NUMÉRIQUE (`30/08/2026 16:05`) d'un tableau dense.
+ *   NUMÉRIQUE (`30/08/2026 16:05`) d'un tableau dense ;
+ * - `formatDay` : le même tiret, et le jour seul (`29 nov. 2026`) d'une ligne
+ *   de carte, où l'heure d'une échéance estimée n'apporte rien.
  *
  * Aucun ne code plus de locale : le socle suit celle que `createI18n` pose via
  * `setDefaultLocale` à chaque changement de langue.
  */
 import {
+  formatDate,
   formatDateTime as formatDateTimeIntl,
   formatPercentage,
   formatRelativeTime,
@@ -73,4 +76,12 @@ export function formatDateTime(iso: string | null): string {
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return '—';
   return formatDateTimeIntl(t, undefined, SHORT_DATE);
+}
+
+/** Date ISO → `29 nov. 2026`, ou un tiret si la date manque. */
+export function formatDay(iso: string | null): string {
+  if (!iso) return '—';
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return '—';
+  return formatDate(t);
 }

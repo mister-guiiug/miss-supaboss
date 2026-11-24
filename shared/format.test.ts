@@ -1,5 +1,5 @@
 /**
- * Tests d'USAGE des trois adaptateurs restés locaux.
+ * Tests d'USAGE des adaptateurs restés locaux.
  *
  * Les tests de `formatBytes`, `formatCount` et `formatUsage` ont disparu :
  * ces fonctions sont désormais celles du socle, qui les éprouve chez lui.
@@ -11,7 +11,12 @@ import {
   getDefaultLocale,
   setDefaultLocale,
 } from '@mister-guiiug/dev-pwa-config/format';
-import { formatDateTime, formatPercent, formatRelative } from './format.ts';
+import {
+  formatDateTime,
+  formatDay,
+  formatPercent,
+  formatRelative,
+} from './format.ts';
 
 // La locale par défaut du socle est un état de module : la reposer évite qu'un
 // test en contamine un autre.
@@ -80,5 +85,21 @@ describe('formatDateTime', () => {
   it('rend un tiret quand la date manque ou est illisible', () => {
     expect(formatDateTime(null)).toBe('—');
     expect(formatDateTime('pas une date')).toBe('—');
+  });
+});
+
+describe('formatDay', () => {
+  const noon = '2026-11-29T12:00:00Z';
+
+  it('rend le jour seul, sans l’heure, dans la langue courante', () => {
+    setDefaultLocale('fr-FR');
+    expect(norm(formatDay(noon))).toBe('29 nov. 2026');
+    setDefaultLocale('en-GB');
+    expect(norm(formatDay(noon))).toBe('29 Nov 2026');
+  });
+
+  it('rend un tiret quand la date manque ou est illisible', () => {
+    expect(formatDay(null)).toBe('—');
+    expect(formatDay('pas une date')).toBe('—');
   });
 });

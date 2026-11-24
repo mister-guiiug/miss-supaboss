@@ -88,3 +88,75 @@ test('@critical les quotas affichent egress non disponible', async ({
     page.getByText(/non disponible via l'API/i).first()
   ).toBeVisible();
 });
+
+// « Sondage (archive) » est semé à cinq jours de la fin de sa fenêtre de
+// restauration (mockApi) : J-5, quelle que soit la date du jour.
+test('@critical la vue d’ensemble montre toute la flotte et ce qui presse', async ({
+  page,
+}) => {
+  await page.goto('/#/projects');
+  await page.getByRole('button', { name: 'Tous', exact: true }).click();
+  await expect(
+    page.getByRole('region', { name: "Vue d'ensemble de la flotte" })
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: /Lab POC interne · 2\/2 actifs/ })
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: /Démos clients · 1\/2 actifs/ })
+  ).toBeVisible();
+  // Les deux comptes et les deux statuts sur le même écran.
+  for (const name of ['CRM POC', 'Hackathon 2026', 'Pitch Retail']) {
+    await expect(page.getByText(name, { exact: true })).toBeVisible();
+  }
+  await expect(page.getByText(/restaurable jusqu'au .* · J-5$/)).toBeVisible();
+});
+
+test('@critical la recherche traverse les comptes', async ({ page }) => {
+  await page.goto('/#/projects');
+  // Le compte sélectionné par défaut est « Lab POC interne » ; « Pitch
+  // Retail » appartient à « Démos clients ».
+  await page
+    .getByRole('searchbox', { name: 'Rechercher un projet' })
+    .fill('Pitch');
+  await expect(page.getByText('Recherche dans tous les comptes')).toBeVisible();
+  await expect(page.getByText('Pitch Retail', { exact: true })).toBeVisible();
+});
+
+test('@critical une étiquette filtre la liste, et le filtre reste visible', async ({
+  page,
+}) => {
+  await page.goto('/#/projects');
+  await page.getByRole('button', { name: 'Tous', exact: true }).click();
+  await page.getByRole('button', { name: 'Afficher' }).click();
+  await page
+    .getByRole('group', { name: 'Étiquettes' })
+    .getByRole('button', { name: 'archive', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Afficher' }).click();
+  await expect(
+    page.getByRole('button', { name: 'Retirer le filtre « archive »' })
+  ).toBeVisible();
+  await expect(
+    page.getByText('Sondage (archive)', { exact: true })
+  ).toBeVisible();
+  await expect(page.getByText('Hackathon 2026', { exact: true })).toBeHidden();
+});
+
+test('@critical l’accueil montre les places libres et les échéances', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const slots = page.getByRole('region', { name: 'Places actives' });
+  await expect(
+    slots.getByRole('link', { name: /Lab POC interne.*complet/ })
+  ).toBeVisible();
+  await expect(
+    slots.getByRole('link', { name: /Démos clients.*1 place libre/ })
+  ).toBeVisible();
+  const restore = page.getByRole('region', {
+    name: "À restaurer avant l'échéance",
+  });
+  await expect(restore.getByText('Sondage (archive)')).toBeVisible();
+  await expect(restore.getByText(/J-5/)).toBeVisible();
+});

@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, SearchX } from 'lucide-react';
-import { useFleetStore } from '../../store/useFleetStore.ts';
+import { Search, SearchX, X } from 'lucide-react';
+import {
+  allProjects,
+  metricsOf,
+  useFleetStore,
+} from '../../store/useFleetStore.ts';
 import {
   countsTowardActiveLimit,
   isPausable,
@@ -12,6 +16,13 @@ import {
   activeProjects,
 } from '../../../shared/guards.ts';
 import type { ProjectDto } from '../../../shared/contracts.ts';
+import {
+  accountSummary,
+  collectTags,
+  fleetTotals,
+  sortByUrgency,
+  tagLabel,
+} from '../../../shared/overview.ts';
 import { ProjectCard } from '../../shared/components/ProjectCard.tsx';
 import { DemoModeBanner } from '../../shared/components/DemoModeBanner.tsx';
 import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
@@ -22,8 +33,12 @@ import { ApiError } from '../../api/index.ts';
 import { ConfirmDialog } from '@mister-guiiug/dev-pwa-config/react/confirm-dialog';
 import { useActionGuard } from '../../shared/hooks/useActionGuard.ts';
 
-type Segment = 'active' | 'paused';
-type Sort = 'name' | 'activity';
+/**
+ * `all` est la vue d'ensemble : tous les comptes, tous les statuts, groupés par
+ * compte. Les deux autres segments gardent leur comportement d'avant.
+ */
+type Segment = 'all' | 'active' | 'paused';
+type Sort = 'urgency' | 'activity' | 'name';
 
 const FILTERS_KEY = 'miss-supaboss-projects-filters-v1';
 
@@ -32,12 +47,14 @@ function loadFilters(): {
   sort: Sort;
   favorites: boolean;
   accountId: string;
+  tag: string;
 } {
   const fallback = {
     segment: 'active' as const,
     sort: 'activity' as const,
     favorites: false,
     accountId: '',
+    tag: '',
   };
   try {
     const raw = sessionStorage.getItem(FILTERS_KEY);
@@ -47,17 +64,24 @@ function loadFilters(): {
       sort?: string;
       favorites?: boolean;
       accountId?: string;
+      tag?: string;
       filter?: string;
     };
     const segment: Segment =
-      parsed.segment === 'paused' || parsed.filter === 'paused'
-        ? 'paused'
-        : 'active';
+      parsed.segment === 'all'
+        ? 'all'
+        : parsed.segment === 'paused' || parsed.filter === 'paused'
+          ? 'paused'
+          : 'active';
     return {
       segment,
-      sort: parsed.sort === 'name' ? 'name' : 'activity',
+      sort:
+        parsed.sort === 'name' || parsed.sort === 'urgency'
+          ? parsed.sort
+          : 'activity',
       favorites: Boolean(parsed.favorites) || parsed.filter === 'favorite',
       accountId: parsed.accountId ?? '',
+      tag: typeof parsed.tag === 'string' ? parsed.tag : '',
     };
   } catch {
     return fallback;
@@ -67,6 +91,8 @@ function loadFilters(): {
 export function ProjectsScreen() {
   const { t } = useI18n();
   const fleet = useFleetStore(s => s.fleet);
+  const metrics = useFleetStore(s => s.metrics);
+  const thresholds = useFleetStore(s => s.settings.thresholds);
   const loading = useFleetStore(s => s.loading);
   const pause = useFleetStore(s => s.pause);
   const restore = useFleetStore(s => s.restore);
@@ -76,6 +102,7 @@ export function ProjectsScreen() {
   const [sort, setSort] = useState<Sort>(initial.sort);
   const [favorites, setFavorites] = useState(initial.favorites);
   const [accountId, setAccountId] = useState(initial.accountId);
+  const [tag, setTag] = useState(initial.tag);
   const [displayOpen, setDisplayOpen] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
@@ -98,12 +125,12 @@ export function ProjectsScreen() {
     try {
       sessionStorage.setItem(
         FILTERS_KEY,
-        JSON.stringify({ segment, sort, favorites, accountId })
+        JSON.stringify({ segment, sort, favorites, accountId, tag })
       );
     } catch {
       /* sessionStorage indisponible */
     }
-  }, [segment, sort, favorites, accountId]);
+  }, [segment, sort, favorites, accountId, tag]);
 
   const accountChoices = useMemo(
     () =>
@@ -119,58 +146,100 @@ export function ProjectsScreen() {
       : (accountChoices[0]?.account.id ?? '')
     : (accountChoices[0]?.account.id ?? '');
 
+  const searching = query.trim() !== '';
+  const overview = segment === 'all';
+  // Les pastilles de compte ne filtrent que les deux listes, et hors
+  // recherche : chercher « RAG » depuis le mauvais compte répondait « aucun
+  // projet » alors que le projet existait.
+  const scoped = severalAccounts && !overview && !searching;
+
+  const allTags = useMemo(() => collectTags(allProjects(fleet)), [fleet]);
+  const totals = useMemo(() => (fleet ? fleetTotals(fleet) : null), [fleet]);
+
   const groups = useMemo(() => {
     if (!fleet) return [];
     const q = query.trim().toLowerCase();
-    const source = severalAccounts
+    const now = new Date();
+    const keep = (p: ProjectDto) => {
+      if (q) {
+        const haystack =
+          `${p.name} ${p.ref} ${p.organizationName} ${p.organizationSlug} ${p.meta.tags.map(tagLabel).join(' ')}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      if (favorites && !(p.meta.favorite || p.meta.demoFrequent)) {
+        return false;
+      }
+      if (tag && !p.meta.tags.includes(tag)) return false;
+      if (overview) return true;
+      const paused = statusGroup(p.status) === 'paused';
+      return segment === 'paused' ? paused : !paused;
+    };
+    const order = (list: ProjectDto[]) => {
+      if (sort === 'urgency') {
+        return sortByUrgency(
+          list,
+          p => metricsOf(metrics, p.accountId, p.ref),
+          thresholds,
+          now
+        );
+      }
+      if (sort === 'name') {
+        return [...list].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+      }
+      const stamp = (p: ProjectDto) =>
+        statusGroup(p.status) === 'paused'
+          ? (p.meta.pausedAt ?? p.meta.lastSeenActiveAt ?? '')
+          : (p.meta.lastSeenActiveAt ?? '');
+      return [...list].sort((a, b) => stamp(b).localeCompare(stamp(a)));
+    };
+
+    // Vue d'ensemble : un bloc par compte, son occupation en tête.
+    if (overview) {
+      return fleet.accounts
+        .map(af => ({
+          key: af.account.id,
+          account: af.account,
+          summary: accountSummary(af),
+          title: af.account.alias,
+          slug: '',
+          projects: order(af.projects.filter(keep)),
+        }))
+        .filter(g => g.projects.length > 0);
+    }
+
+    const source = scoped
       ? fleet.accounts.filter(af => af.account.id === currentAccountId)
       : fleet.accounts;
-    const projects = source
-      .flatMap(af => af.projects)
-      .filter(p => {
-        if (q) {
-          const haystack =
-            `${p.name} ${p.ref} ${p.organizationName} ${p.organizationSlug} ${p.meta.tags.join(' ')}`.toLowerCase();
-          if (!haystack.includes(q)) return false;
-        }
-        if (favorites && !(p.meta.favorite || p.meta.demoFrequent)) {
-          return false;
-        }
-        const paused = statusGroup(p.status) === 'paused';
-        return segment === 'paused' ? paused : !paused;
-      })
-      .sort((a, b) => {
-        if (sort === 'name') return a.name.localeCompare(b.name, 'fr');
-        const stamp = (p: ProjectDto) =>
-          segment === 'paused'
-            ? (p.meta.pausedAt ?? p.meta.lastSeenActiveAt ?? '')
-            : (p.meta.lastSeenActiveAt ?? '');
-        return stamp(b).localeCompare(stamp(a));
-      });
+    const projects = order(source.flatMap(af => af.projects).filter(keep));
     const byOrg = new Map<
       string,
-      { slug: string; name: string; projects: ProjectDto[] }
+      { key: string; title: string; slug: string; projects: ProjectDto[] }
     >();
     for (const p of projects) {
       const key = p.organizationSlug || '_';
       const bucket = byOrg.get(key) ?? {
+        key,
+        title: p.organizationName || p.organizationSlug,
         slug: p.organizationSlug,
-        name: p.organizationName || p.organizationSlug,
         projects: [],
       };
       bucket.projects.push(p);
       byOrg.set(key, bucket);
     }
-    return [...byOrg.values()].sort((a, b) =>
-      a.name.localeCompare(b.name, 'fr')
-    );
+    return [...byOrg.values()]
+      .sort((a, b) => a.title.localeCompare(b.title, 'fr'))
+      .map(g => ({ ...g, account: null, summary: null }));
   }, [
     fleet,
+    metrics,
+    thresholds,
     query,
     segment,
     sort,
     favorites,
-    severalAccounts,
+    tag,
+    overview,
+    scoped,
     currentAccountId,
   ]);
 
@@ -273,8 +342,9 @@ export function ProjectsScreen() {
   if (!fleet && loading) return <ListSkeleton count={4} />;
 
   const total = groups.reduce((n, g) => n + g.projects.length, 0);
-  const showOrgTitles = groups.length > 1;
-  const displayAdjusted = sort !== 'activity' || favorites || selectMode;
+  const showGroupTitles = overview || groups.length > 1;
+  const displayAdjusted =
+    sort !== 'activity' || favorites || selectMode || tag !== '';
 
   return (
     <div className="space-y-4">
@@ -302,7 +372,7 @@ export function ProjectsScreen() {
             role="group"
             aria-label={t('projects.filtersAria')}
           >
-            {(['active', 'paused'] as const).map(id => (
+            {(['all', 'active', 'paused'] as const).map(id => (
               <button
                 key={id}
                 type="button"
@@ -338,6 +408,18 @@ export function ProjectsScreen() {
             role="group"
             aria-label={t('projects.sortAria')}
           >
+            <button
+              type="button"
+              aria-pressed={sort === 'urgency'}
+              onClick={() => setSort('urgency')}
+              className={`flex w-full items-center rounded-lg px-2 py-2 text-left text-sm ${
+                sort === 'urgency'
+                  ? 'font-semibold text-primary'
+                  : 'text-[var(--sb-text-soft)]'
+              }`}
+            >
+              {t('projects.sortUrgency')}
+            </button>
             <button
               type="button"
               aria-pressed={sort === 'activity'}
@@ -389,11 +471,57 @@ export function ProjectsScreen() {
             >
               {t('projects.bulkToggle')}
             </button>
+            {allTags.length > 0 && (
+              <div
+                className="border-t border-[var(--sb-border)] px-2 pt-2 pb-1"
+                role="group"
+                aria-label={t('projects.tagsTitle')}
+              >
+                <p className="mb-1.5 text-xs text-[var(--sb-text-soft)]">
+                  {t('projects.tagsTitle')}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {allTags.map(value => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={tag === value}
+                      onClick={() => setTag(tag === value ? '' : value)}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+                        tag === value
+                          ? 'border-primary bg-primary/15 text-primary'
+                          : 'border-[var(--sb-border)] text-[var(--sb-text-soft)]'
+                      }`}
+                    >
+                      {tagLabel(value)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
+        )}
+        {/* Le filtre reste visible menu fermé : une liste amputée sans qu'on
+            sache pourquoi passe pour une flotte incomplète. */}
+        {tag !== '' && (
+          <button
+            type="button"
+            onClick={() => setTag('')}
+            aria-label={t('projects.tagClear', { tag: tagLabel(tag) })}
+            className="inline-flex items-center gap-1 rounded-full border border-primary bg-primary/15 px-3 py-1 text-xs font-medium text-primary"
+          >
+            {t('projects.tagActive', { tag: tagLabel(tag) })}
+            <X size={12} aria-hidden="true" />
+          </button>
+        )}
+        {searching && severalAccounts && !overview && (
+          <p className="px-1 text-xs text-[var(--sb-text-soft)]">
+            {t('projects.searchAllAccounts')}
+          </p>
         )}
       </div>
 
-      {severalAccounts && (
+      {scoped && (
         <div
           className="flex gap-1.5 overflow-x-auto"
           role="group"
@@ -421,6 +549,40 @@ export function ProjectsScreen() {
             </button>
           ))}
         </div>
+      )}
+
+      {/* Les compteurs portent sur TOUTE la flotte, filtres ou non : c'est ce
+          qui dit d'un coup d'œil où l'on en est. */}
+      {overview && totals && (
+        <section aria-label={t('projects.overviewAria')} className="card p-3">
+          <dl className="grid grid-cols-4 gap-2 text-center">
+            {(
+              [
+                ['overviewProjects', String(totals.projects), false],
+                ['overviewActive', `${totals.active}/${totals.slots}`, false],
+                ['overviewPaused', String(totals.paused), false],
+                [
+                  'overviewUrgent',
+                  String(totals.restoreUrgent),
+                  totals.restoreUrgent > 0,
+                ],
+              ] as const
+            ).map(([key, value, alarm]) => (
+              <div key={key} className="flex flex-col-reverse gap-0.5">
+                <dt className="text-[0.7rem] leading-tight text-[var(--sb-text-soft)]">
+                  {t(`projects.${key}`)}
+                </dt>
+                <dd
+                  className={`text-lg font-semibold tabular-nums ${
+                    alarm ? 'text-[var(--sb-critical)]' : ''
+                  }`}
+                >
+                  {value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
       )}
 
       {selectMode && selected.size > 0 && (
@@ -455,20 +617,41 @@ export function ProjectsScreen() {
         />
       ) : (
         <div className="space-y-4">
-          {groups.map(org => (
-            <div key={org.slug || org.name}>
-              {showOrgTitles && (
-                <h2 className="mb-1.5 px-1 text-xs font-medium text-[var(--sb-text-soft)]">
-                  {org.name}
-                  {org.slug ? (
-                    <span className="ml-1.5 font-mono opacity-70">
-                      {org.slug}
+          {groups.map(group => (
+            <div key={group.key}>
+              {showGroupTitles &&
+                (group.account && group.summary ? (
+                  <h2 className="mb-1.5 flex items-center gap-1.5 px-1 text-xs font-medium text-[var(--sb-text-soft)]">
+                    <span
+                      aria-hidden="true"
+                      className="size-2 shrink-0 rounded-full"
+                      style={{ background: group.account.color }}
+                    />
+                    <span className="truncate">
+                      {group.account.alias}
+                      {!group.account.enabled && t('projects.disabledSuffix')}
                     </span>
-                  ) : null}
-                </h2>
-              )}
+                    <span className="sr-only"> · </span>
+                    <span className="ml-auto shrink-0 font-normal">
+                      {t('projects.accountSummary', {
+                        active: group.summary.active,
+                        limit: group.summary.limit,
+                        paused: group.summary.paused,
+                      })}
+                    </span>
+                  </h2>
+                ) : (
+                  <h2 className="mb-1.5 px-1 text-xs font-medium text-[var(--sb-text-soft)]">
+                    {group.title}
+                    {group.slug ? (
+                      <span className="ml-1.5 font-mono opacity-70">
+                        {group.slug}
+                      </span>
+                    ) : null}
+                  </h2>
+                ))}
               <div className="space-y-2">
-                {org.projects.map(p => {
+                {group.projects.map(p => {
                   const account = fleet?.accounts.find(
                     a => a.account.id === p.accountId
                   );
@@ -476,6 +659,8 @@ export function ProjectsScreen() {
                     <ProjectCard
                       key={`${p.accountId}:${p.ref}`}
                       project={p}
+                      metrics={metricsOf(metrics, p.accountId, p.ref)}
+                      thresholds={thresholds}
                       selectMode={selectMode}
                       selected={selected.has(keyOf(p))}
                       onToggleSelect={() => toggleSelect(p)}
