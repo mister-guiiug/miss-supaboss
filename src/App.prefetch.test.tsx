@@ -10,7 +10,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
  * Le mécanisme est celui du socle (`useIdlePrefetch`), et c'est chez lui qu'il
  * est éprouvé : une exécution par chargeur, rejets avalés, garde `saveData` et
  * 2g, délai minuté là où `requestIdleCallback` manque. Ce qui se joue ici est
- * le BRANCHEMENT : que `Shell` lui confie bien les trois morceaux, en UNE
+ * le BRANCHEMENT : que `Shell` lui confie bien les quatre morceaux, en UNE
  * demande, et pas un chargeur neuf à chaque rendu — le socle ne reconnaît un
  * chargeur qu'à son identité.
  */
@@ -19,7 +19,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 const charges: string[] = [];
 
 /**
- * Les trois modules que le préchargement doit tirer, remplacés par des doubles
+ * Les quatre modules que le préchargement doit tirer, remplacés par des doubles
  * qui NOTENT leur évaluation. Ni `Shell` ni ce qu'elle rend ne les importe
  * statiquement : s'ils s'évaluent, c'est que le préchargement les a demandés.
  */
@@ -27,6 +27,10 @@ const DOUBLES: Record<string, () => Record<string, unknown>> = {
   './features/accounts/AccountsScreen.tsx': () => {
     charges.push('accounts');
     return { AccountsScreen: () => null };
+  },
+  './features/projects/ProjectsScreen.tsx': () => {
+    charges.push('projects');
+    return { ProjectsScreen: () => null };
   },
   './features/quotas/QuotasScreen.tsx': () => {
     charges.push('quotas');
@@ -38,7 +42,7 @@ const DOUBLES: Record<string, () => Record<string, unknown>> = {
   },
 };
 
-const LES_TROIS = ['accounts', 'quotas', 'settings'];
+const LES_QUATRE = ['accounts', 'projects', 'quotas', 'settings'];
 
 /**
  * jsdom n'a pas `requestIdleCallback` : on le fournit, et c'est le test qui
@@ -101,19 +105,19 @@ afterEach(() => {
 });
 
 describe('les écrans du menu se préchargent par le socle', () => {
-  it("demande les trois morceaux à l'inactivité, en une fois, et pas avant", async () => {
+  it("demande les quatre morceaux à l'inactivité, en une fois, et pas avant", async () => {
     const repos = tenirLeRepos();
     await monterLaCoquille();
 
     // Au montage, rien : tout précharger au démarrage annulerait le découpage.
     expect(charges).toEqual([]);
-    // UNE demande de repos, pas trois : un seul chargeur composé.
+    // UNE demande de repos, pas quatre : un seul chargeur composé.
     expect(repos.rappels).toHaveLength(1);
 
     repos.declencher();
 
     await vi.waitFor(() => {
-      expect([...charges].sort()).toEqual(LES_TROIS);
+      expect([...charges].sort()).toEqual(LES_QUATRE);
     });
   });
 
@@ -132,7 +136,7 @@ describe('les écrans du menu se préchargent par le socle', () => {
 
     // LE TÉMOIN. Une absence ne prouve rien tant qu'on n'a pas vu la présence
     // dans les mêmes conditions : la contrainte levée, une nouvelle visite
-    // charge bien les trois. Sans lui, des doubles qui auraient cessé de
+    // charge bien les quatre. Sans lui, des doubles qui auraient cessé de
     // noter feraient passer ce test à vide.
     cleanup();
     oublierLaConnexion();
@@ -141,7 +145,7 @@ describe('les écrans du menu se préchargent par le socle', () => {
     visiteSuivante.declencher();
 
     await vi.waitFor(() => {
-      expect([...charges].sort()).toEqual(LES_TROIS);
+      expect([...charges].sort()).toEqual(LES_QUATRE);
     });
   });
 });
