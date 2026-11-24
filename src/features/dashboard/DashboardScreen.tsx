@@ -19,7 +19,8 @@ import {
   type QuotaLevel,
 } from '../../../shared/quotas.ts';
 import { formatUsage } from '@mister-guiiug/dev-pwa-config/format';
-import { formatRelative } from '../../../shared/format.ts';
+import { formatDay, formatRelative } from '../../../shared/format.ts';
+import { accountSummary, restoreWatchlist } from '../../../shared/overview.ts';
 import { EmptyState } from '@mister-guiiug/dev-pwa-config/react/empty-state';
 import { ListSkeleton } from '../../shared/components/Skeleton.tsx';
 import { StatusBadge } from '../../shared/components/StatusBadge.tsx';
@@ -93,6 +94,20 @@ export function DashboardScreen() {
     [projects]
   );
 
+  // La contrainte centrale du plan Free, deux projets actifs par compte, ne se
+  // lisait que dans l'écran Comptes : c'est pourtant ce qui dit où l'on peut
+  // restaurer.
+  const slots = useMemo(
+    () =>
+      (fleet?.accounts ?? [])
+        .filter(af => af.account.enabled)
+        .map(af => ({ account: af.account, summary: accountSummary(af) })),
+    [fleet]
+  );
+  // Les alertes J-7 / J-1 n'existent qu'avec le serveur : en démo et en
+  // local-first, c'est ici que l'échéance doit se voir.
+  const watch = useMemo(() => restoreWatchlist(projects), [projects]);
+
   const alerts = useMemo(() => {
     const out: {
       key: string;
@@ -140,6 +155,49 @@ export function DashboardScreen() {
   return (
     <div className="space-y-4">
       <p className="px-1 text-xs text-[var(--sb-text-soft)]">{t(modeKey)}</p>
+      {slots.length > 0 && (
+        <section aria-label={t('dashboard.slotsTitle')} className="space-y-2">
+          <h2 className="px-1 text-sm font-semibold text-[var(--sb-text-soft)]">
+            {t('dashboard.slotsTitle')}
+          </h2>
+          <ul className="flex flex-wrap gap-2">
+            {slots.map(({ account, summary }) => (
+              <li key={account.id}>
+                <Link
+                  to="/projects"
+                  className="card inline-flex items-center gap-2 px-3 py-2 text-sm"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="size-2 shrink-0 rounded-full"
+                    style={{ background: account.color }}
+                  />
+                  <span className="font-semibold">{account.alias}</span>
+                  <span className="tabular-nums">
+                    {t('dashboard.activeSlots', {
+                      active: summary.active,
+                      limit: summary.limit,
+                    })}
+                  </span>
+                  <span
+                    className={
+                      summary.free === 0
+                        ? 'text-[var(--sb-text-soft)]'
+                        : 'font-medium'
+                    }
+                  >
+                    {summary.free === 0
+                      ? t('dashboard.slotFull')
+                      : summary.free === 1
+                        ? t('dashboard.slotFreeOne')
+                        : t('dashboard.slotFreeMany', { free: summary.free })}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {expiringPats.length > 0 && (
         <section aria-label={t('dashboard.patExpiryAria')} className="card p-4">
           <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--sb-warn)]">
@@ -179,6 +237,36 @@ export function DashboardScreen() {
             >
               <span className="min-w-0 truncate font-semibold">{p.name}</span>
               <StatusBadge status={p.status} />
+            </Link>
+          ))}
+        </section>
+      )}
+      {watch.length > 0 && (
+        <section aria-label={t('dashboard.restoreTitle')} className="space-y-2">
+          <h2 className="px-1 text-sm font-semibold text-[var(--sb-text-soft)]">
+            {t('dashboard.restoreTitle')}
+          </h2>
+          {watch.map(({ project: p, countdown }) => (
+            <Link
+              key={`restore-${p.accountId}/${p.ref}`}
+              to={`/projects/${p.accountId}/${p.ref}`}
+              className="card block px-3 py-2.5"
+            >
+              <span className="block truncate font-semibold">{p.name}</span>
+              <span
+                className={`block truncate text-xs ${
+                  countdown.urgency === 'urgent'
+                    ? 'font-medium text-[var(--sb-critical)]'
+                    : 'text-[var(--sb-warn)]'
+                }`}
+              >
+                {t('projectCard.restoreUntil', {
+                  date: formatDay(countdown.deadline),
+                  days: countdown.days,
+                })}
+                {fleet.accounts.length > 1 &&
+                  ` · ${fleet.accounts.find(a => a.account.id === p.accountId)?.account.alias ?? ''}`}
+              </span>
             </Link>
           ))}
         </section>
