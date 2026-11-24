@@ -42,7 +42,6 @@ import { UnlockScreen } from './features/auth/UnlockScreen.tsx';
 import { OfflineScreen } from './features/offline/OfflineScreen.tsx';
 import { OnboardingScreen } from './features/onboarding/OnboardingScreen.tsx';
 import { DashboardScreen } from './features/dashboard/DashboardScreen.tsx';
-import { ProjectsScreen } from './features/projects/ProjectsScreen.tsx';
 import { getQueryClient } from './shared/queries/client.ts';
 import { translate, useI18n } from './i18n/index.ts';
 import { SentryConsent } from './observability/SentryConsent.tsx';
@@ -65,21 +64,30 @@ const PrepareDemoScreen = lazy(() =>
 // spécificateur, sinon le bundler émet deux morceaux et le préchargement ne
 // sert plus à rien.
 const chargeAccounts = () => import('./features/accounts/AccountsScreen.tsx');
+const chargeProjects = () => import('./features/projects/ProjectsScreen.tsx');
 const chargeQuotas = () => import('./features/quotas/QuotasScreen.tsx');
 const chargeSettings = () => import('./features/settings/SettingsScreen.tsx');
 
 /**
- * Les trois écrans PARESSEUX qu'une entrée de la barre basse peut atteindre —
- * et eux seuls. L'accueil et les projets sont déjà dans le bundle d'entrée.
+ * Les quatre écrans PARESSEUX qu'une entrée de la barre basse peut atteindre —
+ * et eux seuls. L'accueil est le seul dans le bundle d'entrée : c'est l'écran
+ * qu'on ouvre. Projets y était aussi jusqu'au 25/11/2026 ; la vue d'ensemble
+ * (#189) l'avait fait grossir de 2,7 kB, payés au démarrage par tout le monde,
+ * y compris qui n'ouvre que l'accueil.
  * `ProjectDetailScreen`, `PrepareDemoScreen` et `HistoryScreen` restent dehors :
  * on y arrive depuis une liste ou depuis les Réglages, pas d'un clic dans le
  * menu — les précharger ferait payer à tout le monde ce que presque personne
  * n'ouvre.
  */
-const CHARGEURS_DU_MENU = [chargeAccounts, chargeQuotas, chargeSettings];
+const CHARGEURS_DU_MENU = [
+  chargeAccounts,
+  chargeProjects,
+  chargeQuotas,
+  chargeSettings,
+];
 
 /**
- * UN SEUL chargeur pour les trois, CONSTANTE DE MODULE : le socle ne lance un
+ * UN SEUL chargeur pour les quatre, CONSTANTE DE MODULE : le socle ne lance un
  * chargeur qu'une fois et le reconnaît à son IDENTITÉ — écrit en ligne dans
  * `Shell`, il serait neuf à chaque montage, et rien ne dédoublonnerait plus.
  * `allSettled`, pas `all` : un morceau qui manque n'empêche pas les autres.
@@ -89,6 +97,9 @@ const chargeLesEcransDuMenu = () =>
 
 const AccountsScreen = lazy(() =>
   chargeAccounts().then(m => ({ default: m.AccountsScreen }))
+);
+const ProjectsScreen = lazy(() =>
+  chargeProjects().then(m => ({ default: m.ProjectsScreen }))
 );
 const QuotasScreen = lazy(() =>
   chargeQuotas().then(m => ({ default: m.QuotasScreen }))
